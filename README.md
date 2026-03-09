@@ -1,14 +1,8 @@
-# transmitter
+# Transmitter
 
-> Web UI for Transmission + Telegram Bot
-
-Modern, lightweight alternative to Transmission's stock UI. Runs with zero external dependencies.
-
----
+Transmitter is a modern, lightweight alternative to Transmission's stock UI. Runs with zero external dependencies. Also Telegram bot integration.
 
 ## Features
-
-### Web UI
 
 - **Torrent list** — sortable table: name, status, progress, size, speed, added date, ETA
 - **Status filters** — All, Downloading, Seeding, Paused, Done
@@ -17,37 +11,17 @@ Modern, lightweight alternative to Transmission's stock UI. Runs with zero exter
 - **Management** — pause, resume, delete torrents
 - **Auto-refresh** — live updates every 3–5 seconds
 
-### Telegram Bot
-
-- `/start` — greeting and authorization
-- `/add <magnet>` — add torrent by magnet link
-- `.torrent` file upload — add torrent file directly
-- `/status` — view active torrents and speeds
-- `/help` — command reference
-
 ## Getting Started
 
-### Prerequisites
+```bash
+cp .env.example .env
 
-- Docker & Docker Compose
-- Transmission daemon running at `localhost:9091`
-- Telegram bot token (for bot mode, optional)
+# edit .env for your needs
 
-### Local Setup
+docker-compose up -d
+```
 
-1. Clone and copy config:
-   ```bash
-   cp .env.example .env
-   ```
-
-2. Edit `.env` with your Transmission credentials and Telegram token (if using bot)
-
-3. Start services:
-   ```bash
-   docker-compose up -d
-   ```
-
-4. Open browser: `http://localhost:8080`
+Open browser: `http://localhost:8080`
 
 ### Configuration
 
