@@ -1,24 +1,52 @@
-# Stage 1: Build frontend
-FROM node:22-alpine AS frontend
-WORKDIR /app
+ARG BUILDPLATFORM=linux/amd64
+
+FROM --platform=$BUILDPLATFORM node:22-alpine3.23 AS frontend-build
+
+WORKDIR /build
+
 COPY frontend/package.json frontend/yarn.lock ./
+
 RUN yarn install --frozen-lockfile
+
 COPY frontend/ ./
+
 RUN yarn build
 
-# Stage 2: Build Go binary with embedded frontend
-FROM golang:1.26-alpine AS builder
-WORKDIR /app
-COPY go.mod go.sum ./
-RUN go mod download
-COPY . .
-COPY --from=frontend /app/build ./static/dist
-RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /transmitter ./cmd/transmitter
+FROM golang:1.26-alpine3.23 AS app-build
 
-# Stage 3: Minimal runtime image
-FROM alpine:3.23.2
-RUN apk add --no-cache ca-certificates tzdata
-COPY --from=builder /transmitter /usr/local/bin/transmitter
-RUN addgroup -g 10001 -S app && adduser -u 10001 -S -G app app
-USER app
-ENTRYPOINT ["/usr/local/bin/transmitter"]
+WORKDIR /build
+
+RUN apk --no-cache add upx
+
+COPY go.mod go.sum ./
+
+RUN go mod download
+
+COPY . /build
+
+COPY --from=frontend-build /build/build/ /build/static/dist/
+
+RUN CGO_ENABLED=0 go build -ldflags="-w -s" -o transmitter ./cmd/transmitter && \
+    upx -9 --lzma transmitter && \
+    chmod +x transmitter
+
+FROM alpine:3.23.3
+
+WORKDIR /app
+
+RUN apk --no-cache add ca-certificates tzdata && \
+    addgroup -g 10001 transmitter && \
+    adduser -h /app -D -u 10001 -G transmitter transmitter && \
+    chmod 700 /app && \
+    chown -R transmitter: /app
+
+COPY --from=app-build /build/transmitter /app/transmitter
+
+RUN chown -R transmitter: /app && chmod +x /app/transmitter
+
+USER transmitter
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget -q -O- http://localhost:8080/api/health || exit 1
+
+CMD ["/app/transmitter"]
