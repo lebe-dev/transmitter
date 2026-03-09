@@ -252,18 +252,6 @@
 <!-- ── Layout ──────────────────────────────────────────────────────────────── -->
 <div class="min-h-screen bg-background text-foreground flex flex-col">
 
-	<!-- Header -->
-	<header class="border-b border-border px-4 py-3 flex items-center justify-between gap-4">
-		<h1 class="text-lg font-semibold tracking-tight">Transmitter</h1>
-		<Button variant="ghost" size="icon" onclick={toggleMode} aria-label="Toggle theme">
-			{#if mode.current === 'dark'}
-				<SunIcon class="size-4" />
-			{:else}
-				<MoonIcon class="size-4" />
-			{/if}
-		</Button>
-	</header>
-
 	<!-- Error banner -->
 	{#if torrentStore.error}
 		<div class="bg-destructive/10 border-b border-destructive/20 px-4 py-2 text-sm text-destructive">
@@ -273,6 +261,11 @@
 
 	<!-- Toolbar -->
 	<div class="border-b border-border px-4 py-2 flex flex-wrap items-center gap-3">
+		<!-- Logo -->
+		<div class="size-7 rounded-md bg-primary flex items-center justify-center flex-shrink-0">
+			<span class="text-primary-foreground font-bold text-sm leading-none">T</span>
+		</div>
+
 		<!-- Search -->
 		<input
 			type="search"
@@ -296,7 +289,14 @@
 			{/each}
 		</div>
 
-		<div class="ml-auto">
+		<div class="ml-auto flex items-center gap-2">
+			<Button variant="ghost" size="icon" onclick={toggleMode} aria-label="Toggle theme">
+				{#if mode.current === 'dark'}
+					<SunIcon class="size-4" />
+				{:else}
+					<MoonIcon class="size-4" />
+				{/if}
+			</Button>
 			<Button
 				size="sm"
 				onclick={() => {
