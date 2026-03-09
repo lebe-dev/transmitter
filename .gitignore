@@ -12,3 +12,6 @@
 *.crt
 *.pem
 *.key
+/dev/bandwidth-groups.json
+/dev/queue.json
+/dev/stats.json
