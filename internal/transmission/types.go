@@ -69,6 +69,30 @@ type TorrentActionArgs struct {
 	DeleteLocalData bool    `json:"delete-local-data,omitempty"`
 }
 
+// TorrentSetArgs are arguments for torrent-set.
+type TorrentSetArgs struct {
+	IDs          []int64 `json:"ids"`
+	PriorityHigh []int   `json:"priority-high,omitempty"`
+	PriorityLow  []int   `json:"priority-low,omitempty"`
+}
+
+// TorrentFile holds file info returned by torrent-get with "files" field.
+type TorrentFile struct {
+	Name   string `json:"name"`
+	Length int64  `json:"length"`
+}
+
+// TorrentWithFiles holds torrent info with files list.
+type TorrentWithFiles struct {
+	ID    int64         `json:"id"`
+	Files []TorrentFile `json:"files"`
+}
+
+// TorrentWithFilesResult holds the result of torrent-get with files.
+type TorrentWithFilesResult struct {
+	Torrents []TorrentWithFiles `json:"torrents"`
+}
+
 // TorrentFields are the fields requested from Transmission for the torrent list.
 var TorrentFields = []string{
 	"id", "name", "status", "percentDone", "totalSize",

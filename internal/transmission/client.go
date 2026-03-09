@@ -284,6 +284,78 @@ func (c *Client) torrentAction(ctx context.Context, method string, ids []int64) 
 	return nil
 }
 
+// SetHighPriorityFiles sets the first `count` files of a torrent to high priority
+// and the remaining files to low priority.
+func (c *Client) SetHighPriorityFiles(ctx context.Context, torrentID int64, count int) error {
+	// Get file list to determine count
+	getArgs, err := json.Marshal(TorrentGetArgs{
+		Fields: []string{"id", "files"},
+		IDs:    []int64{torrentID},
+	})
+	if err != nil {
+		return fmt.Errorf("marshal torrent-get: %w", err)
+	}
+
+	resp, err := c.Do(ctx, RPCRequest{Method: "torrent-get", Arguments: getArgs})
+	if err != nil {
+		return fmt.Errorf("torrent-get files: %w", err)
+	}
+	if resp.Result != "success" {
+		return fmt.Errorf("torrent-get files failed: %s", resp.Result)
+	}
+
+	var result TorrentWithFilesResult
+	if err := json.Unmarshal(resp.Arguments, &result); err != nil {
+		return fmt.Errorf("unmarshal files: %w", err)
+	}
+	if len(result.Torrents) == 0 {
+		return fmt.Errorf("torrent not found: %d", torrentID)
+	}
+
+	fileCount := len(result.Torrents[0].Files)
+	if fileCount == 0 {
+		return nil
+	}
+
+	highCount := count
+	if highCount > fileCount {
+		highCount = fileCount
+	}
+
+	highIndices := make([]int, highCount)
+	for i := range highCount {
+		highIndices[i] = i
+	}
+
+	var lowIndices []int
+	if highCount < fileCount {
+		lowIndices = make([]int, fileCount-highCount)
+		for i := highCount; i < fileCount; i++ {
+			lowIndices[i-highCount] = i
+		}
+	}
+
+	setArgs, err := json.Marshal(TorrentSetArgs{
+		IDs:          []int64{torrentID},
+		PriorityHigh: highIndices,
+		PriorityLow:  lowIndices,
+	})
+	if err != nil {
+		return fmt.Errorf("marshal torrent-set: %w", err)
+	}
+
+	setResp, err := c.Do(ctx, RPCRequest{Method: "torrent-set", Arguments: setArgs})
+	if err != nil {
+		return fmt.Errorf("torrent-set: %w", err)
+	}
+	if setResp.Result != "success" {
+		return fmt.Errorf("torrent-set failed: %s", setResp.Result)
+	}
+
+	slog.Debug("file priorities set", "torrent_id", torrentID, "high", highCount, "low", fileCount-highCount)
+	return nil
+}
+
 // SessionGet calls session-get and returns the raw arguments.
 func (c *Client) SessionGet(ctx context.Context) (json.RawMessage, error) {
 	resp, err := c.Do(ctx, RPCRequest{Method: "session-get"})

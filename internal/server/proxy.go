@@ -1,10 +1,12 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/lebe-dev/transmitter/internal/transmission"
 )
@@ -19,8 +21,14 @@ var allowedMethods = map[string]bool{
 	"session-get":    true,
 }
 
+// AutoPriorityConfig holds settings for automatic file priority.
+type AutoPriorityConfig struct {
+	Enabled   bool
+	HighCount int
+}
+
 // ProxyHandler proxies JSON-RPC requests to Transmission, enforcing method whitelist.
-func ProxyHandler(client *transmission.Client) http.HandlerFunc {
+func ProxyHandler(client *transmission.Client, priorityCfg AutoPriorityConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // 1 MB limit
 
@@ -55,6 +63,35 @@ func ProxyHandler(client *transmission.Client) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(respBody) //nolint:errcheck
+
+		if priorityCfg.Enabled && parsed.Method == "torrent-add" {
+			go applyAutoPriority(client, respBody, priorityCfg.HighCount)
+		}
+	}
+}
+
+func applyAutoPriority(client *transmission.Client, respBody []byte, highCount int) {
+	var rpcResp struct {
+		Result    string `json:"result"`
+		Arguments struct {
+			TorrentAdded *struct {
+				ID int64 `json:"id"`
+			} `json:"torrent-added"`
+		} `json:"arguments"`
+	}
+	if err := json.Unmarshal(respBody, &rpcResp); err != nil {
+		slog.Warn("auto-priority: failed to parse response", "err", err)
+		return
+	}
+	if rpcResp.Result != "success" || rpcResp.Arguments.TorrentAdded == nil {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	if err := client.SetHighPriorityFiles(ctx, rpcResp.Arguments.TorrentAdded.ID, highCount); err != nil {
+		slog.Warn("auto-priority: failed to set file priorities", "torrent_id", rpcResp.Arguments.TorrentAdded.ID, "err", err)
 	}
 }
 

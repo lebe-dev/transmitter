@@ -126,6 +126,106 @@ func TestRemoveTorrentsKeepData(t *testing.T) {
 	}
 }
 
+func TestSetHighPriorityFiles(t *testing.T) {
+	var calls []RPCRequest
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set(sessionIDHeader, "test-session")
+
+		var req RPCRequest
+		json.NewDecoder(r.Body).Decode(&req)
+		calls = append(calls, req)
+
+		switch req.Method {
+		case "torrent-get":
+			result := TorrentWithFilesResult{
+				Torrents: []TorrentWithFiles{{
+					ID: 1,
+					Files: []TorrentFile{
+						{Name: "ep01.mkv", Length: 100},
+						{Name: "ep02.mkv", Length: 200},
+						{Name: "ep03.mkv", Length: 300},
+						{Name: "ep04.mkv", Length: 400},
+						{Name: "ep05.mkv", Length: 500},
+					},
+				}},
+			}
+			args, _ := json.Marshal(result)
+			json.NewEncoder(w).Encode(RPCResponse{Result: "success", Arguments: args})
+		case "torrent-set":
+			var setArgs TorrentSetArgs
+			json.Unmarshal(req.Arguments, &setArgs)
+
+			if len(setArgs.PriorityHigh) != 2 {
+				t.Errorf("expected 2 high-priority files, got %d", len(setArgs.PriorityHigh))
+			}
+			if len(setArgs.PriorityLow) != 3 {
+				t.Errorf("expected 3 low-priority files, got %d", len(setArgs.PriorityLow))
+			}
+			// Verify indices
+			for i, idx := range setArgs.PriorityHigh {
+				if idx != i {
+					t.Errorf("PriorityHigh[%d] = %d, want %d", i, idx, i)
+				}
+			}
+			for i, idx := range setArgs.PriorityLow {
+				if idx != i+2 {
+					t.Errorf("PriorityLow[%d] = %d, want %d", i, idx, i+2)
+				}
+			}
+
+			json.NewEncoder(w).Encode(RPCResponse{Result: "success"})
+		}
+	}
+
+	_, c := newTestServer(t, handler)
+	err := c.SetHighPriorityFiles(context.Background(), 1, 2)
+	if err != nil {
+		t.Fatalf("SetHighPriorityFiles: %v", err)
+	}
+	if len(calls) != 2 {
+		t.Fatalf("expected 2 RPC calls, got %d", len(calls))
+	}
+}
+
+func TestSetHighPriorityFilesAllHigh(t *testing.T) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set(sessionIDHeader, "test-session")
+
+		var req RPCRequest
+		json.NewDecoder(r.Body).Decode(&req)
+
+		switch req.Method {
+		case "torrent-get":
+			result := TorrentWithFilesResult{
+				Torrents: []TorrentWithFiles{{
+					ID:    1,
+					Files: []TorrentFile{{Name: "file1.mkv", Length: 100}},
+				}},
+			}
+			args, _ := json.Marshal(result)
+			json.NewEncoder(w).Encode(RPCResponse{Result: "success", Arguments: args})
+		case "torrent-set":
+			var setArgs TorrentSetArgs
+			json.Unmarshal(req.Arguments, &setArgs)
+
+			if len(setArgs.PriorityHigh) != 1 {
+				t.Errorf("expected 1 high-priority file, got %d", len(setArgs.PriorityHigh))
+			}
+			if len(setArgs.PriorityLow) != 0 {
+				t.Errorf("expected 0 low-priority files, got %d", len(setArgs.PriorityLow))
+			}
+
+			json.NewEncoder(w).Encode(RPCResponse{Result: "success"})
+		}
+	}
+
+	_, c := newTestServer(t, handler)
+	err := c.SetHighPriorityFiles(context.Background(), 1, 5)
+	if err != nil {
+		t.Fatalf("SetHighPriorityFiles: %v", err)
+	}
+}
+
 func TestSessionIDRefresh(t *testing.T) {
 	var calls atomic.Int32
 	handler := func(w http.ResponseWriter, r *http.Request) {

@@ -50,12 +50,9 @@ See [SECURITY.md](docs/SECURITY.md).
 
 ## Roadmap
 
-- Manage file priorities
-- UX: auto-raise first and second file priorities (webui + tg bot)
 - Toggle features: webui, telegram bot
 - Grouping by folders / labels (labels added in Transmission 4.0)
 - Pause / delete via Telegram bot (command expansion)
-- Telegram notifications on torrent completion (polling + state diff)
 - WebSocket instead of polling for real-time UI updates
 - Web UI authentication (Basic Auth middleware) for external access via VPN
 - RSS feeds for automatic torrent addition

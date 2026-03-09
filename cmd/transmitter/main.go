@@ -35,12 +35,13 @@ func main() {
 
 	var tgBot *bot.Bot
 	if cfg.TelegramToken != "" {
-		tgBot, err = bot.New(cfg.TelegramToken, cfg.TelegramUsers, client, logger)
+		tgBot, err = bot.New(cfg.TelegramToken, cfg.TelegramUsers, client, logger, cfg.FilePriorityEnabled, cfg.FilePriorityHighCount)
 		if err != nil {
 			logger.Error("bot init failed", "err", err)
 			os.Exit(1)
 		}
 		go tgBot.Start()
+		go tgBot.StartMonitor(ctx, cfg.MonitorInterval)
 	} else {
 		logger.Info("telegram bot disabled (TELEGRAM_TOKEN not set)")
 	}

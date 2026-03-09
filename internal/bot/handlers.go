@@ -55,6 +55,8 @@ func (b *Bot) handleAdd(c telebot.Context) error {
 		return c.Send("Error: "+html.EscapeString(err.Error()), telebot.ModeHTML)
 	}
 
+	b.applyAutoPriority(ctx, added.ID)
+
 	rm := &telebot.ReplyMarkup{}
 	rm.Inline(rm.Row(rm.Data("📋 View Status", "vs", "s:0")))
 
@@ -141,6 +143,8 @@ func (b *Bot) handleDocument(c telebot.Context) error {
 		return c.Send("Error: "+html.EscapeString(err.Error()), telebot.ModeHTML)
 	}
 
+	b.applyAutoPriority(ctx, added.ID)
+
 	rm := &telebot.ReplyMarkup{}
 	rm.Inline(rm.Row(rm.Data("📋 View Status", "vs", "s:0")))
 
@@ -148,4 +152,13 @@ func (b *Bot) handleDocument(c telebot.Context) error {
 		fmt.Sprintf("✅ Added: <b>%s</b>", html.EscapeString(added.Name)),
 		telebot.ModeHTML, rm,
 	)
+}
+
+func (b *Bot) applyAutoPriority(ctx context.Context, torrentID int64) {
+	if !b.autoPriorityEnabled {
+		return
+	}
+	if err := b.client.SetHighPriorityFiles(ctx, torrentID, b.autoPriorityHighCount); err != nil {
+		b.logger.Warn("auto-priority: failed to set file priorities", "torrent_id", torrentID, "err", err)
+	}
 }
