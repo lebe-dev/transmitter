@@ -1,5 +1,8 @@
 # Transmitter
 
+![Transmitter screenshot](screenshot.png)
+![Transmitter screenshot dark](screenshot-dark.png)
+
 Transmitter is a modern, lightweight alternative to Transmission's stock UI. Runs with zero external dependencies. Also Telegram bot integration.
 
 ## Features
