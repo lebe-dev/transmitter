@@ -79,9 +79,10 @@
 	}
 
 	function progressBarClass(t: Torrent): string {
+		if (t.status === 0) return 'bg-muted-foreground/40';
+		if (colorTheme !== 'default') return 'bg-primary';
 		if (t.percentDone >= 1) return 'bg-emerald-500';
 		if (t.status === 4 || t.status === 3) return 'bg-primary';
-		if (t.status === 0) return 'bg-muted-foreground/40';
 		return 'bg-muted-foreground/60';
 	}
 
@@ -530,7 +531,7 @@
 								{#if formatSpeed(t.rateUpload)}
 									<span class="text-emerald-500 dark:text-emerald-400">↑ {formatSpeed(t.rateUpload)}</span>
 								{/if}
-								{#if formatEta(t.eta)}
+								{#if t.status !== 0 && t.status !== 6 && t.status !== 5 && formatEta(t.eta)}
 									<span>ETA {formatEta(t.eta)}</span>
 								{/if}
 								{#if t.errorString}
