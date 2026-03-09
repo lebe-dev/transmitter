@@ -11,3 +11,6 @@ Justfile
 docker-compose.yml
 /.env
 /*.json
+*.crt
+*.pem
+*.key

@@ -10,3 +10,6 @@
 /dev/torrents
 /**/*.json
 !/dev/settings.json
+*.crt
+*.pem
+*.key
