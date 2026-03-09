@@ -81,3 +81,6 @@ push-image:
 release-image: build-image && push-image
 
 release: release-image
+
+deploy:
+    ssh -t rpi "cd /opt/transmitter && APP_VERSION={{ version }} sudo docker compose pull && APP_VERSION={{ version }} sudo docker compose down && NOMOS_VERSION={{ version }} sudo docker compose up -d"
