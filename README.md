@@ -48,6 +48,7 @@ See [SECURITY.md](docs/SECURITY.md).
 
 ## Roadmap
 
+- Detailed torrent view: file list, peers, trackers
 - UX: 
   - Suggest paths
   - Remembed paths
@@ -58,5 +59,4 @@ See [SECURITY.md](docs/SECURITY.md).
 - WebSocket instead of polling for real-time UI updates
 - Web UI authentication (Basic Auth middleware) for external access via VPN
 - RSS feeds for automatic torrent addition
-- Detailed torrent view: file list, peers, trackers
 - Support multiple Transmission instances
