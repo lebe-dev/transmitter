@@ -51,7 +51,7 @@ Modern, lightweight alternative to Transmission's stock UI. Runs with zero exter
 
 ### Configuration
 
-All settings via environment variables (see `.env.example`):
+All settings via environment variables:
 
 | Variable | Required | Default |
 |-----------|----------|---------|
@@ -62,15 +62,11 @@ All settings via environment variables (see `.env.example`):
 | `TELEGRAM_TOKEN` | No | (bot disabled if empty) |
 | `TELEGRAM_USERS` | If using bot | — |
 
-For all options, see `.env.example`.
-
----
+For all options, see [.env.example](.env.example).
 
 ## Security
 
 See [SECURITY.md](SECURITY.md).
-
----
 
 ## Roadmap
 
