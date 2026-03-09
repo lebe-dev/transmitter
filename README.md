@@ -13,7 +13,7 @@ Transmitter is a modern, lightweight alternative to Transmission's stock UI. Run
 - **Add torrents** — magnet links or .torrent file upload
 - **Management** — pause, resume, delete torrents
 - **Auto-refresh** — live updates every 3–5 seconds
-- **Support locales**: EN, RU
+- **Support locales**: en, ru, es, de
 
 ## Getting Started
 

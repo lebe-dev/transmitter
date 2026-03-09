@@ -2,7 +2,9 @@
 	"id": "ru",
 	"languages": {
 		"en": "English",
-		"ru": "Русский"
+		"ru": "Русский",
+		"es": "Español",
+		"de": "Deutsch"
 	},
 	"header": {
 		"add": "Добавить",
