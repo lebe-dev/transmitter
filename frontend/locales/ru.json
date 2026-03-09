@@ -1,0 +1,102 @@
+{
+	"id": "ru",
+	"languages": {
+		"en": "English",
+		"ru": "Русский"
+	},
+	"header": {
+		"add": "Добавить",
+		"toggleTheme": "Сменить тему",
+		"settings": "Настройки"
+	},
+	"search": {
+		"placeholder": "Поиск торрентов…"
+	},
+	"filters": {
+		"all": "Все",
+		"downloading": "Загрузка",
+		"seeding": "Раздача",
+		"paused": "Пауза",
+		"done": "Готово"
+	},
+	"sort": {
+		"label": "Сортировка:",
+		"added": "Дата",
+		"name": "Имя",
+		"size": "Размер",
+		"progress": "Прогресс",
+		"status": "Статус",
+		"toggleDirection": "Изменить направление сортировки"
+	},
+	"status": {
+		"stopped": "Остановлен",
+		"checkQueue": "Очередь проверки",
+		"checking": "Проверка",
+		"queued": "В очереди",
+		"downloading": "Загрузка",
+		"seedQueue": "Очередь раздачи",
+		"seeding": "Раздача"
+	},
+	"empty": {
+		"title": "Торрентов пока нет",
+		"description": "Добавьте magnet-ссылку или загрузите .torrent файл.",
+		"addButton": "Добавить торрент",
+		"noMatchTitle": "Ничего не найдено",
+		"noMatchDescription": "Попробуйте другой поисковый запрос или фильтр."
+	},
+	"error": {
+		"connection": "Ошибка подключения"
+	},
+	"actions": {
+		"resume": "Продолжить",
+		"pause": "Пауза",
+		"delete": "Удалить",
+		"pin": "Закрепить торрент",
+		"unpin": "Открепить торрент",
+		"scrollToTop": "Наверх"
+	},
+	"addDialog": {
+		"title": "Добавить торрент",
+		"description": "Добавьте magnet-ссылку или загрузите .torrent файл.",
+		"magnetTab": "Magnet / URL",
+		"fileTab": ".torrent файл",
+		"magnetPlaceholder": "magnet:?xt=urn:btih:… или http://…",
+		"dropHint": "Перетащите .torrent файл сюда или нажмите для выбора",
+		"addButton": "Добавить",
+		"cancel": "Отмена"
+	},
+	"deleteDialog": {
+		"title": "Удалить торрент",
+		"cannotUndo": "Это действие нельзя отменить.",
+		"deleteLocal": "Также удалить локальные данные",
+		"deleteButton": "Удалить",
+		"cancel": "Отмена"
+	},
+	"settings": {
+		"title": "Настройки",
+		"description": "Настройка внешнего вида.",
+		"colorTheme": "Цветовая тема",
+		"language": "Язык",
+		"close": "Закрыть"
+	},
+	"themes": {
+		"yellow": "Жёлтая",
+		"blue": "Синяя",
+		"green": "Зелёная",
+		"default": "Стандартная",
+		"orange": "Оранжевая",
+		"red": "Красная",
+		"rose": "Розовая",
+		"violet": "Фиолетовая"
+	},
+	"toast": {
+		"added": "Торрент добавлен",
+		"deleted": "Удалён: {name}",
+		"started": "Запущен: {name}",
+		"paused": "Приостановлен: {name}",
+		"failAdd": "Не удалось добавить торрент",
+		"failStart": "Не удалось запустить торрент",
+		"failPause": "Не удалось приостановить торрент",
+		"failDelete": "Не удалось удалить торрент"
+	}
+}

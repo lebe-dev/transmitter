@@ -13,6 +13,7 @@ Transmitter is a modern, lightweight alternative to Transmission's stock UI. Run
 - **Add torrents** — magnet links or .torrent file upload
 - **Management** — pause, resume, delete torrents
 - **Auto-refresh** — live updates every 3–5 seconds
+- **Support locales**: EN, RU
 
 ## Getting Started
 
@@ -50,7 +51,6 @@ See [SECURITY.md](docs/SECURITY.md).
 - UX: 
   - Suggest paths
   - Remembed paths
-- Support locales: EN, RU, ES, DE, GE
 - Toggle features: webui, telegram bot
 - Grouping by folders / labels (labels added in Transmission 4.0)
 - Pause / delete via Telegram bot (command expansion)

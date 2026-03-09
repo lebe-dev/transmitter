@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { get } from 'svelte/store';
 	import { toast } from 'svelte-sonner';
 	import { mode, toggleMode, setTheme, theme } from 'mode-watcher';
 	import { getCoreRowModel, getSortedRowModel, type ColumnDef, type SortingState } from '@tanstack/table-core';
+	import { t as tt, locale, locales } from 'svelte-intl-precompile';
 	import SunIcon from '@lucide/svelte/icons/sun';
 	import MoonIcon from '@lucide/svelte/icons/moon';
 	import PlusIcon from '@lucide/svelte/icons/plus';
@@ -15,17 +17,19 @@
 	import InboxIcon from '@lucide/svelte/icons/inbox';
 	import AlertCircleIcon from '@lucide/svelte/icons/alert-circle';
 	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
-import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
-import SettingsIcon from '@lucide/svelte/icons/settings';
-import PinIcon from '@lucide/svelte/icons/pin';
+	import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
+	import SettingsIcon from '@lucide/svelte/icons/settings';
+	import PinIcon from '@lucide/svelte/icons/pin';
 
 	import { torrentStore, pinStore } from '$lib/stores.svelte.js';
 	import { addTorrentMagnet, addTorrentFile, startTorrents, stopTorrents, removeTorrents } from '$lib/api.js';
 	import type { Torrent, FilterStatus } from '$lib/types.js';
 	import { createSvelteTable } from '$lib/components/ui/data-table/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-import { Spinner } from '$lib/components/ui/spinner/index.js';
+	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+
+	const LOCALE_STORAGE_KEY = 'transmitter-locale';
 
 	// ── Formatters ────────────────────────────────────────────────────────────
 
@@ -61,14 +65,14 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 
 	// ── Status ────────────────────────────────────────────────────────────────
 
-	const STATUS_LABEL: Record<number, string> = {
-		0: 'Stopped',
-		1: 'Check Queue',
-		2: 'Checking',
-		3: 'Queued',
-		4: 'Downloading',
-		5: 'Seed Queue',
-		6: 'Seeding',
+	const STATUS_KEYS: Record<number, string> = {
+		0: 'status.stopped',
+		1: 'status.checkQueue',
+		2: 'status.checking',
+		3: 'status.queued',
+		4: 'status.downloading',
+		5: 'status.seedQueue',
+		6: 'status.seeding',
 	};
 
 	function statusPillClass(status: number): string {
@@ -97,11 +101,11 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 	let sorting = $state<SortingState>([{ id: 'addedDate', desc: true }]);
 
 	const SORT_OPTIONS = [
-		{ value: 'addedDate', label: 'Added' },
-		{ value: 'name', label: 'Name' },
-		{ value: 'totalSize', label: 'Size' },
-		{ value: 'percentDone', label: 'Progress' },
-		{ value: 'status', label: 'Status' },
+		{ value: 'addedDate', key: 'sort.added' },
+		{ value: 'name', key: 'sort.name' },
+		{ value: 'totalSize', key: 'sort.size' },
+		{ value: 'percentDone', key: 'sort.progress' },
+		{ value: 'status', key: 'sort.status' },
 	] as const;
 
 	let sortField = $state('addedDate');
@@ -164,12 +168,12 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 		).length,
 	});
 
-	const FILTERS: { key: FilterStatus; label: string }[] = [
-		{ key: 'all', label: 'All' },
-		{ key: 'downloading', label: 'Downloading' },
-		{ key: 'seeding', label: 'Seeding' },
-		{ key: 'paused', label: 'Paused' },
-		{ key: 'done', label: 'Done' },
+	const FILTER_KEYS: { key: FilterStatus; tKey: string }[] = [
+		{ key: 'all', tKey: 'filters.all' },
+		{ key: 'downloading', tKey: 'filters.downloading' },
+		{ key: 'seeding', tKey: 'filters.seeding' },
+		{ key: 'paused', tKey: 'filters.paused' },
+		{ key: 'done', tKey: 'filters.done' },
 	];
 
 	// ── Add torrent dialog ────────────────────────────────────────────────────
@@ -221,13 +225,13 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 				const b64 = await readFileAsBase64(pendingFile);
 				await addTorrentFile(b64);
 			}
-			toast.success('Torrent added');
+			toast.success(get(tt)('toast.added'));
 			addOpen = false;
 			magnetUrl = '';
 			pendingFile = null;
 			await torrentStore.refresh();
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Failed to add torrent');
+			toast.error(err instanceof Error ? err.message : get(tt)('toast.failAdd'));
 		} finally {
 			isAdding = false;
 		}
@@ -259,12 +263,12 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 		isDeleting = true;
 		try {
 			await removeTorrents([deleteTarget.id], deleteWithData);
-			toast.success(`Deleted: ${deleteTarget.name}`);
+			toast.success(get(tt)('toast.deleted', { values: { name: deleteTarget.name } }));
 			deleteOpen = false;
 			deleteTarget = null;
 			await torrentStore.refresh();
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Failed to delete torrent');
+			toast.error(err instanceof Error ? err.message : get(tt)('toast.failDelete'));
 		} finally {
 			isDeleting = false;
 		}
@@ -272,23 +276,23 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 
 	// ── Torrent actions ───────────────────────────────────────────────────────
 
-	async function handleStart(t: Torrent) {
+	async function handleStart(torrent: Torrent) {
 		try {
-			await startTorrents([t.id]);
-			toast.success(`Started: ${t.name}`);
+			await startTorrents([torrent.id]);
+			toast.success(get(tt)('toast.started', { values: { name: torrent.name } }));
 			await torrentStore.refresh();
 		} catch {
-			toast.error('Failed to start torrent');
+			toast.error(get(tt)('toast.failStart'));
 		}
 	}
 
-	async function handleStop(t: Torrent) {
+	async function handleStop(torrent: Torrent) {
 		try {
-			await stopTorrents([t.id]);
-			toast.success(`Paused: ${t.name}`);
+			await stopTorrents([torrent.id]);
+			toast.success(get(tt)('toast.paused', { values: { name: torrent.name } }));
 			await torrentStore.refresh();
 		} catch {
-			toast.error('Failed to pause torrent');
+			toast.error(get(tt)('toast.failPause'));
 		}
 	}
 
@@ -298,15 +302,15 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 
 	// ── Color theme ───────────────────────────────────────────────────────────
 
-	const COLOR_THEMES = [
-		{ value: 'yellow', label: 'Yellow' },
-		{ value: 'blue', label: 'Blue' },
-		{ value: 'green', label: 'Green' },
-		{ value: 'default', label: 'Default' },
-		{ value: 'orange', label: 'Orange' },
-		{ value: 'red', label: 'Red' },
-		{ value: 'rose', label: 'Rose' },
-		{ value: 'violet', label: 'Violet' },
+	const COLOR_THEME_KEYS = [
+		{ value: 'yellow', tKey: 'themes.yellow' },
+		{ value: 'blue', tKey: 'themes.blue' },
+		{ value: 'green', tKey: 'themes.green' },
+		{ value: 'default', tKey: 'themes.default' },
+		{ value: 'orange', tKey: 'themes.orange' },
+		{ value: 'red', tKey: 'themes.red' },
+		{ value: 'rose', tKey: 'themes.rose' },
+		{ value: 'violet', tKey: 'themes.violet' },
 	] as const;
 
 	// mode-watcher manages data-theme attr & localStorage ('mode-watcher-theme')
@@ -318,6 +322,13 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 
 	function onColorThemeChange(value: string) {
 		if (value) setTheme(toMwTheme(value));
+	}
+
+	// ── Language ──────────────────────────────────────────────────────────────
+
+	function onLocaleChange(loc: string) {
+		locale.set(loc);
+		localStorage.setItem(LOCALE_STORAGE_KEY, loc);
 	}
 
 	// ── Scroll to top ─────────────────────────────────────────────────────────
@@ -365,7 +376,7 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 
 			<button
 				onclick={toggleMode}
-				aria-label="Toggle theme"
+				aria-label={$tt('header.toggleTheme')}
 				class="size-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
 			>
 				{#if mode.current === 'dark'}
@@ -377,7 +388,7 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 
 			<button
 				onclick={() => (settingsOpen = true)}
-				aria-label="Settings"
+				aria-label={$tt('header.settings')}
 				class="size-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
 			>
 				<SettingsIcon class="size-4" />
@@ -392,7 +403,7 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 				}}
 			>
 				<PlusIcon class="size-4" />
-				Add
+				{$tt('header.add')}
 			</Button>
 		</div>
 	</header>
@@ -405,7 +416,7 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 			<SearchIcon class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
 			<input
 				type="search"
-				placeholder="Search torrents…"
+				placeholder={$tt('search.placeholder')}
 				class="w-full h-10 rounded-lg border border-input bg-background pl-9 pr-3 text-sm outline-none transition-colors focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
 				bind:value={torrentStore.search}
 			/>
@@ -414,14 +425,14 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 		<!-- Filters + Sort -->
 		<div class="flex items-center gap-1 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
 			<div class="flex items-center gap-0.5">
-				{#each FILTERS as f}
+				{#each FILTER_KEYS as f}
 					<button
 						class="relative px-3 py-1.5 text-sm font-medium transition-colors {torrentStore.filterStatus === f.key
 							? 'text-foreground'
 							: 'text-muted-foreground hover:text-foreground'}"
 						onclick={() => (torrentStore.filterStatus = f.key)}
 					>
-						{f.label}
+						{$tt(f.tKey)}
 						<span class="ml-0.5 text-[11px] opacity-50 tabular-nums">{counts[f.key]}</span>
 						{#if torrentStore.filterStatus === f.key}
 							<span class="absolute bottom-0 left-3 right-3 h-0.5 bg-primary rounded-full"></span>
@@ -431,7 +442,7 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 			</div>
 
 			<div class="ml-auto flex items-center gap-1 flex-shrink-0">
-				<span class="text-xs text-muted-foreground">Sort:</span>
+				<span class="text-xs text-muted-foreground">{$tt('sort.label')}</span>
 				<button
 					class="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors px-1.5 py-1 rounded"
 					onclick={() => {
@@ -440,12 +451,12 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 						sortField = next.value;
 					}}
 				>
-					{SORT_OPTIONS.find((o) => o.value === sortField)?.label}
+					{$tt(SORT_OPTIONS.find((o) => o.value === sortField)?.key ?? 'sort.added')}
 				</button>
 				<button
 					class="text-xs text-muted-foreground hover:text-foreground transition-colors p-1 rounded"
 					onclick={() => (sortDesc = !sortDesc)}
-					aria-label="Toggle sort direction"
+					aria-label={$tt('sort.toggleDirection')}
 				>
 					{sortDesc ? '↓' : '↑'}
 				</button>
@@ -457,7 +468,7 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 			<div class="flex items-start gap-3 rounded-lg border border-destructive/20 bg-destructive/5 p-4">
 				<AlertCircleIcon class="size-4 text-destructive flex-shrink-0 mt-0.5" />
 				<div class="text-sm">
-					<p class="font-medium text-destructive">Connection error</p>
+					<p class="font-medium text-destructive">{$tt('error.connection')}</p>
 					<p class="text-muted-foreground mt-0.5">{torrentStore.error}</p>
 				</div>
 			</div>
@@ -489,8 +500,8 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 					<InboxIcon class="size-7 text-muted-foreground" />
 				</div>
 				{#if torrentStore.torrents.length === 0}
-					<h3 class="font-display font-semibold text-lg mb-1">No torrents yet</h3>
-					<p class="text-sm text-muted-foreground mb-5 max-w-xs">Add a magnet link or upload a .torrent file to get started.</p>
+					<h3 class="font-display font-semibold text-lg mb-1">{$tt('empty.title')}</h3>
+					<p class="text-sm text-muted-foreground mb-5 max-w-xs">{$tt('empty.description')}</p>
 					<Button
 						size="sm"
 						class="font-display font-semibold"
@@ -500,11 +511,11 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 						}}
 					>
 						<PlusIcon class="size-4" />
-						Add Torrent
+						{$tt('empty.addButton')}
 					</Button>
 				{:else}
-					<h3 class="font-display font-semibold text-lg mb-1">No matches</h3>
-					<p class="text-sm text-muted-foreground max-w-xs">Try a different search term or filter.</p>
+					<h3 class="font-display font-semibold text-lg mb-1">{$tt('empty.noMatchTitle')}</h3>
+					<p class="text-sm text-muted-foreground max-w-xs">{$tt('empty.noMatchDescription')}</p>
 				{/if}
 			</div>
 
@@ -527,7 +538,7 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 							</h3>
 							<button
 								onclick={() => pinStore.toggle(t.hashString)}
-								aria-label={pinned ? 'Unpin torrent' : 'Pin torrent'}
+								aria-label={pinned ? $tt('actions.unpin') : $tt('actions.pin')}
 								class="size-7 rounded-md flex items-center justify-center flex-shrink-0 transition-colors {pinned
 									? 'bg-primary/10 text-primary'
 									: 'text-muted-foreground/40 hover:text-muted-foreground'}"
@@ -539,7 +550,7 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 						<!-- Row 2: Status + Progress + Size -->
 						<div class="flex items-center gap-2.5 mb-2">
 							<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium flex-shrink-0 {statusPillClass(t.status)}">
-								{STATUS_LABEL[t.status] ?? t.status}
+								{$tt(STATUS_KEYS[t.status] ?? 'status.stopped')}
 							</span>
 
 							<div class="flex-1 flex items-center gap-2 min-w-0">
@@ -584,7 +595,7 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 								{#if t.status === 0}
 									<button
 										onclick={() => handleStart(t)}
-										aria-label="Resume"
+										aria-label={$tt('actions.resume')}
 										class="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
 									>
 										<PlayIcon class="size-3.5" />
@@ -592,7 +603,7 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 								{:else if t.status === 4 || t.status === 3 || t.status === 6 || t.status === 5}
 									<button
 										onclick={() => handleStop(t)}
-										aria-label="Pause"
+										aria-label={$tt('actions.pause')}
 										class="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
 									>
 										<PauseIcon class="size-3.5" />
@@ -600,7 +611,7 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 								{/if}
 								<button
 									onclick={() => openDeleteDialog(t)}
-									aria-label="Delete"
+									aria-label={$tt('actions.delete')}
 									class="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
 								>
 									<Trash2Icon class="size-3.5" />
@@ -617,7 +628,7 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 <!-- ── Scroll to top button ───────────────────────────────────────────────── -->
 <button
 	onclick={scrollToTop}
-	aria-label="Scroll to top"
+	aria-label={$tt('actions.scrollToTop')}
 	class="fixed bottom-6 right-6 size-10 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center transition-all duration-300 hover:opacity-90 hover:scale-105 active:scale-95 {showScrollTop ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-4 pointer-events-none'}"
 >
 	<ArrowUpIcon class="size-4" />
@@ -627,29 +638,47 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 <AlertDialog.Root bind:open={settingsOpen}>
 	<AlertDialog.Content class="sm:max-w-sm">
 		<AlertDialog.Header class="pb-4">
-			<AlertDialog.Title class="font-display text-lg font-semibold">Settings</AlertDialog.Title>
-			<AlertDialog.Description class="text-sm text-muted-foreground">Customize appearance.</AlertDialog.Description>
+			<AlertDialog.Title class="font-display text-lg font-semibold">{$tt('settings.title')}</AlertDialog.Title>
+			<AlertDialog.Description class="text-sm text-muted-foreground">{$tt('settings.description')}</AlertDialog.Description>
 		</AlertDialog.Header>
 
-		<div class="flex flex-col gap-3">
-			<label class="text-sm font-medium">Color theme</label>
-			<div class="grid grid-cols-4 gap-2">
-				{#each COLOR_THEMES as t}
-					<button
-						class="h-9 rounded-lg border text-xs font-medium transition-colors {colorTheme === t.value
-							? 'border-primary bg-primary/10 text-foreground'
-							: 'border-border/60 text-muted-foreground hover:border-border hover:bg-accent/50'}"
-						onclick={() => onColorThemeChange(t.value)}
-					>
-						{t.label}
-					</button>
-				{/each}
+		<div class="flex flex-col gap-4">
+			<div class="flex flex-col gap-3">
+				<label class="text-sm font-medium">{$tt('settings.colorTheme')}</label>
+				<div class="grid grid-cols-4 gap-2">
+					{#each COLOR_THEME_KEYS as ct}
+						<button
+							class="h-9 rounded-lg border text-xs font-medium transition-colors {colorTheme === ct.value
+								? 'border-primary bg-primary/10 text-foreground'
+								: 'border-border/60 text-muted-foreground hover:border-border hover:bg-accent/50'}"
+							onclick={() => onColorThemeChange(ct.value)}
+						>
+							{$tt(ct.tKey)}
+						</button>
+					{/each}
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-3">
+				<label class="text-sm font-medium">{$tt('settings.language')}</label>
+				<div class="grid grid-cols-2 gap-2">
+					{#each [...$locales] as loc}
+						<button
+							class="h-9 rounded-lg border text-xs font-medium transition-colors {$locale === loc
+								? 'border-primary bg-primary/10 text-foreground'
+								: 'border-border/60 text-muted-foreground hover:border-border hover:bg-accent/50'}"
+							onclick={() => onLocaleChange(loc)}
+						>
+							{$tt(`languages.${loc}`)}
+						</button>
+					{/each}
+				</div>
 			</div>
 		</div>
 
 		<AlertDialog.Footer class="pt-4 flex items-center">
 			<span class="text-xs text-muted-foreground mr-auto">v{__APP_VERSION__}</span>
-			<AlertDialog.Cancel>Close</AlertDialog.Cancel>
+			<AlertDialog.Cancel>{$tt('settings.close')}</AlertDialog.Cancel>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>
 </AlertDialog.Root>
@@ -658,8 +687,8 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 <AlertDialog.Root bind:open={addOpen}>
 	<AlertDialog.Content class="sm:max-w-md">
 		<AlertDialog.Header class="pb-4">
-			<AlertDialog.Title class="font-display text-lg font-semibold">Add Torrent</AlertDialog.Title>
-			<AlertDialog.Description class="text-sm text-muted-foreground">Add by magnet link or upload a .torrent file.</AlertDialog.Description>
+			<AlertDialog.Title class="font-display text-lg font-semibold">{$tt('addDialog.title')}</AlertDialog.Title>
+			<AlertDialog.Description class="text-sm text-muted-foreground">{$tt('addDialog.description')}</AlertDialog.Description>
 		</AlertDialog.Header>
 
 		<!-- Mode tabs (underline style) -->
@@ -671,7 +700,7 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 				onclick={() => (addMode = 'magnet')}
 			>
 				<LinkIcon class="size-3.5" />
-				Magnet / URL
+				{$tt('addDialog.magnetTab')}
 				{#if addMode === 'magnet'}
 					<span class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full"></span>
 				{/if}
@@ -683,7 +712,7 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 				onclick={() => (addMode = 'file')}
 			>
 				<UploadIcon class="size-3.5" />
-				.torrent File
+				{$tt('addDialog.fileTab')}
 				{#if addMode === 'file'}
 					<span class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full"></span>
 				{/if}
@@ -693,7 +722,7 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 		{#if addMode === 'magnet'}
 			<input
 				type="text"
-				placeholder="magnet:?xt=urn:btih:… or http://…"
+				placeholder={$tt('addDialog.magnetPlaceholder')}
 				class="w-full h-10 rounded-lg border border-input bg-background px-3 text-sm outline-none transition-colors focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
 				bind:value={magnetUrl}
 				onkeydown={(e) => e.key === 'Enter' && handleAdd()}
@@ -721,14 +750,14 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 					{#if pendingFile}
 						<span class="text-sm font-medium">{pendingFile.name}</span>
 					{:else}
-						<span class="text-sm text-muted-foreground">Drop a .torrent file here or click to browse</span>
+						<span class="text-sm text-muted-foreground">{$tt('addDialog.dropHint')}</span>
 					{/if}
 				</button>
 			</div>
 		{/if}
 
 		<AlertDialog.Footer class="pt-4">
-			<AlertDialog.Cancel disabled={isAdding} onclick={resetAddDialog}>Cancel</AlertDialog.Cancel>
+			<AlertDialog.Cancel disabled={isAdding} onclick={resetAddDialog}>{$tt('addDialog.cancel')}</AlertDialog.Cancel>
 			<Button
 				class="font-display font-semibold"
 				onclick={handleAdd}
@@ -737,7 +766,7 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 				{#if isAdding}
 					<Spinner class="size-4" />
 				{/if}
-				Add
+				{$tt('addDialog.addButton')}
 			</Button>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>
@@ -747,11 +776,11 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 <AlertDialog.Root bind:open={deleteOpen}>
 	<AlertDialog.Content class="sm:max-w-md">
 		<AlertDialog.Header class="pb-4">
-			<AlertDialog.Title class="font-display text-lg font-semibold">Delete Torrent</AlertDialog.Title>
+			<AlertDialog.Title class="font-display text-lg font-semibold">{$tt('deleteDialog.title')}</AlertDialog.Title>
 			<AlertDialog.Description>
 				<span class="font-medium text-foreground">{deleteTarget?.name}</span>
 				<br />
-				This action cannot be undone.
+				{$tt('deleteDialog.cannotUndo')}
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 
@@ -761,16 +790,16 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 				class="rounded"
 				bind:checked={deleteWithData}
 			/>
-			Also delete local data
+			{$tt('deleteDialog.deleteLocal')}
 		</label>
 
 		<AlertDialog.Footer class="pt-4">
-			<AlertDialog.Cancel disabled={isDeleting}>Cancel</AlertDialog.Cancel>
+			<AlertDialog.Cancel disabled={isDeleting}>{$tt('deleteDialog.cancel')}</AlertDialog.Cancel>
 			<Button variant="destructive" class="font-display font-semibold" onclick={handleDelete} disabled={isDeleting}>
 				{#if isDeleting}
 					<Spinner class="size-4" />
 				{/if}
-				Delete
+				{$tt('deleteDialog.deleteButton')}
 			</Button>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>

@@ -1,0 +1,102 @@
+{
+	"id": "en",
+	"languages": {
+		"en": "English",
+		"ru": "Русский"
+	},
+	"header": {
+		"add": "Add",
+		"toggleTheme": "Toggle theme",
+		"settings": "Settings"
+	},
+	"search": {
+		"placeholder": "Search torrents…"
+	},
+	"filters": {
+		"all": "All",
+		"downloading": "Downloading",
+		"seeding": "Seeding",
+		"paused": "Paused",
+		"done": "Done"
+	},
+	"sort": {
+		"label": "Sort:",
+		"added": "Added",
+		"name": "Name",
+		"size": "Size",
+		"progress": "Progress",
+		"status": "Status",
+		"toggleDirection": "Toggle sort direction"
+	},
+	"status": {
+		"stopped": "Stopped",
+		"checkQueue": "Check Queue",
+		"checking": "Checking",
+		"queued": "Queued",
+		"downloading": "Downloading",
+		"seedQueue": "Seed Queue",
+		"seeding": "Seeding"
+	},
+	"empty": {
+		"title": "No torrents yet",
+		"description": "Add a magnet link or upload a .torrent file to get started.",
+		"addButton": "Add Torrent",
+		"noMatchTitle": "No matches",
+		"noMatchDescription": "Try a different search term or filter."
+	},
+	"error": {
+		"connection": "Connection error"
+	},
+	"actions": {
+		"resume": "Resume",
+		"pause": "Pause",
+		"delete": "Delete",
+		"pin": "Pin torrent",
+		"unpin": "Unpin torrent",
+		"scrollToTop": "Scroll to top"
+	},
+	"addDialog": {
+		"title": "Add Torrent",
+		"description": "Add by magnet link or upload a .torrent file.",
+		"magnetTab": "Magnet / URL",
+		"fileTab": ".torrent File",
+		"magnetPlaceholder": "magnet:?xt=urn:btih:… or http://…",
+		"dropHint": "Drop a .torrent file here or click to browse",
+		"addButton": "Add",
+		"cancel": "Cancel"
+	},
+	"deleteDialog": {
+		"title": "Delete Torrent",
+		"cannotUndo": "This action cannot be undone.",
+		"deleteLocal": "Also delete local data",
+		"deleteButton": "Delete",
+		"cancel": "Cancel"
+	},
+	"settings": {
+		"title": "Settings",
+		"description": "Customize appearance.",
+		"colorTheme": "Color theme",
+		"language": "Language",
+		"close": "Close"
+	},
+	"themes": {
+		"yellow": "Yellow",
+		"blue": "Blue",
+		"green": "Green",
+		"default": "Default",
+		"orange": "Orange",
+		"red": "Red",
+		"rose": "Rose",
+		"violet": "Violet"
+	},
+	"toast": {
+		"added": "Torrent added",
+		"deleted": "Deleted: {name}",
+		"started": "Started: {name}",
+		"paused": "Paused: {name}",
+		"failAdd": "Failed to add torrent",
+		"failStart": "Failed to start torrent",
+		"failPause": "Failed to pause torrent",
+		"failDelete": "Failed to delete torrent"
+	}
+}
