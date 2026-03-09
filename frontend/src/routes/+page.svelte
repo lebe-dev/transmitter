@@ -9,21 +9,19 @@
 	import PlayIcon from '@lucide/svelte/icons/play';
 	import PauseIcon from '@lucide/svelte/icons/pause';
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
-	import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
-	import ArrowDownIcon from '@lucide/svelte/icons/arrow-down';
-	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down';
 	import UploadIcon from '@lucide/svelte/icons/upload';
 	import LinkIcon from '@lucide/svelte/icons/link';
+	import SearchIcon from '@lucide/svelte/icons/search';
+	import InboxIcon from '@lucide/svelte/icons/inbox';
+	import AlertCircleIcon from '@lucide/svelte/icons/alert-circle';
+	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 
 	import { torrentStore } from '$lib/stores.svelte.js';
 	import { addTorrentMagnet, addTorrentFile, startTorrents, stopTorrents, removeTorrents } from '$lib/api.js';
 	import type { Torrent, FilterStatus } from '$lib/types.js';
-	import { createSvelteTable, FlexRender } from '$lib/components/ui/data-table/index.js';
-	import * as Table from '$lib/components/ui/table/index.js';
+	import { createSvelteTable } from '$lib/components/ui/data-table/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
-	import { Progress } from '$lib/components/ui/progress/index.js';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 
@@ -54,7 +52,6 @@
 
 	function formatDate(ts: number): string {
 		return new Date(ts * 1000).toLocaleDateString(undefined, {
-			year: 'numeric',
 			month: 'short',
 			day: 'numeric',
 		});
@@ -72,19 +69,44 @@
 		6: 'Seeding',
 	};
 
-	const STATUS_CLASS: Record<number, string> = {
-		0: 'text-muted-foreground',
-		1: 'text-yellow-500',
-		2: 'text-yellow-500',
-		3: 'text-blue-500',
-		4: 'text-blue-500',
-		5: 'text-green-500',
-		6: 'text-green-500',
-	};
+	function statusPillClass(status: number): string {
+		switch (status) {
+			case 4: case 3: return 'bg-blue-500/10 text-blue-600 dark:text-blue-400';
+			case 6: case 5: return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400';
+			case 1: case 2: return 'bg-amber-500/10 text-amber-600 dark:text-amber-400';
+			case 0: default: return 'bg-muted text-muted-foreground';
+		}
+	}
 
-	// ── Table ─────────────────────────────────────────────────────────────────
+	function progressBarClass(t: Torrent): string {
+		if (t.percentDone >= 1) return 'bg-emerald-500';
+		if (t.status === 4 || t.status === 3) return 'bg-primary';
+		if (t.status === 0) return 'bg-muted-foreground/40';
+		return 'bg-muted-foreground/60';
+	}
+
+	function isDownloading(t: Torrent): boolean {
+		return t.status === 4 && t.rateDownload > 0;
+	}
+
+	// ── Table (sort logic only) ──────────────────────────────────────────────
 
 	let sorting = $state<SortingState>([{ id: 'addedDate', desc: true }]);
+
+	const SORT_OPTIONS = [
+		{ value: 'addedDate', label: 'Added' },
+		{ value: 'name', label: 'Name' },
+		{ value: 'totalSize', label: 'Size' },
+		{ value: 'percentDone', label: 'Progress' },
+		{ value: 'status', label: 'Status' },
+	] as const;
+
+	let sortField = $state('addedDate');
+	let sortDesc = $state(true);
+
+	$effect(() => {
+		sorting = [{ id: sortField, desc: sortDesc }];
+	});
 
 	const columns: ColumnDef<Torrent>[] = [
 		{ accessorKey: 'name', header: 'Name' },
@@ -95,7 +117,6 @@
 		{ accessorKey: 'rateUpload', header: '↑' },
 		{ accessorKey: 'eta', header: 'ETA' },
 		{ accessorKey: 'addedDate', header: 'Added' },
-		{ id: 'actions', header: '', enableSorting: false },
 	];
 
 	const table = createSvelteTable({
@@ -144,6 +165,7 @@
 	let pendingFile = $state<File | null>(null);
 	let fileInputEl = $state<HTMLInputElement | null>(null);
 	let isAdding = $state(false);
+	let dragOver = $state(false);
 
 	function readFileAsBase64(file: File): Promise<string> {
 		return new Promise((resolve, reject) => {
@@ -160,6 +182,16 @@
 	function onFileChange(e: Event) {
 		const input = e.target as HTMLInputElement;
 		pendingFile = input.files?.[0] ?? null;
+	}
+
+	function onDrop(e: DragEvent) {
+		e.preventDefault();
+		dragOver = false;
+		const file = e.dataTransfer?.files[0];
+		if (file && (file.name.endsWith('.torrent') || file.type === 'application/x-bittorrent')) {
+			pendingFile = file;
+			addMode = 'file';
+		}
 	}
 
 	async function handleAdd() {
@@ -191,6 +223,7 @@
 		pendingFile = null;
 		addMode = 'magnet';
 		isAdding = false;
+		dragOver = false;
 	}
 
 	// ── Delete dialog ─────────────────────────────────────────────────────────
@@ -286,48 +319,20 @@
 </script>
 
 <!-- ── Layout ──────────────────────────────────────────────────────────────── -->
-<div class="min-h-screen bg-background text-foreground flex flex-col">
+<div class="min-h-screen bg-background text-foreground">
 
-	<!-- Error banner -->
-	{#if torrentStore.error}
-		<div class="bg-destructive/10 border-b border-destructive/20 px-4 py-2 text-sm text-destructive">
-			Connection error: {torrentStore.error}
-		</div>
-	{/if}
+	<!-- Header -->
+	<header class="border-b border-border/50">
+		<div class="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
+			<div class="flex items-center gap-2.5 mr-auto">
+				<div class="size-7 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
+					<span class="text-primary-foreground font-bold text-sm leading-none font-display">T</span>
+				</div>
+				<span class="font-display font-semibold text-[17px] tracking-tight">Transmitter</span>
+			</div>
 
-	<!-- Toolbar -->
-	<div class="border-b border-border px-4 py-2 flex flex-wrap items-center gap-3">
-		<!-- Logo -->
-		<div class="size-7 rounded-md bg-primary flex items-center justify-center flex-shrink-0">
-			<span class="text-primary-foreground font-bold text-sm leading-none">T</span>
-		</div>
-
-		<!-- Search -->
-		<input
-			type="search"
-			placeholder="Search torrents…"
-			class="h-8 rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring/50 w-48"
-			bind:value={torrentStore.search}
-		/>
-
-		<!-- Filter tabs -->
-		<div class="flex items-center gap-1 flex-wrap">
-			{#each FILTERS as f}
-				<button
-					class="h-8 rounded-md px-3 text-sm font-medium transition-colors {torrentStore.filterStatus === f.key
-						? 'bg-primary text-primary-foreground'
-						: 'hover:bg-accent hover:text-accent-foreground text-muted-foreground'}"
-					onclick={() => (torrentStore.filterStatus = f.key)}
-				>
-					{f.label}
-					<span class="ml-1 text-xs opacity-70">{counts[f.key]}</span>
-				</button>
-			{/each}
-		</div>
-
-		<div class="ml-auto flex items-center gap-2">
 			<Select.Root type="single" bind:value={colorTheme} onValueChange={onColorThemeChange}>
-				<Select.Trigger size="sm" class="w-28" aria-label="Color theme">
+				<Select.Trigger class="h-8 w-24 text-xs" aria-label="Color theme">
 					{COLOR_THEMES.find((t) => t.value === colorTheme)?.label ?? 'Theme'}
 				</Select.Trigger>
 				<Select.Portal>
@@ -338,196 +343,271 @@
 					</Select.Content>
 				</Select.Portal>
 			</Select.Root>
-			<Button variant="ghost" size="icon" onclick={toggleMode} aria-label="Toggle theme">
+
+			<button
+				onclick={toggleMode}
+				aria-label="Toggle theme"
+				class="size-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+			>
 				{#if mode.current === 'dark'}
 					<SunIcon class="size-4" />
 				{:else}
 					<MoonIcon class="size-4" />
 				{/if}
-			</Button>
+			</button>
+
 			<Button
 				size="sm"
+				class="font-display font-semibold"
 				onclick={() => {
 					resetAddDialog();
 					addOpen = true;
 				}}
 			>
 				<PlusIcon class="size-4" />
-				Add Torrent
+				Add
 			</Button>
 		</div>
-	</div>
+	</header>
 
-	<!-- Table -->
-	<div class="flex-1 overflow-auto">
+	<!-- Content -->
+	<div class="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex flex-col gap-4">
+
+		<!-- Search -->
+		<div class="relative">
+			<SearchIcon class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+			<input
+				type="search"
+				placeholder="Search torrents…"
+				class="w-full h-10 rounded-lg border border-input bg-background pl-9 pr-3 text-sm outline-none transition-colors focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+				bind:value={torrentStore.search}
+			/>
+		</div>
+
+		<!-- Filters + Sort -->
+		<div class="flex items-center gap-1 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+			<div class="flex items-center gap-0.5">
+				{#each FILTERS as f}
+					<button
+						class="relative px-3 py-1.5 text-sm font-medium transition-colors {torrentStore.filterStatus === f.key
+							? 'text-foreground'
+							: 'text-muted-foreground hover:text-foreground'}"
+						onclick={() => (torrentStore.filterStatus = f.key)}
+					>
+						{f.label}
+						<span class="ml-0.5 text-[11px] opacity-50 tabular-nums">{counts[f.key]}</span>
+						{#if torrentStore.filterStatus === f.key}
+							<span class="absolute bottom-0 left-3 right-3 h-0.5 bg-primary rounded-full"></span>
+						{/if}
+					</button>
+				{/each}
+			</div>
+
+			<div class="ml-auto flex items-center gap-1 flex-shrink-0">
+				<span class="text-xs text-muted-foreground">Sort:</span>
+				<button
+					class="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors px-1.5 py-1 rounded"
+					onclick={() => {
+						const idx = SORT_OPTIONS.findIndex((o) => o.value === sortField);
+						const next = SORT_OPTIONS[(idx + 1) % SORT_OPTIONS.length];
+						sortField = next.value;
+					}}
+				>
+					{SORT_OPTIONS.find((o) => o.value === sortField)?.label}
+				</button>
+				<button
+					class="text-xs text-muted-foreground hover:text-foreground transition-colors p-1 rounded"
+					onclick={() => (sortDesc = !sortDesc)}
+					aria-label="Toggle sort direction"
+				>
+					{sortDesc ? '↓' : '↑'}
+				</button>
+			</div>
+		</div>
+
+		<!-- Error banner -->
+		{#if torrentStore.error}
+			<div class="flex items-start gap-3 rounded-lg border border-destructive/20 bg-destructive/5 p-4">
+				<AlertCircleIcon class="size-4 text-destructive flex-shrink-0 mt-0.5" />
+				<div class="text-sm">
+					<p class="font-medium text-destructive">Connection error</p>
+					<p class="text-muted-foreground mt-0.5">{torrentStore.error}</p>
+				</div>
+			</div>
+		{/if}
+
+		<!-- Loading state -->
 		{#if torrentStore.loading}
-			<div class="flex items-center justify-center h-48 gap-2 text-muted-foreground">
-				<Spinner class="size-5" />
-				<span class="text-sm">Connecting…</span>
+			<div class="flex flex-col gap-3">
+				{#each [0, 1, 2] as i}
+					<div
+						class="rounded-lg border border-border/60 p-4 space-y-3 animate-pulse"
+						style="animation-delay: {i * 100}ms"
+					>
+						<div class="h-4 bg-muted rounded w-3/4"></div>
+						<div class="flex items-center gap-3">
+							<div class="h-3 bg-muted rounded w-16"></div>
+							<div class="h-1.5 bg-muted rounded flex-1"></div>
+							<div class="h-3 bg-muted rounded w-12"></div>
+						</div>
+						<div class="h-3 bg-muted rounded w-1/2"></div>
+					</div>
+				{/each}
 			</div>
+
+		<!-- Empty state -->
 		{:else if torrentStore.filtered.length === 0}
-			<div class="flex items-center justify-center h-48 text-muted-foreground text-sm">
-				{torrentStore.torrents.length === 0 ? 'No torrents' : 'No matching torrents'}
+			<div class="flex flex-col items-center justify-center py-16 text-center">
+				<div class="size-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
+					<InboxIcon class="size-7 text-muted-foreground" />
+				</div>
+				{#if torrentStore.torrents.length === 0}
+					<h3 class="font-display font-semibold text-lg mb-1">No torrents yet</h3>
+					<p class="text-sm text-muted-foreground mb-5 max-w-xs">Add a magnet link or upload a .torrent file to get started.</p>
+					<Button
+						size="sm"
+						class="font-display font-semibold"
+						onclick={() => {
+							resetAddDialog();
+							addOpen = true;
+						}}
+					>
+						<PlusIcon class="size-4" />
+						Add Torrent
+					</Button>
+				{:else}
+					<h3 class="font-display font-semibold text-lg mb-1">No matches</h3>
+					<p class="text-sm text-muted-foreground max-w-xs">Try a different search term or filter.</p>
+				{/if}
 			</div>
+
+		<!-- Torrent cards -->
 		{:else}
-			<Table.Root>
-				<Table.Header>
-					{#each table.getHeaderGroups() as headerGroup}
-						<Table.Row>
-							{#each headerGroup.headers as header}
-								<Table.Head
-									class="{header.column.id === 'name'
-										? 'min-w-[200px]'
-										: header.column.id === 'actions'
-											? 'w-24'
-											: header.column.id === 'percentDone'
-												? 'w-32'
-												: 'w-24'} {header.column.getCanSort() ? 'cursor-pointer select-none' : ''}"
-									onclick={header.column.getCanSort()
-										? () => header.column.toggleSorting()
-										: undefined}
+			<div class="flex flex-col gap-2">
+				{#each table.getRowModel().rows as row, i (row.id)}
+					{@const t = row.original}
+					<div
+						class="group rounded-lg border border-border/60 p-4 transition-all hover:shadow-sm hover:border-border {t.error ? 'border-l-2 border-l-destructive' : ''}"
+						style="animation: card-enter 0.3s ease-out both; animation-delay: {Math.min(i, 10) * 30}ms"
+					>
+						<!-- Row 1: Name -->
+						<div class="flex items-start justify-between gap-3 mb-2">
+							<h3 class="font-display text-[15px] font-semibold leading-snug line-clamp-2 min-w-0">
+								{t.name}
+							</h3>
+						</div>
+
+						<!-- Row 2: Status + Progress + Size -->
+						<div class="flex items-center gap-2.5 mb-2">
+							<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium flex-shrink-0 {statusPillClass(t.status)}">
+								{STATUS_LABEL[t.status] ?? t.status}
+							</span>
+
+							<div class="flex-1 flex items-center gap-2 min-w-0">
+								<div class="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+									<div
+										class="h-full rounded-full transition-[width] duration-700 ease-out {progressBarClass(t)}"
+										class:animate-[progress-pulse_2s_ease-in-out_infinite]={isDownloading(t)}
+										style="width: {t.percentDone * 100}%"
+									></div>
+								</div>
+								<span class="text-xs text-muted-foreground tabular-nums w-8 text-right flex-shrink-0">
+									{(t.percentDone * 100).toFixed(0)}%
+								</span>
+							</div>
+
+							<span class="text-xs text-muted-foreground tabular-nums flex-shrink-0">
+								{formatSize(t.totalSize)}
+							</span>
+						</div>
+
+						<!-- Row 3: Speeds + ETA + Date | Actions -->
+						<div class="flex items-center justify-between gap-2">
+							<div class="flex items-center gap-2 text-xs text-muted-foreground tabular-nums min-w-0 overflow-hidden">
+								{#if formatSpeed(t.rateDownload)}
+									<span class="text-blue-500 dark:text-blue-400">↓ {formatSpeed(t.rateDownload)}</span>
+								{/if}
+								{#if formatSpeed(t.rateUpload)}
+									<span class="text-emerald-500 dark:text-emerald-400">↑ {formatSpeed(t.rateUpload)}</span>
+								{/if}
+								{#if formatEta(t.eta)}
+									<span>ETA {formatEta(t.eta)}</span>
+								{/if}
+								{#if t.errorString}
+									<span class="text-destructive truncate">{t.errorString}</span>
+								{:else}
+									<span>{formatDate(t.addedDate)}</span>
+								{/if}
+							</div>
+
+							<!-- Action buttons: visible on hover (desktop), always on touch -->
+							<div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity touch-device:opacity-100">
+								{#if t.status === 0}
+									<button
+										onclick={() => handleStart(t)}
+										aria-label="Resume"
+										class="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+									>
+										<PlayIcon class="size-3.5" />
+									</button>
+								{:else if t.status === 4 || t.status === 3 || t.status === 6 || t.status === 5}
+									<button
+										onclick={() => handleStop(t)}
+										aria-label="Pause"
+										class="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+									>
+										<PauseIcon class="size-3.5" />
+									</button>
+								{/if}
+								<button
+									onclick={() => openDeleteDialog(t)}
+									aria-label="Delete"
+									class="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
 								>
-									<div class="flex items-center gap-1">
-										<FlexRender
-											content={header.column.columnDef.header}
-											context={header.getContext()}
-										/>
-										{#if header.column.getCanSort()}
-											{#if header.column.getIsSorted() === 'asc'}
-												<ArrowUpIcon class="size-3 opacity-70" />
-											{:else if header.column.getIsSorted() === 'desc'}
-												<ArrowDownIcon class="size-3 opacity-70" />
-											{:else}
-												<ChevronsUpDownIcon class="size-3 opacity-30" />
-											{/if}
-										{/if}
-									</div>
-								</Table.Head>
-							{/each}
-						</Table.Row>
-					{/each}
-				</Table.Header>
-
-				<Table.Body>
-					{#each table.getRowModel().rows as row (row.id)}
-						{@const t = row.original}
-						<Table.Row class={t.error ? 'bg-destructive/5' : ''}>
-							{#each row.getVisibleCells() as cell (cell.id)}
-								<Table.Cell>
-									{#if cell.column.id === 'name'}
-										<Tooltip.Provider>
-											<Tooltip.Root>
-												<Tooltip.Trigger class="text-left max-w-[280px] truncate block">
-													{t.name}
-												</Tooltip.Trigger>
-												<Tooltip.Portal>
-													<Tooltip.Content class="max-w-xs break-all text-xs">
-														{t.name}
-														{#if t.errorString}
-															<div class="mt-1 text-destructive">{t.errorString}</div>
-														{/if}
-													</Tooltip.Content>
-												</Tooltip.Portal>
-											</Tooltip.Root>
-										</Tooltip.Provider>
-
-									{:else if cell.column.id === 'status'}
-										<span class="text-xs font-medium {STATUS_CLASS[t.status] ?? ''}">
-											{STATUS_LABEL[t.status] ?? t.status}
-										</span>
-
-									{:else if cell.column.id === 'percentDone'}
-										<div class="flex items-center gap-2">
-											<Progress value={t.percentDone * 100} class="h-1.5 w-20" />
-											<span class="text-xs text-muted-foreground w-9 text-right">
-												{(t.percentDone * 100).toFixed(0)}%
-											</span>
-										</div>
-
-									{:else if cell.column.id === 'totalSize'}
-										<span class="text-xs text-muted-foreground">{formatSize(t.totalSize)}</span>
-
-									{:else if cell.column.id === 'rateDownload'}
-										<span class="text-xs text-blue-500">{formatSpeed(t.rateDownload)}</span>
-
-									{:else if cell.column.id === 'rateUpload'}
-										<span class="text-xs text-green-500">{formatSpeed(t.rateUpload)}</span>
-
-									{:else if cell.column.id === 'eta'}
-										<span class="text-xs text-muted-foreground">{formatEta(t.eta)}</span>
-
-									{:else if cell.column.id === 'addedDate'}
-										<span class="text-xs text-muted-foreground">{formatDate(t.addedDate)}</span>
-
-									{:else if cell.column.id === 'actions'}
-										<div class="flex items-center gap-1">
-											{#if t.status === 0}
-												<Button
-													variant="ghost"
-													size="icon-sm"
-													onclick={() => handleStart(t)}
-													aria-label="Resume"
-												>
-													<PlayIcon class="size-3.5" />
-												</Button>
-											{:else if t.status === 4 || t.status === 3 || t.status === 6 || t.status === 5}
-												<Button
-													variant="ghost"
-													size="icon-sm"
-													onclick={() => handleStop(t)}
-													aria-label="Pause"
-												>
-													<PauseIcon class="size-3.5" />
-												</Button>
-											{/if}
-											<Button
-												variant="ghost"
-												size="icon-sm"
-												class="text-destructive hover:text-destructive"
-												onclick={() => openDeleteDialog(t)}
-												aria-label="Delete"
-											>
-												<Trash2Icon class="size-3.5" />
-											</Button>
-										</div>
-									{/if}
-								</Table.Cell>
-							{/each}
-						</Table.Row>
-					{/each}
-				</Table.Body>
-			</Table.Root>
+									<Trash2Icon class="size-3.5" />
+								</button>
+							</div>
+						</div>
+					</div>
+				{/each}
+			</div>
 		{/if}
 	</div>
 </div>
 
 <!-- ── Add Torrent Dialog ──────────────────────────────────────────────────── -->
 <AlertDialog.Root bind:open={addOpen}>
-	<AlertDialog.Content>
-		<AlertDialog.Header>
-			<AlertDialog.Title>Add Torrent</AlertDialog.Title>
-			<AlertDialog.Description>Add by magnet link or upload a .torrent file.</AlertDialog.Description>
+	<AlertDialog.Content class="sm:max-w-md">
+		<AlertDialog.Header class="pb-4">
+			<AlertDialog.Title class="font-display text-lg font-semibold">Add Torrent</AlertDialog.Title>
+			<AlertDialog.Description class="text-sm text-muted-foreground">Add by magnet link or upload a .torrent file.</AlertDialog.Description>
 		</AlertDialog.Header>
 
-		<!-- Mode tabs -->
-		<div class="flex gap-2 mt-2">
+		<!-- Mode tabs (underline style) -->
+		<div class="flex gap-4 border-b border-border/60 mb-4">
 			<button
-				class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors {addMode === 'magnet'
-					? 'bg-primary text-primary-foreground'
-					: 'hover:bg-accent text-muted-foreground'}"
+				class="relative flex items-center gap-1.5 pb-2.5 text-sm font-medium transition-colors {addMode === 'magnet'
+					? 'text-foreground'
+					: 'text-muted-foreground hover:text-foreground'}"
 				onclick={() => (addMode = 'magnet')}
 			>
 				<LinkIcon class="size-3.5" />
 				Magnet / URL
+				{#if addMode === 'magnet'}
+					<span class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full"></span>
+				{/if}
 			</button>
 			<button
-				class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors {addMode === 'file'
-					? 'bg-primary text-primary-foreground'
-					: 'hover:bg-accent text-muted-foreground'}"
+				class="relative flex items-center gap-1.5 pb-2.5 text-sm font-medium transition-colors {addMode === 'file'
+					? 'text-foreground'
+					: 'text-muted-foreground hover:text-foreground'}"
 				onclick={() => (addMode = 'file')}
 			>
 				<UploadIcon class="size-3.5" />
 				.torrent File
+				{#if addMode === 'file'}
+					<span class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full"></span>
+				{/if}
 			</button>
 		</div>
 
@@ -535,12 +615,12 @@
 			<input
 				type="text"
 				placeholder="magnet:?xt=urn:btih:… or http://…"
-				class="w-full h-9 rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring/50"
+				class="w-full h-10 rounded-lg border border-input bg-background px-3 text-sm outline-none transition-colors focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
 				bind:value={magnetUrl}
 				onkeydown={(e) => e.key === 'Enter' && handleAdd()}
 			/>
 		{:else}
-			<div class="flex flex-col gap-2">
+			<div class="flex flex-col gap-3">
 				<input
 					bind:this={fileInputEl}
 					type="file"
@@ -548,16 +628,30 @@
 					class="hidden"
 					onchange={onFileChange}
 				/>
-				<Button variant="outline" onclick={() => fileInputEl?.click()}>
-					<UploadIcon class="size-4" />
-					{pendingFile ? pendingFile.name : 'Choose .torrent file'}
-				</Button>
+					<button
+					type="button"
+					class="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 cursor-pointer transition-colors w-full {dragOver
+						? 'border-primary bg-primary/5'
+						: 'border-border/60 hover:border-border hover:bg-accent/50'}"
+					onclick={() => fileInputEl?.click()}
+					ondragover={(e) => { e.preventDefault(); dragOver = true; }}
+					ondragleave={() => (dragOver = false)}
+					ondrop={onDrop}
+				>
+					<UploadIcon class="size-6 text-muted-foreground" />
+					{#if pendingFile}
+						<span class="text-sm font-medium">{pendingFile.name}</span>
+					{:else}
+						<span class="text-sm text-muted-foreground">Drop a .torrent file here or click to browse</span>
+					{/if}
+				</button>
 			</div>
 		{/if}
 
-		<AlertDialog.Footer>
+		<AlertDialog.Footer class="pt-4">
 			<AlertDialog.Cancel disabled={isAdding} onclick={resetAddDialog}>Cancel</AlertDialog.Cancel>
 			<Button
+				class="font-display font-semibold"
 				onclick={handleAdd}
 				disabled={isAdding || (addMode === 'magnet' ? !magnetUrl.trim() : !pendingFile)}
 			>
@@ -572,9 +666,9 @@
 
 <!-- ── Delete Confirmation Dialog ────────────────────────────────────────── -->
 <AlertDialog.Root bind:open={deleteOpen}>
-	<AlertDialog.Content>
-		<AlertDialog.Header>
-			<AlertDialog.Title>Delete Torrent</AlertDialog.Title>
+	<AlertDialog.Content class="sm:max-w-md">
+		<AlertDialog.Header class="pb-4">
+			<AlertDialog.Title class="font-display text-lg font-semibold">Delete Torrent</AlertDialog.Title>
 			<AlertDialog.Description>
 				<span class="font-medium text-foreground">{deleteTarget?.name}</span>
 				<br />
@@ -582,7 +676,7 @@
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 
-		<label class="flex items-center gap-2 text-sm cursor-pointer">
+		<label class="flex items-center gap-2.5 text-sm cursor-pointer">
 			<input
 				type="checkbox"
 				class="rounded"
@@ -591,9 +685,9 @@
 			Also delete local data
 		</label>
 
-		<AlertDialog.Footer>
+		<AlertDialog.Footer class="pt-4">
 			<AlertDialog.Cancel disabled={isDeleting}>Cancel</AlertDialog.Cancel>
-			<Button variant="destructive" onclick={handleDelete} disabled={isDeleting}>
+			<Button variant="destructive" class="font-display font-semibold" onclick={handleDelete} disabled={isDeleting}>
 				{#if isDeleting}
 					<Spinner class="size-4" />
 				{/if}
@@ -602,3 +696,15 @@
 		</AlertDialog.Footer>
 	</AlertDialog.Content>
 </AlertDialog.Root>
+
+<style>
+	@media (hover: none) {
+		.touch-device\:opacity-100 {
+			opacity: 1 !important;
+		}
+		/* Always show action buttons on touch devices */
+		:global(.group) .opacity-0 {
+			opacity: 1 !important;
+		}
+	}
+</style>
