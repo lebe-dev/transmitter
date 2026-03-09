@@ -44,6 +44,7 @@ See [SECURITY.md](docs/SECURITY.md).
 
 ## Roadmap
 
+- Pin torrent on top
 - Support locales: EN, RU, ES, DE, GE
 - Toggle features: webui, telegram bot
 - Grouping by folders / labels (labels added in Transmission 4.0)
