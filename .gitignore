@@ -8,7 +8,6 @@
 /dev/blocklists
 /dev/resume
 /dev/torrents
-/**/*.json
 !/dev/settings.json
 *.crt
 *.pem
