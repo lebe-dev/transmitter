@@ -49,6 +49,7 @@ func (b *Bot) registerHandlers() {
 	b.tg.Handle("/add", b.handleAdd)
 	b.tg.Handle("/status", b.handleStatus)
 	b.tg.Handle(telebot.OnDocument, b.handleDocument)
+	b.tg.Handle(telebot.OnCallback, b.handleCallback)
 }
 
 // authMiddleware silently ignores messages from unauthorized users.

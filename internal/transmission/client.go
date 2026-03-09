@@ -218,6 +218,72 @@ func (c *Client) addTorrent(ctx context.Context, addArgs TorrentAddArgs) (Torren
 	return TorrentAdded{}, fmt.Errorf("unexpected empty torrent-add result")
 }
 
+// GetTorrent returns a single torrent by ID.
+func (c *Client) GetTorrent(ctx context.Context, id int64) (Torrent, error) {
+	args, err := json.Marshal(TorrentGetArgs{Fields: TorrentFields, IDs: []int64{id}})
+	if err != nil {
+		return Torrent{}, err
+	}
+
+	resp, err := c.Do(ctx, RPCRequest{Method: "torrent-get", Arguments: args})
+	if err != nil {
+		return Torrent{}, err
+	}
+	if resp.Result != "success" {
+		return Torrent{}, fmt.Errorf("torrent-get failed: %s", resp.Result)
+	}
+
+	var result TorrentGetResult
+	if err := json.Unmarshal(resp.Arguments, &result); err != nil {
+		return Torrent{}, fmt.Errorf("unmarshal torrent: %w", err)
+	}
+	if len(result.Torrents) == 0 {
+		return Torrent{}, fmt.Errorf("torrent not found: %d", id)
+	}
+	return result.Torrents[0], nil
+}
+
+// StartTorrents starts the given torrents by IDs.
+func (c *Client) StartTorrents(ctx context.Context, ids []int64) error {
+	return c.torrentAction(ctx, "torrent-start", ids)
+}
+
+// StopTorrents stops (pauses) the given torrents by IDs.
+func (c *Client) StopTorrents(ctx context.Context, ids []int64) error {
+	return c.torrentAction(ctx, "torrent-stop", ids)
+}
+
+// RemoveTorrents removes the given torrents. If deleteLocalData is true, also deletes downloaded files.
+func (c *Client) RemoveTorrents(ctx context.Context, ids []int64, deleteLocalData bool) error {
+	args, err := json.Marshal(TorrentActionArgs{IDs: ids, DeleteLocalData: deleteLocalData})
+	if err != nil {
+		return err
+	}
+	resp, err := c.Do(ctx, RPCRequest{Method: "torrent-remove", Arguments: args})
+	if err != nil {
+		return err
+	}
+	if resp.Result != "success" {
+		return fmt.Errorf("torrent-remove failed: %s", resp.Result)
+	}
+	return nil
+}
+
+func (c *Client) torrentAction(ctx context.Context, method string, ids []int64) error {
+	args, err := json.Marshal(TorrentActionArgs{IDs: ids})
+	if err != nil {
+		return err
+	}
+	resp, err := c.Do(ctx, RPCRequest{Method: method, Arguments: args})
+	if err != nil {
+		return err
+	}
+	if resp.Result != "success" {
+		return fmt.Errorf("%s failed: %s", method, resp.Result)
+	}
+	return nil
+}
+
 // SessionGet calls session-get and returns the raw arguments.
 func (c *Client) SessionGet(ctx context.Context) (json.RawMessage, error) {
 	resp, err := c.Do(ctx, RPCRequest{Method: "session-get"})
