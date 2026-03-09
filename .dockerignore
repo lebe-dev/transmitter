@@ -10,3 +10,4 @@
 Justfile
 docker-compose.yml
 /.env
+/*.json
