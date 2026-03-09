@@ -1,0 +1,11 @@
+services:
+  transmitter:
+    image: tinyops/transmitter:0.1.0
+    env_file: .env
+    restart: unless-stopped
+    network_mode: host
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
