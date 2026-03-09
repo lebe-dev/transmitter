@@ -1,6 +1,4 @@
-# --- Variables ---
-
-version := `grep 'Version = ' cmd/transmitter/main.go | head -1 | cut -d '"' -f 2`
+version := `cat cmd/transmitter/main.go | grep Version | head -1 | cut -d " " -f 4 | tr -d "\""`
 imageName := 'tinyops/transmitter'
 
 # --- Utility ---
@@ -14,7 +12,7 @@ bump-backend-deps:
     go mod tidy
 
 bump-frontend-deps:
-    cd frontend && yarn upgrade
+    cd frontend && yarn install && yarn upgrade
 
 bump-deps: bump-backend-deps && bump-frontend-deps
 
@@ -31,7 +29,7 @@ build: build-frontend && format
 lint-backend: format
     go vet ./...
 
-lint-frontend:
+lint-frontend: format
     cd frontend && yarn check
 
 lint: format
@@ -45,6 +43,13 @@ test-backend:
 test name='':
     go test ./... -run '{{ name }}'
 
+# --- Coverage ---
+coverage:
+    go test ./... -coverprofile=coverage.out
+    go tool cover -func=coverage.out
+    go tool cover -html=coverage.out -o coverage.html
+    @echo "Coverage report generated at coverage.html"
+
 # --- Format ---
 format:
     go fmt ./...
@@ -56,15 +61,15 @@ run-backend:
 run-frontend:
     cd frontend && yarn dev
 
-# --- Docker ---
-docker-build:
+# --- Image ---
+build-image: test && lint
     docker buildx build --platform linux/arm/v7 -t {{ imageName }}:{{ version }} .
 
-docker-push:
+build-image-local:
+    docker build -t {{ imageName }}:latest .
+
+push-image:
     docker push {{ imageName }}:{{ version }}
     docker push {{ imageName }}:latest
 
-release-image: docker-build && docker-push
-
-docker-build-local:
-    docker build -t {{ imageName }}:latest .
+release-image: build-image && push-image
