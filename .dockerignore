@@ -1,5 +1,11 @@
-/transmitter
-*.md
+/vendor
+/frontend/.svelte-kit
+/frontend/node_modules
+/frontend/build
+/frontend/coverage
 /static/dist
+/transmitter
+/helm-chart
+*.md
 Justfile
 docker-compose.yml
