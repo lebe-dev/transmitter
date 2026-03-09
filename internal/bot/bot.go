@@ -11,12 +11,12 @@ import (
 type Bot struct {
 	tg     *telebot.Bot
 	client *transmission.Client
-	users  map[int64]bool
+	users  map[string]bool
 	logger *slog.Logger
 }
 
 // New creates a new Bot instance. Returns an error if the token is invalid.
-func New(token string, allowedUsers []int64, client *transmission.Client, logger *slog.Logger) (*Bot, error) {
+func New(token string, allowedUsers []string, client *transmission.Client, logger *slog.Logger) (*Bot, error) {
 	tg, err := telebot.NewBot(telebot.Settings{
 		Token:  token,
 		Poller: &telebot.LongPoller{Timeout: 10},
@@ -25,9 +25,9 @@ func New(token string, allowedUsers []int64, client *transmission.Client, logger
 		return nil, err
 	}
 
-	users := make(map[int64]bool, len(allowedUsers))
-	for _, id := range allowedUsers {
-		users[id] = true
+	users := make(map[string]bool, len(allowedUsers))
+	for _, username := range allowedUsers {
+		users[username] = true
 	}
 
 	b := &Bot{
@@ -54,7 +54,7 @@ func (b *Bot) registerHandlers() {
 // authMiddleware silently ignores messages from unauthorized users.
 func (b *Bot) authMiddleware(next telebot.HandlerFunc) telebot.HandlerFunc {
 	return func(c telebot.Context) error {
-		if !b.users[c.Sender().ID] {
+		if !b.users[c.Sender().Username] {
 			b.logger.Warn("unauthorized telegram user", "id", c.Sender().ID, "username", c.Sender().Username)
 			return nil
 		}

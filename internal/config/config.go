@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -19,7 +18,7 @@ type Config struct {
 	ListenAddr       string
 	CORSOrigin       string
 	TelegramToken    string
-	TelegramUsers    []int64
+	TelegramUsers    []string
 	LogLevel         slog.Level
 }
 
@@ -52,14 +51,11 @@ func Load() (*Config, error) {
 	if usersStr := os.Getenv("TELEGRAM_USERS"); usersStr != "" {
 		for _, part := range strings.Split(usersStr, ",") {
 			part = strings.TrimSpace(part)
+			part = strings.TrimPrefix(part, "@")
 			if part == "" {
 				continue
 			}
-			id, err := strconv.ParseInt(part, 10, 64)
-			if err != nil {
-				return nil, fmt.Errorf("invalid TELEGRAM_USERS value %q: %w", part, err)
-			}
-			cfg.TelegramUsers = append(cfg.TelegramUsers, id)
+			cfg.TelegramUsers = append(cfg.TelegramUsers, part)
 		}
 	}
 
