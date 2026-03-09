@@ -1,5 +1,7 @@
 # Transmitter
 
+[Русский](README.ru.md) | [Español](README.es.md) | [Deutsch](README.de.md)
+
 ![Transmitter screenshot](screenshot.png)
 ![Transmitter screenshot dark](screenshot-dark.png)
 

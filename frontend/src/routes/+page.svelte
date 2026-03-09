@@ -703,7 +703,16 @@
 		</div>
 
 		<AlertDialog.Footer class="pt-4 flex items-center">
-			<span class="text-xs text-muted-foreground mr-auto">v{__APP_VERSION__}</span>
+			<span class="text-xs text-muted-foreground mr-auto flex items-center gap-2">
+				v{__APP_VERSION__}
+				<span class="opacity-40">|</span>
+				<a
+					href="https://github.com/lebe-dev/transmitter/blob/main/{$locale === 'en' ? 'README.md' : `README.${$locale}.md`}"
+					target="_blank"
+					rel="noopener noreferrer"
+					class="hover:underline"
+				>{$tt('settings.docs')}</a>
+			</span>
 			<AlertDialog.Cancel>{$tt('settings.close')}</AlertDialog.Cancel>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>

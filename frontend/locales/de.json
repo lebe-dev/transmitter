@@ -79,6 +79,7 @@
 		"description": "Erscheinungsbild anpassen.",
 		"colorTheme": "Farbdesign",
 		"language": "Sprache",
+		"docs": "Dokumentation",
 		"close": "Schließen"
 	},
 	"themes": {

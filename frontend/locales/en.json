@@ -79,6 +79,7 @@
 		"description": "Customize appearance.",
 		"colorTheme": "Color theme",
 		"language": "Language",
+		"docs": "Documentation",
 		"close": "Close"
 	},
 	"themes": {

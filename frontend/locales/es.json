@@ -79,6 +79,7 @@
 		"description": "Personalizar apariencia.",
 		"colorTheme": "Tema de color",
 		"language": "Idioma",
+		"docs": "Documentación",
 		"close": "Cerrar"
 	},
 	"themes": {
