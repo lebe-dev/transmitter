@@ -16,14 +16,14 @@
 	import AlertCircleIcon from '@lucide/svelte/icons/alert-circle';
 	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
+import SettingsIcon from '@lucide/svelte/icons/settings';
 
 	import { torrentStore } from '$lib/stores.svelte.js';
 	import { addTorrentMagnet, addTorrentFile, startTorrents, stopTorrents, removeTorrents } from '$lib/api.js';
 	import type { Torrent, FilterStatus } from '$lib/types.js';
 	import { createSvelteTable } from '$lib/components/ui/data-table/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import * as Select from '$lib/components/ui/select/index.js';
-	import { Spinner } from '$lib/components/ui/spinner/index.js';
+import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 
 	// ── Formatters ────────────────────────────────────────────────────────────
@@ -279,6 +279,10 @@ import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
 		}
 	}
 
+	// ── Settings dialog ──────────────────────────────────────────────────────
+
+	let settingsOpen = $state(false);
+
 	// ── Color theme ───────────────────────────────────────────────────────────
 
 	const COLOR_THEMES = [
@@ -297,7 +301,7 @@ import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
 	const toMwTheme = (t: string) => (t === 'yellow' ? '' : t);
 	const fromMwTheme = (t: string) => (t || 'yellow');
 
-	let colorTheme = $derived(fromMwTheme(theme.current));
+	let colorTheme = $derived(fromMwTheme(theme.current ?? ''));
 
 	function onColorThemeChange(value: string) {
 		if (value) setTheme(toMwTheme(value));
@@ -346,19 +350,6 @@ import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
 				<span class="font-display font-semibold text-[17px] tracking-tight">Transmitter</span>
 			</div>
 
-			<Select.Root type="single" value={colorTheme} onValueChange={onColorThemeChange}>
-				<Select.Trigger class="h-8 w-24 text-xs" aria-label="Color theme">
-					{COLOR_THEMES.find((t) => t.value === colorTheme)?.label ?? 'Theme'}
-				</Select.Trigger>
-				<Select.Portal>
-					<Select.Content>
-						{#each COLOR_THEMES as t}
-							<Select.Item value={t.value} label={t.label} />
-						{/each}
-					</Select.Content>
-				</Select.Portal>
-			</Select.Root>
-
 			<button
 				onclick={toggleMode}
 				aria-label="Toggle theme"
@@ -369,6 +360,14 @@ import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
 				{:else}
 					<MoonIcon class="size-4" />
 				{/if}
+			</button>
+
+			<button
+				onclick={() => (settingsOpen = true)}
+				aria-label="Settings"
+				class="size-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+			>
+				<SettingsIcon class="size-4" />
 			</button>
 
 			<Button
@@ -598,6 +597,37 @@ import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
 >
 	<ArrowUpIcon class="size-4" />
 </button>
+
+<!-- ── Settings Dialog ────────────────────────────────────────────────────── -->
+<AlertDialog.Root bind:open={settingsOpen}>
+	<AlertDialog.Content class="sm:max-w-sm">
+		<AlertDialog.Header class="pb-4">
+			<AlertDialog.Title class="font-display text-lg font-semibold">Settings</AlertDialog.Title>
+			<AlertDialog.Description class="text-sm text-muted-foreground">Customize appearance.</AlertDialog.Description>
+		</AlertDialog.Header>
+
+		<div class="flex flex-col gap-3">
+			<label class="text-sm font-medium">Color theme</label>
+			<div class="grid grid-cols-4 gap-2">
+				{#each COLOR_THEMES as t}
+					<button
+						class="h-9 rounded-lg border text-xs font-medium transition-colors {colorTheme === t.value
+							? 'border-primary bg-primary/10 text-foreground'
+							: 'border-border/60 text-muted-foreground hover:border-border hover:bg-accent/50'}"
+						onclick={() => onColorThemeChange(t.value)}
+					>
+						{t.label}
+					</button>
+				{/each}
+			</div>
+		</div>
+
+		<AlertDialog.Footer class="pt-4 flex items-center">
+			<span class="text-xs text-muted-foreground mr-auto">v{__APP_VERSION__}</span>
+			<AlertDialog.Cancel>Close</AlertDialog.Cancel>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>
 
 <!-- ── Add Torrent Dialog ──────────────────────────────────────────────────── -->
 <AlertDialog.Root bind:open={addOpen}>
