@@ -25,25 +25,6 @@ Modern, lightweight alternative to Transmission's stock UI. Runs with zero exter
 - `/status` — view active torrents and speeds
 - `/help` — command reference
 
----
-
-## Architecture
-
-Single Go binary runs in two modes:
-
-```
-Browser (web UI)  ──→  /api/rpc  ──→  Go HTTP server  ──→  Transmission RPC
-Telegram         ──→  long poll  ──→  Go bot         ──→  Transmission RPC
-```
-
-- **Go server:** proxies requests to Transmission, serves embedded static UI
-- **Telegram bot:** long polling (no webhooks), whitelist-based authorization
-- **Frontend:** Svelte 5 SPA, all logic runs in browser, no server-side computation
-
-For detailed architecture, see [DEV.md](DEV.md).
-
----
-
 ## Getting Started
 
 ### Prerequisites
@@ -93,6 +74,7 @@ See [SECURITY.md](SECURITY.md).
 
 ## Roadmap
 
+- Support locales
 - Dark / light theme in UI
 - Toggle features: webui, telegram bot
 - Grouping by folders / labels (labels added in Transmission 4.0)
