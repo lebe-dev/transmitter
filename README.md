@@ -44,8 +44,7 @@ See [SECURITY.md](docs/SECURITY.md).
 
 ## Roadmap
 
-- Support locales
-- Dark / light theme in UI
+- Support locales: EN, RU, ES, DE, GE
 - Toggle features: webui, telegram bot
 - Grouping by folders / labels (labels added in Transmission 4.0)
 - Pause / delete via Telegram bot (command expansion)
@@ -54,3 +53,4 @@ See [SECURITY.md](docs/SECURITY.md).
 - Web UI authentication (Basic Auth middleware) for external access via VPN
 - RSS feeds for automatic torrent addition
 - Detailed torrent view: file list, peers, trackers
+- Support multiple Transmission instances
