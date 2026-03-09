@@ -10,6 +10,7 @@
 Justfile
 docker-compose.yml
 /.env
+/dev
 /*.json
 *.crt
 *.pem
