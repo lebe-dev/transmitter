@@ -22,6 +22,7 @@
 	import * as Table from '$lib/components/ui/table/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
+	import * as Select from '$lib/components/ui/select/index.js';
 	import { Progress } from '$lib/components/ui/progress/index.js';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -243,9 +244,44 @@
 		}
 	}
 
+	// ── Color theme ───────────────────────────────────────────────────────────
+
+	const COLOR_THEMES = [
+		{ value: 'yellow', label: 'Yellow' },
+		{ value: 'blue', label: 'Blue' },
+		{ value: 'green', label: 'Green' },
+		{ value: 'default', label: 'Default' },
+		{ value: 'orange', label: 'Orange' },
+		{ value: 'red', label: 'Red' },
+		{ value: 'rose', label: 'Rose' },
+		{ value: 'violet', label: 'Violet' },
+	] as const;
+
+	const THEME_STORAGE_KEY = 'transmitter-color-theme';
+
+	let colorTheme = $state<string>('yellow');
+
+	function applyColorTheme(theme: string) {
+		if (theme === 'yellow') {
+			document.documentElement.removeAttribute('data-theme');
+		} else {
+			document.documentElement.setAttribute('data-theme', theme);
+		}
+	}
+
+	function onColorThemeChange(theme: string) {
+		applyColorTheme(theme);
+		localStorage.setItem(THEME_STORAGE_KEY, theme);
+	}
+
 	// ── Lifecycle ─────────────────────────────────────────────────────────────
 
-	onMount(() => torrentStore.init());
+	onMount(() => {
+		const saved = localStorage.getItem(THEME_STORAGE_KEY) ?? 'yellow';
+		colorTheme = saved;
+		applyColorTheme(saved);
+		torrentStore.init();
+	});
 	onDestroy(() => torrentStore.destroy());
 </script>
 
@@ -290,6 +326,18 @@
 		</div>
 
 		<div class="ml-auto flex items-center gap-2">
+			<Select.Root type="single" bind:value={colorTheme} onValueChange={onColorThemeChange}>
+				<Select.Trigger size="sm" class="w-28" aria-label="Color theme">
+					{COLOR_THEMES.find((t) => t.value === colorTheme)?.label ?? 'Theme'}
+				</Select.Trigger>
+				<Select.Portal>
+					<Select.Content>
+						{#each COLOR_THEMES as t}
+							<Select.Item value={t.value} label={t.label} />
+						{/each}
+					</Select.Content>
+				</Select.Portal>
+			</Select.Root>
 			<Button variant="ghost" size="icon" onclick={toggleMode} aria-label="Toggle theme">
 				{#if mode.current === 'dark'}
 					<SunIcon class="size-4" />
