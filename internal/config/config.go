@@ -25,6 +25,8 @@ type Config struct {
 	MonitorInterval       time.Duration
 	FilePriorityEnabled   bool
 	FilePriorityHighCount int
+	WebUIEnabled          bool
+	TelegramBotEnabled    bool
 }
 
 // Load reads configuration from environment variables, optionally loading a .env file first.
@@ -68,6 +70,8 @@ func Load() (*Config, error) {
 	cfg.MonitorInterval = parseDuration(os.Getenv("MONITOR_INTERVAL"), 30*time.Second)
 	cfg.FilePriorityEnabled = strings.EqualFold(os.Getenv("FILE_PRIORITY_ENABLED"), "true")
 	cfg.FilePriorityHighCount = parsePositiveInt(os.Getenv("FILE_PRIORITY_HIGH_COUNT"), 3)
+	cfg.WebUIEnabled = parseBoolDefault(os.Getenv("WEBUI_ENABLED"), true)
+	cfg.TelegramBotEnabled = parseBoolDefault(os.Getenv("TELEGRAM_BOT_ENABLED"), false)
 
 	return cfg, nil
 }
@@ -99,6 +103,13 @@ func parsePositiveInt(s string, def int) int {
 		return def
 	}
 	return n
+}
+
+func parseBoolDefault(s string, def bool) bool {
+	if s == "" {
+		return def
+	}
+	return strings.EqualFold(s, "true") || s == "1"
 }
 
 func parseLogLevel(s string) slog.Level {

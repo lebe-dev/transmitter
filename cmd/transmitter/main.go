@@ -34,7 +34,11 @@ func main() {
 	defer stop()
 
 	var tgBot *bot.Bot
-	if cfg.TelegramToken != "" {
+	if cfg.TelegramBotEnabled {
+		if cfg.TelegramToken == "" {
+			logger.Error("TELEGRAM_BOT_ENABLED=true but TELEGRAM_TOKEN is not set")
+			os.Exit(1)
+		}
 		tgBot, err = bot.New(cfg.TelegramToken, cfg.TelegramUsers, client, logger, cfg.FilePriorityEnabled, cfg.FilePriorityHighCount)
 		if err != nil {
 			logger.Error("bot init failed", "err", err)
@@ -43,21 +47,30 @@ func main() {
 		go tgBot.Start()
 		go tgBot.StartMonitor(ctx, cfg.MonitorInterval)
 	} else {
-		logger.Info("telegram bot disabled (TELEGRAM_TOKEN not set)")
+		logger.Info("telegram bot disabled (TELEGRAM_BOT_ENABLED=false)")
 	}
 
-	srv, err := server.New(cfg, client, static.FS, logger)
-	if err != nil {
-		logger.Error("server init failed", "err", err)
+	var srv *server.Server
+	if cfg.WebUIEnabled {
+		srv, err = server.New(cfg, client, static.FS, logger)
+		if err != nil {
+			logger.Error("server init failed", "err", err)
+			os.Exit(1)
+		}
+		go func() {
+			if err := srv.Start(); err != nil {
+				logger.Error("server error", "err", err)
+				stop()
+			}
+		}()
+	} else {
+		logger.Info("web UI disabled (WEBUI_ENABLED=false)")
+	}
+
+	if !cfg.WebUIEnabled && !cfg.TelegramBotEnabled {
+		logger.Error("both WEBUI_ENABLED and TELEGRAM_BOT_ENABLED are false — nothing to run")
 		os.Exit(1)
 	}
-
-	go func() {
-		if err := srv.Start(); err != nil {
-			logger.Error("server error", "err", err)
-			stop()
-		}
-	}()
 
 	<-ctx.Done()
 	logger.Info("shutdown signal received")
@@ -68,8 +81,10 @@ func main() {
 	if tgBot != nil {
 		tgBot.Stop()
 	}
-	if err := srv.Shutdown(shutdownCtx); err != nil {
-		logger.Error("shutdown error", "err", err)
+	if srv != nil {
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			logger.Error("shutdown error", "err", err)
+		}
 	}
 	logger.Info("shutdown complete")
 }
