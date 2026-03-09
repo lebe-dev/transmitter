@@ -4,3 +4,4 @@
 !DEV.md
 !/docs/**/*.md
 /static/dist
+/.env

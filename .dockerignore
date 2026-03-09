@@ -9,3 +9,4 @@
 *.md
 Justfile
 docker-compose.yml
+/.env
