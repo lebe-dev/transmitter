@@ -73,7 +73,7 @@ import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
 	function statusPillClass(status: number): string {
 		switch (status) {
 			case 4: case 3: return 'bg-blue-500/10 text-blue-600 dark:text-blue-400';
-			case 6: case 5: return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400';
+			case 6: case 5: return 'bg-primary/10 text-primary';
 			case 1: case 2: return 'bg-amber-500/10 text-amber-600 dark:text-amber-400';
 			case 0: default: return 'bg-muted text-muted-foreground';
 		}
@@ -546,7 +546,7 @@ import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
 									<span class="text-blue-500 dark:text-blue-400">↓ {formatSpeed(t.rateDownload)}</span>
 								{/if}
 								{#if formatSpeed(t.rateUpload)}
-									<span class="text-emerald-500 dark:text-emerald-400">↑ {formatSpeed(t.rateUpload)}</span>
+									<span class="text-primary">↑ {formatSpeed(t.rateUpload)}</span>
 								{/if}
 								{#if t.status !== 0 && t.status !== 6 && t.status !== 5 && formatEta(t.eta)}
 									<span>ETA {formatEta(t.eta)}</span>
