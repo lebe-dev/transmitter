@@ -1,0 +1,5 @@
+/transmitter
+*.md
+/static/dist
+Justfile
+docker-compose.yml
