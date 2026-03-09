@@ -51,9 +51,7 @@ See [SECURITY.md](docs/SECURITY.md).
 ## Roadmap
 
 - Manage file priorities
-- UX: 
-  - Suggest paths
-  - Remembed paths
+- UX: auto-raise first and second file priorities (webui + tg bot)
 - Toggle features: webui, telegram bot
 - Grouping by folders / labels (labels added in Transmission 4.0)
 - Pause / delete via Telegram bot (command expansion)
