@@ -352,6 +352,17 @@
 			localStorage.removeItem('transmitter-color-theme');
 			setTheme('');
 		}
+
+		// Restore saved locale, or detect from browser language
+		const supported = get(locales);
+		const saved = localStorage.getItem(LOCALE_STORAGE_KEY);
+		if (saved && supported.includes(saved)) {
+			locale.set(saved);
+		} else {
+			const browserLang = navigator.language.split('-')[0];
+			locale.set(supported.includes(browserLang) ? browserLang : 'en');
+		}
+
 		torrentStore.init();
 		window.addEventListener('scroll', onScroll, { passive: true });
 	});
