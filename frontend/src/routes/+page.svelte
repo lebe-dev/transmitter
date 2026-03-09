@@ -15,6 +15,7 @@
 	import InboxIcon from '@lucide/svelte/icons/inbox';
 	import AlertCircleIcon from '@lucide/svelte/icons/alert-circle';
 	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
+import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
 
 	import { torrentStore } from '$lib/stores.svelte.js';
 	import { addTorrentMagnet, addTorrentFile, startTorrents, stopTorrents, removeTorrents } from '$lib/api.js';
@@ -308,6 +309,18 @@
 		localStorage.setItem(THEME_STORAGE_KEY, theme);
 	}
 
+	// ── Scroll to top ─────────────────────────────────────────────────────────
+
+	let showScrollTop = $state(false);
+
+	function onScroll() {
+		showScrollTop = window.scrollY > 300;
+	}
+
+	function scrollToTop() {
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+	}
+
 	// ── Lifecycle ─────────────────────────────────────────────────────────────
 
 	onMount(() => {
@@ -315,8 +328,12 @@
 		colorTheme = saved;
 		applyColorTheme(saved);
 		torrentStore.init();
+		window.addEventListener('scroll', onScroll, { passive: true });
 	});
-	onDestroy(() => torrentStore.destroy());
+	onDestroy(() => {
+		torrentStore.destroy();
+		window.removeEventListener('scroll', onScroll);
+	});
 </script>
 
 <!-- ── Layout ──────────────────────────────────────────────────────────────── -->
@@ -575,6 +592,15 @@
 		{/if}
 	</div>
 </div>
+
+<!-- ── Scroll to top button ───────────────────────────────────────────────── -->
+<button
+	onclick={scrollToTop}
+	aria-label="Scroll to top"
+	class="fixed bottom-6 right-6 size-10 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center transition-all duration-300 hover:opacity-90 hover:scale-105 active:scale-95 {showScrollTop ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-4 pointer-events-none'}"
+>
+	<ArrowUpIcon class="size-4" />
+</button>
 
 <!-- ── Add Torrent Dialog ──────────────────────────────────────────────────── -->
 <AlertDialog.Root bind:open={addOpen}>
