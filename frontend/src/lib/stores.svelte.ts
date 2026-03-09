@@ -163,3 +163,41 @@ class TorrentStore {
 }
 
 export const torrentStore = new TorrentStore();
+
+// ── Pin store (localStorage) ─────────────────────────────────────────────
+
+const PIN_KEY = 'tx_pinned';
+
+class PinStore {
+	#pinned = $state<Set<string>>(new Set());
+
+	constructor() {
+		try {
+			const raw = localStorage.getItem(PIN_KEY);
+			if (raw) this.#pinned = new Set(JSON.parse(raw));
+		} catch {
+			// ignore corrupt data
+		}
+	}
+
+	isPinned(hashString: string): boolean {
+		return this.#pinned.has(hashString);
+	}
+
+	toggle(hashString: string) {
+		if (this.#pinned.has(hashString)) {
+			this.#pinned.delete(hashString);
+		} else {
+			this.#pinned.add(hashString);
+		}
+		// trigger reactivity by reassigning
+		this.#pinned = new Set(this.#pinned);
+		this.#persist();
+	}
+
+	#persist() {
+		localStorage.setItem(PIN_KEY, JSON.stringify([...this.#pinned]));
+	}
+}
+
+export const pinStore = new PinStore();

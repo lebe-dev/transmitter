@@ -17,8 +17,9 @@
 	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
 import SettingsIcon from '@lucide/svelte/icons/settings';
+import PinIcon from '@lucide/svelte/icons/pin';
 
-	import { torrentStore } from '$lib/stores.svelte.js';
+	import { torrentStore, pinStore } from '$lib/stores.svelte.js';
 	import { addTorrentMagnet, addTorrentFile, startTorrents, stopTorrents, removeTorrents } from '$lib/api.js';
 	import type { Torrent, FilterStatus } from '$lib/types.js';
 	import { createSvelteTable } from '$lib/components/ui/data-table/index.js';
@@ -137,6 +138,18 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 			if (typeof updater === 'function') sorting = updater(sorting);
 			else sorting = updater;
 		},
+	});
+
+	// ── Pin-aware row order ──────────────────────────────────────────────────
+
+	const sortedRows = $derived.by(() => {
+		const rows = table.getRowModel().rows;
+		return rows.toSorted((a, b) => {
+			const aPinned = pinStore.isPinned(a.original.hashString);
+			const bPinned = pinStore.isPinned(b.original.hashString);
+			if (aPinned === bPinned) return 0;
+			return aPinned ? -1 : 1;
+		});
 	});
 
 	// ── Filter counts ─────────────────────────────────────────────────────────
@@ -498,17 +511,29 @@ import { Spinner } from '$lib/components/ui/spinner/index.js';
 		<!-- Torrent cards -->
 		{:else}
 			<div class="flex flex-col gap-2">
-				{#each table.getRowModel().rows as row, i (row.id)}
+				{#each sortedRows as row, i (row.id)}
 					{@const t = row.original}
+					{@const pinned = pinStore.isPinned(t.hashString)}
 					<div
-						class="group rounded-lg border border-border/60 p-4 transition-all hover:shadow-sm hover:border-border {t.error ? 'border-l-2 border-l-destructive' : ''}"
+						class="group rounded-lg border p-4 transition-all hover:shadow-sm {pinned
+							? 'border-primary/40 hover:border-primary/60'
+							: 'border-border/60 hover:border-border'} {t.error ? 'border-l-2 border-l-destructive' : ''}"
 						style="animation: card-enter 0.3s ease-out both; animation-delay: {Math.min(i, 10) * 30}ms"
 					>
-						<!-- Row 1: Name -->
+						<!-- Row 1: Name + Pin -->
 						<div class="flex items-start justify-between gap-3 mb-2">
 							<h3 class="font-display text-[15px] font-semibold leading-snug line-clamp-2 min-w-0">
 								{t.name}
 							</h3>
+							<button
+								onclick={() => pinStore.toggle(t.hashString)}
+								aria-label={pinned ? 'Unpin torrent' : 'Pin torrent'}
+								class="size-7 rounded-md flex items-center justify-center flex-shrink-0 transition-colors {pinned
+									? 'bg-primary/10 text-primary'
+									: 'text-muted-foreground/40 hover:text-muted-foreground'}"
+							>
+								<PinIcon class="size-3.5" />
+							</button>
 						</div>
 
 						<!-- Row 2: Status + Progress + Size -->

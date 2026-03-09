@@ -47,7 +47,6 @@ See [SECURITY.md](docs/SECURITY.md).
 
 ## Roadmap
 
-- Pin torrent on top
 - UX: 
   - Suggest paths
   - Remembed paths
