@@ -48,7 +48,6 @@ See [SECURITY.md](docs/SECURITY.md).
 
 ## Roadmap
 
-- Detailed torrent view: file list, peers, trackers
 - UX: 
   - Suggest paths
   - Remembed paths

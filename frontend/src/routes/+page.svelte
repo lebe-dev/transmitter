@@ -28,6 +28,7 @@
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import TorrentDetailPanel from '$lib/components/TorrentDetailPanel.svelte';
 
 	const LOCALE_STORAGE_KEY = 'transmitter-locale';
 
@@ -300,6 +301,16 @@
 
 	let settingsOpen = $state(false);
 
+	// ── Detail panel ─────────────────────────────────────────────────────────
+
+	let detailOpen = $state(false);
+	let detailTorrent = $state<Torrent | null>(null);
+
+	function openDetail(t: Torrent) {
+		detailTorrent = t;
+		detailOpen = true;
+	}
+
 	// ── Color theme ───────────────────────────────────────────────────────────
 
 	const COLOR_THEME_KEYS = [
@@ -537,10 +548,14 @@
 					{@const t = row.original}
 					{@const pinned = pinStore.isPinned(t.hashString)}
 					<div
-						class="group rounded-lg border p-4 transition-all hover:shadow-sm {pinned
+						class="group rounded-lg border p-4 transition-all hover:shadow-sm cursor-pointer {pinned
 							? 'border-primary/40 hover:border-primary/60'
 							: 'border-border/60 hover:border-border'} {t.error ? 'border-l-2 border-l-destructive' : ''}"
 						style="animation: card-enter 0.3s ease-out both; animation-delay: {Math.min(i, 10) * 30}ms"
+						onclick={() => openDetail(t)}
+						onkeydown={(e) => e.key === 'Enter' && openDetail(t)}
+						role="button"
+						tabindex="0"
 					>
 						<!-- Row 1: Name + Pin -->
 						<div class="flex items-start justify-between gap-3 mb-2">
@@ -548,7 +563,7 @@
 								{t.name}
 							</h3>
 							<button
-								onclick={() => pinStore.toggle(t.hashString)}
+								onclick={(e) => { e.stopPropagation(); pinStore.toggle(t.hashString); }}
 								aria-label={pinned ? $tt('actions.unpin') : $tt('actions.pin')}
 								class="size-7 rounded-md flex items-center justify-center flex-shrink-0 transition-colors {pinned
 									? 'bg-primary/10 text-primary'
@@ -605,7 +620,7 @@
 							<div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity touch-device:opacity-100">
 								{#if t.status === 0}
 									<button
-										onclick={() => handleStart(t)}
+										onclick={(e) => { e.stopPropagation(); handleStart(t); }}
 										aria-label={$tt('actions.resume')}
 										class="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
 									>
@@ -613,7 +628,7 @@
 									</button>
 								{:else if t.status === 4 || t.status === 3 || t.status === 6 || t.status === 5}
 									<button
-										onclick={() => handleStop(t)}
+										onclick={(e) => { e.stopPropagation(); handleStop(t); }}
 										aria-label={$tt('actions.pause')}
 										class="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
 									>
@@ -621,7 +636,7 @@
 									</button>
 								{/if}
 								<button
-									onclick={() => openDeleteDialog(t)}
+									onclick={(e) => { e.stopPropagation(); openDeleteDialog(t); }}
 									aria-label={$tt('actions.delete')}
 									class="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
 								>
@@ -815,6 +830,9 @@
 		</AlertDialog.Footer>
 	</AlertDialog.Content>
 </AlertDialog.Root>
+
+<!-- ── Torrent Detail Panel ─────────────────────────────────────────────── -->
+<TorrentDetailPanel bind:open={detailOpen} torrent={detailTorrent} />
 
 <style>
 	@media (hover: none) {

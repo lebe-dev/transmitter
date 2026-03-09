@@ -91,6 +91,20 @@
 		"rose": "Rosa",
 		"violet": "Violeta"
 	},
+	"detail": {
+		"files": "Archivos",
+		"peers": "Pares",
+		"trackers": "Rastreadores",
+		"refresh": "Actualizar",
+		"loading": "Cargando…",
+		"error": "Error al cargar detalles",
+		"retry": "Reintentar",
+		"noFiles": "Sin archivos",
+		"noPeers": "Sin pares conectados",
+		"noTrackers": "Sin rastreadores",
+		"trackerSeeders": "S",
+		"trackerLeechers": "L"
+	},
 	"toast": {
 		"added": "Torrent añadido",
 		"deleted": "Eliminado: {name}",

@@ -91,6 +91,20 @@
 		"rose": "Розовая",
 		"violet": "Фиолетовая"
 	},
+	"detail": {
+		"files": "Файлы",
+		"peers": "Пиры",
+		"trackers": "Трекеры",
+		"refresh": "Обновить",
+		"loading": "Загрузка…",
+		"error": "Не удалось загрузить детали",
+		"retry": "Повторить",
+		"noFiles": "Нет файлов",
+		"noPeers": "Нет подключённых пиров",
+		"noTrackers": "Нет трекеров",
+		"trackerSeeders": "S",
+		"trackerLeechers": "L"
+	},
 	"toast": {
 		"added": "Торрент добавлен",
 		"deleted": "Удалён: {name}",

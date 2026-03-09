@@ -17,3 +17,38 @@ export interface Torrent {
 }
 
 export type FilterStatus = 'all' | 'downloading' | 'seeding' | 'paused' | 'done';
+
+export interface TorrentFile {
+	bytesCompleted: number;
+	length: number;
+	name: string;
+}
+
+export interface TorrentPeer {
+	address: string;
+	clientName: string;
+	rateToClient: number;
+	rateToPeer: number;
+	progress: number;
+	isEncrypted: boolean;
+	flagStr: string;
+}
+
+export interface TorrentTrackerStat {
+	host: string;
+	announce: string;
+	lastAnnounceResult: string;
+	lastAnnounceSucceeded: boolean;
+	lastAnnounceTime: number;
+	seederCount: number;
+	leecherCount: number;
+	tier: number;
+	announceState: number;
+}
+
+export interface TorrentDetail {
+	id: number;
+	files: TorrentFile[];
+	peers: TorrentPeer[];
+	trackerStats: TorrentTrackerStat[];
+}

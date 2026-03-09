@@ -91,6 +91,20 @@
 		"rose": "Rose",
 		"violet": "Violet"
 	},
+	"detail": {
+		"files": "Files",
+		"peers": "Peers",
+		"trackers": "Trackers",
+		"refresh": "Refresh",
+		"loading": "Loading…",
+		"error": "Failed to load details",
+		"retry": "Retry",
+		"noFiles": "No files",
+		"noPeers": "No peers connected",
+		"noTrackers": "No trackers",
+		"trackerSeeders": "S",
+		"trackerLeechers": "L"
+	},
 	"toast": {
 		"added": "Torrent added",
 		"deleted": "Deleted: {name}",

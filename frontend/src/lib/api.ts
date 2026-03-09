@@ -1,4 +1,4 @@
-import type { Torrent } from './types.js';
+import type { Torrent, TorrentDetail } from './types.js';
 
 const TORRENT_FIELDS = [
 	'id',
@@ -51,4 +51,12 @@ export async function stopTorrents(ids: number[]): Promise<void> {
 
 export async function removeTorrents(ids: number[], deleteLocalData: boolean): Promise<void> {
 	await rpc('torrent-remove', { ids, 'delete-local-data': deleteLocalData });
+}
+
+export async function getTorrentDetails(id: number): Promise<TorrentDetail> {
+	const data = await rpc<{ torrents: TorrentDetail[] }>('torrent-get', {
+		ids: [id],
+		fields: ['id', 'files', 'peers', 'trackerStats'],
+	});
+	return data.torrents[0];
 }
