@@ -108,7 +108,11 @@
 		"noPeers": "Нет подключённых пиров",
 		"noTrackers": "Нет трекеров",
 		"trackerSeeders": "S",
-		"trackerLeechers": "L"
+		"trackerLeechers": "L",
+		"priorityLow": "Низкий",
+		"priorityNormal": "Обычный",
+		"priorityHigh": "Высокий",
+		"cyclePriority": "Сменить приоритет"
 	},
 	"toast": {
 		"added": "Торрент добавлен",

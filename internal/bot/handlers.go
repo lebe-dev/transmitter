@@ -18,7 +18,8 @@ func (b *Bot) handleStart(c telebot.Context) error {
 	text := `<b>Transmitter Bot</b>
 
 /add <code>&lt;magnet|url&gt;</code> — add torrent
-/status — list torrents
+/status — list active torrents
+/status_all — list all torrents
 /help — help
 
 You can also send a <b>.torrent</b> file directly.`
@@ -29,7 +30,8 @@ func (b *Bot) handleHelp(c telebot.Context) error {
 	text := `<b>Help</b>
 
 /add <code>&lt;magnet|url&gt;</code> — add torrent by magnet link or URL
-/status — list active torrents
+/status — list active torrents (downloading, seeding)
+/status_all — list all torrents including stopped
 
 You can also send a <b>.torrent</b> file directly to the chat.`
 	return c.Send(text, telebot.ModeHTML)
@@ -66,6 +68,27 @@ func (b *Bot) handleStatus(c telebot.Context) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
+	all, err := b.client.GetTorrents(ctx)
+	if err != nil {
+		b.logger.Warn("failed to get torrents", "err", err)
+		return c.Send("Failed to get torrent list: " + err.Error())
+	}
+
+	torrents := filterActive(all)
+	if len(torrents) == 0 {
+		return c.Send("No active torrents.")
+	}
+
+	text := formatStatusPage(torrents, 0)
+	kb := statusPageKeyboard(torrents, 0, false)
+
+	return c.Send(text, telebot.ModeHTML, kb)
+}
+
+func (b *Bot) handleStatusAll(c telebot.Context) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
 	torrents, err := b.client.GetTorrents(ctx)
 	if err != nil {
 		b.logger.Warn("failed to get torrents", "err", err)
@@ -73,11 +96,11 @@ func (b *Bot) handleStatus(c telebot.Context) error {
 	}
 
 	if len(torrents) == 0 {
-		return c.Send("No active torrents.")
+		return c.Send("No torrents.")
 	}
 
 	text := formatStatusPage(torrents, 0)
-	kb := statusPageKeyboard(torrents, 0)
+	kb := statusPageKeyboard(torrents, 0, true)
 
 	return c.Send(text, telebot.ModeHTML, kb)
 }

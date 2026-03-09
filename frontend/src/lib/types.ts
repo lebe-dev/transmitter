@@ -46,9 +46,18 @@ export interface TorrentTrackerStat {
 	announceState: number;
 }
 
+export type FilePriority = -1 | 0 | 1;
+
+export interface TorrentFileStat {
+	bytesCompleted: number;
+	wanted: boolean;
+	priority: FilePriority;
+}
+
 export interface TorrentDetail {
 	id: number;
 	files: TorrentFile[];
+	fileStats: TorrentFileStat[];
 	peers: TorrentPeer[];
 	trackerStats: TorrentTrackerStat[];
 }

@@ -97,6 +97,17 @@ func groupTorrents(torrents []transmission.Torrent) groupedTorrents {
 	return g
 }
 
+// filterActive returns only non-stopped torrents (status != 0).
+func filterActive(torrents []transmission.Torrent) []transmission.Torrent {
+	result := make([]transmission.Torrent, 0, len(torrents))
+	for _, t := range torrents {
+		if t.Status != 0 {
+			result = append(result, t)
+		}
+	}
+	return result
+}
+
 // allSorted returns all torrents in display order: downloading, seeding, paused.
 func (g groupedTorrents) allSorted() []transmission.Torrent {
 	result := make([]transmission.Torrent, 0, len(g.downloading)+len(g.seeding)+len(g.paused))

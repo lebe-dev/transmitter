@@ -9,8 +9,8 @@
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
-	import { getTorrentDetails } from '$lib/api.js';
-	import type { Torrent, TorrentDetail } from '$lib/types.js';
+	import { getTorrentDetails, setFilesWanted, setFilePriority } from '$lib/api.js';
+	import type { Torrent, TorrentDetail, FilePriority } from '$lib/types.js';
 
 	let {
 		torrent,
@@ -24,6 +24,7 @@
 	let loading = $state(false);
 	let error = $state<string | null>(null);
 	let activeTab = $state('files');
+	let updatingFile = $state<number | null>(null);
 
 	async function fetchDetails() {
 		if (!torrent) return;
@@ -65,6 +66,66 @@
 	function basename(path: string): string {
 		const parts = path.split('/');
 		return parts[parts.length - 1];
+	}
+
+	function priorityLabel(p: FilePriority): string {
+		switch (p) {
+			case -1: return $tt('detail.priorityLow');
+			case 0: return $tt('detail.priorityNormal');
+			case 1: return $tt('detail.priorityHigh');
+			default: return '';
+		}
+	}
+
+	function priorityLevel(p: FilePriority): 'low' | 'normal' | 'high' {
+		switch (p) {
+			case -1: return 'low';
+			case 0: return 'normal';
+			case 1: return 'high';
+			default: return 'normal';
+		}
+	}
+
+	function nextPriority(p: FilePriority): { value: FilePriority; level: 'low' | 'normal' | 'high' } {
+		switch (p) {
+			case -1: return { value: 0, level: 'normal' };
+			case 0: return { value: 1, level: 'high' };
+			case 1: return { value: -1, level: 'low' };
+			default: return { value: 0, level: 'normal' };
+		}
+	}
+
+	async function toggleWanted(fileIndex: number, currentlyWanted: boolean) {
+		if (!torrent || !detail || updatingFile !== null) return;
+		updatingFile = fileIndex;
+		const prevWanted = detail.fileStats[fileIndex].wanted;
+		detail.fileStats[fileIndex].wanted = !currentlyWanted;
+		try {
+			if (currentlyWanted) {
+				await setFilesWanted(torrent.id, [], [fileIndex]);
+			} else {
+				await setFilesWanted(torrent.id, [fileIndex], []);
+			}
+		} catch {
+			detail.fileStats[fileIndex].wanted = prevWanted;
+		} finally {
+			updatingFile = null;
+		}
+	}
+
+	async function cyclePriority(fileIndex: number, current: FilePriority) {
+		if (!torrent || !detail || updatingFile !== null) return;
+		updatingFile = fileIndex;
+		const next = nextPriority(current);
+		const prevPriority = detail.fileStats[fileIndex].priority;
+		detail.fileStats[fileIndex].priority = next.value;
+		try {
+			await setFilePriority(torrent.id, fileIndex, next.level);
+		} catch {
+			detail.fileStats[fileIndex].priority = prevPriority;
+		} finally {
+			updatingFile = null;
+		}
 	}
 
 	function trackerStatus(state: number): string {
@@ -131,16 +192,41 @@
 							<p class="text-sm text-muted-foreground py-6 text-center">{$tt('detail.noFiles')}</p>
 						{:else}
 							<div class="flex flex-col gap-1.5">
-								{#each detail.files as file}
+								{#each detail.files as file, i}
+									{@const stat = detail.fileStats[i]}
 									{@const progress = file.length > 0 ? file.bytesCompleted / file.length : 0}
-									<div class="rounded-md border border-border/60 px-3 py-2">
+									<div class="rounded-md border border-border/60 px-3 py-2 transition-opacity {stat?.wanted === false ? 'opacity-50' : ''}">
 										<div class="flex items-center justify-between gap-2 mb-1">
-											<span class="text-sm truncate min-w-0" title={file.name}>
-												{basename(file.name)}
-											</span>
-											<span class="text-xs text-muted-foreground tabular-nums flex-shrink-0">
-												{formatSize(file.length)}
-											</span>
+											<div class="flex items-center gap-2 min-w-0">
+												<input
+													type="checkbox"
+													checked={stat?.wanted !== false}
+													disabled={updatingFile !== null}
+													onchange={() => toggleWanted(i, stat?.wanted !== false)}
+													class="size-3.5 accent-primary flex-shrink-0 cursor-pointer"
+												/>
+												<span class="text-sm truncate min-w-0" title={file.name}>
+													{basename(file.name)}
+												</span>
+											</div>
+											<div class="flex items-center gap-2 flex-shrink-0">
+												{#if stat}
+													<button
+														onclick={() => cyclePriority(i, stat.priority)}
+														disabled={updatingFile !== null}
+														title={$tt('detail.cyclePriority')}
+														class="text-[10px] font-medium px-1.5 py-0.5 rounded cursor-pointer transition-colors
+															{stat.priority === 1 ? 'bg-primary/15 text-primary' : ''}
+															{stat.priority === 0 ? 'bg-muted text-muted-foreground' : ''}
+															{stat.priority === -1 ? 'bg-muted/50 text-muted-foreground/60' : ''}"
+													>
+														{priorityLabel(stat.priority)}
+													</button>
+												{/if}
+												<span class="text-xs text-muted-foreground tabular-nums">
+													{formatSize(file.length)}
+												</span>
+											</div>
 										</div>
 										<div class="flex items-center gap-2">
 											<div class="flex-1 h-1 rounded-full bg-muted overflow-hidden">

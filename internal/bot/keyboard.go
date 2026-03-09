@@ -8,7 +8,8 @@ import (
 )
 
 // statusPageKeyboard builds the inline keyboard for the status page.
-func statusPageKeyboard(torrents []transmission.Torrent, page int) *telebot.ReplyMarkup {
+// showAll=false uses active-only navigation prefixes; showAll=true uses all-torrents prefixes.
+func statusPageKeyboard(torrents []transmission.Torrent, page int, showAll bool) *telebot.ReplyMarkup {
 	g := groupTorrents(torrents)
 	all := g.allSorted()
 
@@ -26,23 +27,30 @@ func statusPageKeyboard(torrents []transmission.Torrent, page int) *telebot.Repl
 		end = len(all)
 	}
 
+	pagePrefix := "s:"
+	detailPrefix := "d:"
+	if showAll {
+		pagePrefix = "sa:"
+		detailPrefix = "da:"
+	}
+
 	rm := &telebot.ReplyMarkup{}
 	var rows []telebot.Row
 
 	for _, t := range all[start:end] {
 		name := truncate(t.Name, 35)
-		btn := rm.Data(name, fmt.Sprintf("d_%d", t.ID), fmt.Sprintf("d:%d", t.ID))
+		btn := rm.Data(name, fmt.Sprintf("d_%d", t.ID), fmt.Sprintf("%s%d", detailPrefix, t.ID))
 		rows = append(rows, rm.Row(btn))
 	}
 
 	if pages > 1 {
 		var navBtns telebot.Row
 		if page > 0 {
-			navBtns = append(navBtns, rm.Data("◀ Prev", "sp", fmt.Sprintf("s:%d", page-1)))
+			navBtns = append(navBtns, rm.Data("◀ Prev", "sp", fmt.Sprintf("%s%d", pagePrefix, page-1)))
 		}
 		navBtns = append(navBtns, rm.Data(fmt.Sprintf("%d/%d", page+1, pages), "noop", "noop"))
 		if page < pages-1 {
-			navBtns = append(navBtns, rm.Data("Next ▶", "sn", fmt.Sprintf("s:%d", page+1)))
+			navBtns = append(navBtns, rm.Data("Next ▶", "sn", fmt.Sprintf("%s%d", pagePrefix, page+1)))
 		}
 		rows = append(rows, navBtns)
 	}
@@ -52,7 +60,8 @@ func statusPageKeyboard(torrents []transmission.Torrent, page int) *telebot.Repl
 }
 
 // detailKeyboard builds the inline keyboard for the torrent detail view.
-func detailKeyboard(t transmission.Torrent, page int) *telebot.ReplyMarkup {
+// showAll=true uses all-torrents back navigation prefix.
+func detailKeyboard(t transmission.Torrent, page int, showAll bool) *telebot.ReplyMarkup {
 	rm := &telebot.ReplyMarkup{}
 
 	var actionBtns telebot.Row
@@ -63,7 +72,11 @@ func detailKeyboard(t transmission.Torrent, page int) *telebot.ReplyMarkup {
 	}
 	actionBtns = append(actionBtns, rm.Data("🗑 Delete", "x", fmt.Sprintf("x:%d", t.ID)))
 
-	backBtn := rm.Data("← Back to list", "b", fmt.Sprintf("b:%d", page))
+	backPrefix := "b:"
+	if showAll {
+		backPrefix = "ba:"
+	}
+	backBtn := rm.Data("← Back to list", "b", fmt.Sprintf("%s%d", backPrefix, page))
 
 	rm.Inline(actionBtns, rm.Row(backBtn))
 	return rm

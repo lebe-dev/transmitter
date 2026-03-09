@@ -64,7 +64,29 @@ export async function removeTorrents(ids: number[], deleteLocalData: boolean): P
 export async function getTorrentDetails(id: number): Promise<TorrentDetail> {
 	const data = await rpc<{ torrents: TorrentDetail[] }>('torrent-get', {
 		ids: [id],
-		fields: ['id', 'files', 'peers', 'trackerStats'],
+		fields: ['id', 'files', 'fileStats', 'peers', 'trackerStats'],
 	});
 	return data.torrents[0];
+}
+
+export async function setFilesWanted(
+	torrentId: number,
+	wantedIndices: number[],
+	unwantedIndices: number[],
+): Promise<void> {
+	const args: Record<string, unknown> = { ids: [torrentId] };
+	if (wantedIndices.length > 0) args['files-wanted'] = wantedIndices;
+	if (unwantedIndices.length > 0) args['files-unwanted'] = unwantedIndices;
+	await rpc('torrent-set', args);
+}
+
+export async function setFilePriority(
+	torrentId: number,
+	fileIndex: number,
+	priority: 'low' | 'normal' | 'high',
+): Promise<void> {
+	await rpc('torrent-set', {
+		ids: [torrentId],
+		[`priority-${priority}`]: [fileIndex],
+	});
 }

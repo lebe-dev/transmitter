@@ -48,6 +48,7 @@ func (b *Bot) registerHandlers() {
 	b.tg.Handle("/help", b.handleHelp)
 	b.tg.Handle("/add", b.handleAdd)
 	b.tg.Handle("/status", b.handleStatus)
+	b.tg.Handle("/status_all", b.handleStatusAll)
 	b.tg.Handle(telebot.OnDocument, b.handleDocument)
 	b.tg.Handle(telebot.OnCallback, b.handleCallback)
 }

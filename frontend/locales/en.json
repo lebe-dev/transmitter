@@ -108,7 +108,11 @@
 		"noPeers": "No peers connected",
 		"noTrackers": "No trackers",
 		"trackerSeeders": "S",
-		"trackerLeechers": "L"
+		"trackerLeechers": "L",
+		"priorityLow": "Low",
+		"priorityNormal": "Normal",
+		"priorityHigh": "High",
+		"cyclePriority": "Cycle priority"
 	},
 	"toast": {
 		"added": "Torrent added",

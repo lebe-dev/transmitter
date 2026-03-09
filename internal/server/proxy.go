@@ -15,6 +15,7 @@ var allowedMethods = map[string]bool{
 	"torrent-start":  true,
 	"torrent-stop":   true,
 	"torrent-remove": true,
+	"torrent-set":    true,
 	"session-get":    true,
 }
 

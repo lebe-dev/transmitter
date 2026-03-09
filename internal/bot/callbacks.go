@@ -19,8 +19,10 @@ func (b *Bot) handleCallback(c telebot.Context) error {
 	}
 
 	switch {
+	case strings.HasPrefix(data, "da:"):
+		return b.callbackDetail(c, data, "da:", true)
 	case strings.HasPrefix(data, "d:"):
-		return b.callbackDetail(c, data)
+		return b.callbackDetail(c, data, "d:", false)
 	case strings.HasPrefix(data, "p:"):
 		return b.callbackPause(c, data)
 	case strings.HasPrefix(data, "r:"):
@@ -33,10 +35,14 @@ func (b *Bot) handleCallback(c telebot.Context) error {
 		return b.callbackDelete(c, data, true)
 	case data == "c":
 		return b.callbackCancel(c)
+	case strings.HasPrefix(data, "sa:"):
+		return b.callbackStatusPage(c, data, "sa:", true)
 	case strings.HasPrefix(data, "s:"):
-		return b.callbackStatusPage(c, data)
+		return b.callbackStatusPage(c, data, "s:", false)
+	case strings.HasPrefix(data, "ba:"):
+		return b.callbackBackToList(c, data, "ba:", true)
 	case strings.HasPrefix(data, "b:"):
-		return b.callbackBackToList(c, data)
+		return b.callbackBackToList(c, data, "b:", false)
 	case data == "noop":
 		return c.Respond()
 	default:
@@ -44,8 +50,8 @@ func (b *Bot) handleCallback(c telebot.Context) error {
 	}
 }
 
-func (b *Bot) callbackDetail(c telebot.Context, data string) error {
-	id, err := parseID(data, "d:")
+func (b *Bot) callbackDetail(c telebot.Context, data, prefix string, showAll bool) error {
+	id, err := parseID(data, prefix)
 	if err != nil {
 		return c.Respond(&telebot.CallbackResponse{Text: "Invalid torrent ID", ShowAlert: true})
 	}
@@ -60,7 +66,7 @@ func (b *Bot) callbackDetail(c telebot.Context, data string) error {
 	}
 
 	text := formatTorrentDetail(torrent)
-	kb := detailKeyboard(torrent, 0)
+	kb := detailKeyboard(torrent, 0, showAll)
 
 	_ = c.Respond()
 	return c.Edit(text, kb, telebot.ModeHTML)
@@ -86,7 +92,7 @@ func (b *Bot) callbackPause(c telebot.Context, data string) error {
 		return nil
 	}
 	text := formatTorrentDetail(torrent)
-	kb := detailKeyboard(torrent, 0)
+	kb := detailKeyboard(torrent, 0, false)
 	return c.Edit(text, kb, telebot.ModeHTML)
 }
 
@@ -110,7 +116,7 @@ func (b *Bot) callbackResume(c telebot.Context, data string) error {
 		return nil
 	}
 	text := formatTorrentDetail(torrent)
-	kb := detailKeyboard(torrent, 0)
+	kb := detailKeyboard(torrent, 0, false)
 	return c.Edit(text, kb, telebot.ModeHTML)
 }
 
@@ -168,8 +174,8 @@ func (b *Bot) callbackCancel(c telebot.Context) error {
 	return c.Delete()
 }
 
-func (b *Bot) callbackStatusPage(c telebot.Context, data string) error {
-	page, err := parseID(data, "s:")
+func (b *Bot) callbackStatusPage(c telebot.Context, data, prefix string, showAll bool) error {
+	page, err := parseID(data, prefix)
 	if err != nil {
 		return c.Respond(&telebot.CallbackResponse{Text: "Invalid page", ShowAlert: true})
 	}
@@ -182,15 +188,19 @@ func (b *Bot) callbackStatusPage(c telebot.Context, data string) error {
 		return c.Respond(&telebot.CallbackResponse{Text: "Error: " + err.Error(), ShowAlert: true})
 	}
 
+	if !showAll {
+		torrents = filterActive(torrents)
+	}
+
 	text := formatStatusPage(torrents, int(page))
-	kb := statusPageKeyboard(torrents, int(page))
+	kb := statusPageKeyboard(torrents, int(page), showAll)
 
 	_ = c.Respond()
 	return c.Edit(text, kb, telebot.ModeHTML)
 }
 
-func (b *Bot) callbackBackToList(c telebot.Context, data string) error {
-	page, err := parseID(data, "b:")
+func (b *Bot) callbackBackToList(c telebot.Context, data, prefix string, showAll bool) error {
+	page, err := parseID(data, prefix)
 	if err != nil {
 		page = 0
 	}
@@ -203,8 +213,12 @@ func (b *Bot) callbackBackToList(c telebot.Context, data string) error {
 		return c.Respond(&telebot.CallbackResponse{Text: "Error: " + err.Error(), ShowAlert: true})
 	}
 
+	if !showAll {
+		torrents = filterActive(torrents)
+	}
+
 	text := formatStatusPage(torrents, int(page))
-	kb := statusPageKeyboard(torrents, int(page))
+	kb := statusPageKeyboard(torrents, int(page), showAll)
 
 	_ = c.Respond()
 	return c.Edit(text, kb, telebot.ModeHTML)
