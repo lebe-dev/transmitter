@@ -5,4 +5,8 @@
 !/docs/**/*.md
 /static/dist
 /.env
-/*.json
+/dev/blocklists
+/dev/resume
+/dev/torrents
+/**/*.json
+!/dev/settings.json
