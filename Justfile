@@ -59,7 +59,7 @@ run-backend:
     go run ./cmd/transmitter
 
 run-frontend:
-    cd frontend && yarn dev
+    cd frontend && yarn dev -- --port=4200
 
 # --- Image ---
 build-image: test && lint
