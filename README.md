@@ -40,7 +40,7 @@ For all options, see [.env.example](.env.example).
 
 ## Security
 
-See [SECURITY.md](SECURITY.md).
+See [SECURITY.md](docs/SECURITY.md).
 
 ## Roadmap
 
