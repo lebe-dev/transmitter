@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import { mode, toggleMode } from 'mode-watcher';
+	import { mode, toggleMode, setTheme, theme } from 'mode-watcher';
 	import { getCoreRowModel, getSortedRowModel, type ColumnDef, type SortingState } from '@tanstack/table-core';
 	import SunIcon from '@lucide/svelte/icons/sun';
 	import MoonIcon from '@lucide/svelte/icons/moon';
@@ -292,21 +292,15 @@ import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
 		{ value: 'violet', label: 'Violet' },
 	] as const;
 
-	const THEME_STORAGE_KEY = 'transmitter-color-theme';
+	// mode-watcher manages data-theme attr & localStorage ('mode-watcher-theme')
+	// yellow = "" (default, no data-theme attr), others = theme name
+	const toMwTheme = (t: string) => (t === 'yellow' ? '' : t);
+	const fromMwTheme = (t: string) => (t || 'yellow');
 
-	let colorTheme = $state<string>('yellow');
+	let colorTheme = $derived(fromMwTheme(theme.current));
 
-	function applyColorTheme(theme: string) {
-		if (theme === 'yellow') {
-			document.documentElement.removeAttribute('data-theme');
-		} else {
-			document.documentElement.setAttribute('data-theme', theme);
-		}
-	}
-
-	function onColorThemeChange(theme: string) {
-		applyColorTheme(theme);
-		localStorage.setItem(THEME_STORAGE_KEY, theme);
+	function onColorThemeChange(value: string) {
+		if (value) setTheme(toMwTheme(value));
 	}
 
 	// ── Scroll to top ─────────────────────────────────────────────────────────
@@ -324,9 +318,12 @@ import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
 	// ── Lifecycle ─────────────────────────────────────────────────────────────
 
 	onMount(() => {
-		const saved = localStorage.getItem(THEME_STORAGE_KEY) ?? 'yellow';
-		colorTheme = saved;
-		applyColorTheme(saved);
+		// migrate: old code stored 'yellow' literally, mode-watcher uses '' for no theme
+		const stored = localStorage.getItem('transmitter-color-theme');
+		if (stored === 'yellow') {
+			localStorage.removeItem('transmitter-color-theme');
+			setTheme('');
+		}
 		torrentStore.init();
 		window.addEventListener('scroll', onScroll, { passive: true });
 	});
@@ -349,7 +346,7 @@ import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
 				<span class="font-display font-semibold text-[17px] tracking-tight">Transmitter</span>
 			</div>
 
-			<Select.Root type="single" bind:value={colorTheme} onValueChange={onColorThemeChange}>
+			<Select.Root type="single" value={colorTheme} onValueChange={onColorThemeChange}>
 				<Select.Trigger class="h-8 w-24 text-xs" aria-label="Color theme">
 					{COLOR_THEMES.find((t) => t.value === colorTheme)?.label ?? 'Theme'}
 				</Select.Trigger>

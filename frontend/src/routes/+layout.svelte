@@ -9,6 +9,6 @@
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
 
-<ModeWatcher defaultMode="system" />
+<ModeWatcher defaultMode="system" themeStorageKey="transmitter-color-theme" />
 <Toaster richColors position="top-right" />
 {@render children()}
