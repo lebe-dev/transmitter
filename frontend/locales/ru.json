@@ -65,7 +65,11 @@
 		"magnetPlaceholder": "magnet:?xt=urn:btih:… или http://…",
 		"dropHint": "Перетащите .torrent файл сюда или нажмите для выбора",
 		"addButton": "Добавить",
-		"cancel": "Отмена"
+		"cancel": "Отмена",
+		"destinationFolder": "Папка назначения",
+		"defaultPath": "По умолчанию",
+		"removePath": "Удалить сохранённый путь",
+		"invalidPath": "Путь должен быть абсолютным (начинаться с /)"
 	},
 	"deleteDialog": {
 		"title": "Удалить торрент",

@@ -65,7 +65,11 @@
 		"magnetPlaceholder": "magnet:?xt=urn:btih:… or http://…",
 		"dropHint": "Drop a .torrent file here or click to browse",
 		"addButton": "Add",
-		"cancel": "Cancel"
+		"cancel": "Cancel",
+		"destinationFolder": "Destination folder",
+		"defaultPath": "Default",
+		"removePath": "Remove saved path",
+		"invalidPath": "Path must be absolute (start with /)"
 	},
 	"deleteDialog": {
 		"title": "Delete Torrent",

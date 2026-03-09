@@ -33,12 +33,20 @@ export async function getTorrents(): Promise<Torrent[]> {
 	return data.torrents;
 }
 
-export async function addTorrentMagnet(filename: string): Promise<void> {
-	await rpc('torrent-add', { filename });
+export async function getSession(): Promise<{ 'download-dir': string }> {
+	return rpc('session-get');
 }
 
-export async function addTorrentFile(metainfo: string): Promise<void> {
-	await rpc('torrent-add', { metainfo });
+export async function addTorrentMagnet(filename: string, downloadDir?: string): Promise<void> {
+	const args: Record<string, unknown> = { filename };
+	if (downloadDir) args['download-dir'] = downloadDir;
+	await rpc('torrent-add', args);
+}
+
+export async function addTorrentFile(metainfo: string, downloadDir?: string): Promise<void> {
+	const args: Record<string, unknown> = { metainfo };
+	if (downloadDir) args['download-dir'] = downloadDir;
+	await rpc('torrent-add', args);
 }
 
 export async function startTorrents(ids: number[]): Promise<void> {

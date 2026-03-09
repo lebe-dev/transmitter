@@ -65,7 +65,11 @@
 		"magnetPlaceholder": "magnet:?xt=urn:btih:… o http://…",
 		"dropHint": "Suelta un archivo .torrent aquí o haz clic para seleccionar",
 		"addButton": "Añadir",
-		"cancel": "Cancelar"
+		"cancel": "Cancelar",
+		"destinationFolder": "Carpeta de destino",
+		"defaultPath": "Predeterminado",
+		"removePath": "Eliminar ruta guardada",
+		"invalidPath": "La ruta debe ser absoluta (comenzar con /)"
 	},
 	"deleteDialog": {
 		"title": "Eliminar torrent",

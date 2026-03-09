@@ -21,7 +21,10 @@
 	import SettingsIcon from '@lucide/svelte/icons/settings';
 	import PinIcon from '@lucide/svelte/icons/pin';
 
-	import { torrentStore, pinStore } from '$lib/stores.svelte.js';
+	import XIcon from '@lucide/svelte/icons/x';
+	import FolderIcon from '@lucide/svelte/icons/folder';
+
+	import { torrentStore, pinStore, downloadDirStore } from '$lib/stores.svelte.js';
 	import { addTorrentMagnet, addTorrentFile, startTorrents, stopTorrents, removeTorrents } from '$lib/api.js';
 	import type { Torrent, FilterStatus } from '$lib/types.js';
 	import { createSvelteTable } from '$lib/components/ui/data-table/index.js';
@@ -186,6 +189,10 @@
 	let fileInputEl = $state<HTMLInputElement | null>(null);
 	let isAdding = $state(false);
 	let dragOver = $state(false);
+	let downloadDir = $state('');
+	let showDirDropdown = $state(false);
+
+	const isDirValid = $derived(!downloadDir.trim() || downloadDir.trim().startsWith('/'));
 
 	function readFileAsBase64(file: File): Promise<string> {
 		return new Promise((resolve, reject) => {
@@ -218,14 +225,16 @@
 		if (isAdding) return;
 		isAdding = true;
 		try {
+			const dir = downloadDir.trim() || undefined;
 			if (addMode === 'magnet') {
 				if (!magnetUrl.trim()) return;
-				await addTorrentMagnet(magnetUrl.trim());
+				await addTorrentMagnet(magnetUrl.trim(), dir);
 			} else {
 				if (!pendingFile) return;
 				const b64 = await readFileAsBase64(pendingFile);
-				await addTorrentFile(b64);
+				await addTorrentFile(b64, dir);
 			}
+			if (dir) downloadDirStore.addDir(dir);
 			toast.success(get(tt)('toast.added'));
 			addOpen = false;
 			magnetUrl = '';
@@ -244,6 +253,8 @@
 		addMode = 'file';
 		isAdding = false;
 		dragOver = false;
+		downloadDir = downloadDirStore.selectedDir || downloadDirStore.defaultDir;
+		showDirDropdown = false;
 	}
 
 	// ── Delete dialog ─────────────────────────────────────────────────────────
@@ -375,6 +386,7 @@
 		}
 
 		torrentStore.init();
+		downloadDirStore.init();
 		window.addEventListener('scroll', onScroll, { passive: true });
 	});
 	onDestroy(() => {
@@ -791,12 +803,69 @@
 			</div>
 		{/if}
 
+		<!-- Destination folder -->
+		<div class="flex flex-col gap-1.5 mt-4">
+			<label class="text-sm font-medium flex items-center gap-1.5">
+				<FolderIcon class="size-3.5 text-muted-foreground" />
+				{$tt('addDialog.destinationFolder')}
+			</label>
+			<div class="relative">
+				<div class="flex">
+					<input
+						type="text"
+						class="flex-1 h-9 rounded-lg rounded-r-none border border-r-0 bg-background px-3 text-sm outline-none transition-colors font-mono {isDirValid
+							? 'border-input focus:border-primary/40 focus:ring-2 focus:ring-primary/10'
+							: 'border-destructive focus:border-destructive focus:ring-2 focus:ring-destructive/20'}"
+						bind:value={downloadDir}
+					/>
+					<button
+						type="button"
+						class="h-9 px-2 rounded-lg rounded-l-none border border-input bg-background text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+						onclick={() => (showDirDropdown = !showDirDropdown)}
+					>
+						<ChevronDownIcon class="size-4" />
+					</button>
+				</div>
+				{#if showDirDropdown && downloadDirStore.allDirs.length > 0}
+					<div class="absolute z-50 top-full left-0 right-0 mt-1 rounded-lg border border-border bg-popover shadow-md py-1 max-h-40 overflow-y-auto">
+						{#each downloadDirStore.allDirs as dir}
+							<div class="flex items-center group/dir">
+								<button
+									type="button"
+									class="flex-1 text-left px-3 py-1.5 text-sm font-mono truncate hover:bg-accent transition-colors {dir === downloadDir ? 'text-foreground font-medium' : 'text-muted-foreground'}"
+									onclick={() => { downloadDir = dir; showDirDropdown = false; downloadDirStore.selectDir(dir); }}
+								>
+									{dir}
+									{#if dir === downloadDirStore.defaultDir}
+										<span class="ml-1.5 text-[10px] font-sans font-medium text-muted-foreground/60 uppercase">{$tt('addDialog.defaultPath')}</span>
+									{/if}
+								</button>
+								{#if dir !== downloadDirStore.defaultDir}
+									<button
+										type="button"
+										aria-label={$tt('addDialog.removePath')}
+										class="size-6 flex items-center justify-center text-muted-foreground/40 hover:text-destructive transition-colors opacity-0 group-hover/dir:opacity-100 mr-1"
+										onclick={() => downloadDirStore.removeDir(dir)}
+									>
+										<XIcon class="size-3" />
+									</button>
+								{/if}
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
+			{#if !isDirValid}
+				<p class="text-xs text-destructive">{$tt('addDialog.invalidPath')}</p>
+			{/if}
+		</div>
+
 		<AlertDialog.Footer class="pt-4">
 			<AlertDialog.Cancel disabled={isAdding} onclick={resetAddDialog}>{$tt('addDialog.cancel')}</AlertDialog.Cancel>
 			<Button
 				class="font-display font-semibold"
 				onclick={handleAdd}
-				disabled={isAdding || (addMode === 'magnet' ? !magnetUrl.trim() : !pendingFile)}
+				disabled={isAdding || !isDirValid || (addMode === 'magnet' ? !magnetUrl.trim() : !pendingFile)}
 			>
 				{#if isAdding}
 					<Spinner class="size-4" />

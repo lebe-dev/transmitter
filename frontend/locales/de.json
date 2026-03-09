@@ -65,7 +65,11 @@
 		"magnetPlaceholder": "magnet:?xt=urn:btih:… oder http://…",
 		"dropHint": ".torrent-Datei hier ablegen oder klicken zum Auswählen",
 		"addButton": "Hinzufügen",
-		"cancel": "Abbrechen"
+		"cancel": "Abbrechen",
+		"destinationFolder": "Zielordner",
+		"defaultPath": "Standard",
+		"removePath": "Gespeicherten Pfad entfernen",
+		"invalidPath": "Pfad muss absolut sein (mit / beginnen)"
 	},
 	"deleteDialog": {
 		"title": "Torrent löschen",
