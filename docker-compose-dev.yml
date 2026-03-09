@@ -1,0 +1,17 @@
+services:
+  transmission:
+    image: linuxserver/transmission:4.1.1
+    container_name: transmission-dev
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=UTC
+    volumes:
+      - ./dev:/config
+      - transmission-downloads:/downloads
+    ports:
+      - "9091:9091"
+    restart: unless-stopped
+
+volumes:
+  transmission-downloads:
