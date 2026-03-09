@@ -180,7 +180,7 @@
 	// ── Add torrent dialog ────────────────────────────────────────────────────
 
 	let addOpen = $state(false);
-	let addMode = $state<'magnet' | 'file'>('magnet');
+	let addMode = $state<'magnet' | 'file'>('file');
 	let magnetUrl = $state('');
 	let pendingFile = $state<File | null>(null);
 	let fileInputEl = $state<HTMLInputElement | null>(null);
@@ -241,7 +241,7 @@
 	function resetAddDialog() {
 		magnetUrl = '';
 		pendingFile = null;
-		addMode = 'magnet';
+		addMode = 'file';
 		isAdding = false;
 		dragOver = false;
 	}
@@ -729,18 +729,6 @@
 		<!-- Mode tabs (underline style) -->
 		<div class="flex gap-4 border-b border-border/60 mb-4">
 			<button
-				class="relative flex items-center gap-1.5 pb-2.5 text-sm font-medium transition-colors {addMode === 'magnet'
-					? 'text-foreground'
-					: 'text-muted-foreground hover:text-foreground'}"
-				onclick={() => (addMode = 'magnet')}
-			>
-				<LinkIcon class="size-3.5" />
-				{$tt('addDialog.magnetTab')}
-				{#if addMode === 'magnet'}
-					<span class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full"></span>
-				{/if}
-			</button>
-			<button
 				class="relative flex items-center gap-1.5 pb-2.5 text-sm font-medium transition-colors {addMode === 'file'
 					? 'text-foreground'
 					: 'text-muted-foreground hover:text-foreground'}"
@@ -749,6 +737,18 @@
 				<UploadIcon class="size-3.5" />
 				{$tt('addDialog.fileTab')}
 				{#if addMode === 'file'}
+					<span class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full"></span>
+				{/if}
+			</button>
+			<button
+				class="relative flex items-center gap-1.5 pb-2.5 text-sm font-medium transition-colors {addMode === 'magnet'
+					? 'text-foreground'
+					: 'text-muted-foreground hover:text-foreground'}"
+				onclick={() => (addMode = 'magnet')}
+			>
+				<LinkIcon class="size-3.5" />
+				{$tt('addDialog.magnetTab')}
+				{#if addMode === 'magnet'}
 					<span class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full"></span>
 				{/if}
 			</button>
