@@ -50,7 +50,6 @@ See [SECURITY.md](docs/SECURITY.md).
 
 ## Roadmap
 
-- Toggle features: webui, telegram bot
 - Grouping by folders / labels (labels added in Transmission 4.0)
 - Pause / delete via Telegram bot (command expansion)
 - WebSocket instead of polling for real-time UI updates
