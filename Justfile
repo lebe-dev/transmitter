@@ -54,6 +54,13 @@ coverage:
 format:
     go fmt ./...
 
+# --- Dev Environment ---
+start-env:
+    docker compose -f docker-compose-dev.yml up -d
+
+stop-env:
+    docker compose -f docker-compose-dev.yml down
+
 # --- Development ---
 run-backend:
     go run ./cmd/transmitter
