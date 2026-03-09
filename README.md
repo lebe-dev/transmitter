@@ -50,6 +50,7 @@ See [SECURITY.md](docs/SECURITY.md).
 
 ## Roadmap
 
+- Manage file priorities
 - UX: 
   - Suggest paths
   - Remembed paths
