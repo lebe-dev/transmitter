@@ -30,7 +30,7 @@ lint-backend: format
     go vet ./...
 
 lint-frontend: format
-    cd frontend && yarn check
+    cd frontend && yarn run check
 
 lint: format
     just lint-backend
