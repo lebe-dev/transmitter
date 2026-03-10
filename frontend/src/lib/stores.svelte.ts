@@ -1,4 +1,4 @@
-import { getTorrents } from './api.js';
+import { getTorrents, getSession } from './api.js';
 import type { Torrent, FilterStatus } from './types.js';
 
 const POLL_ACTIVE = 5_000;
@@ -163,3 +163,100 @@ class TorrentStore {
 }
 
 export const torrentStore = new TorrentStore();
+
+// ── Pin store (localStorage) ─────────────────────────────────────────────
+
+const PIN_KEY = 'tx_pinned';
+
+class PinStore {
+	#pinned = $state<Set<string>>(new Set());
+
+	constructor() {
+		try {
+			const raw = localStorage.getItem(PIN_KEY);
+			if (raw) this.#pinned = new Set(JSON.parse(raw));
+		} catch {
+			// ignore corrupt data
+		}
+	}
+
+	isPinned(hashString: string): boolean {
+		return this.#pinned.has(hashString);
+	}
+
+	toggle(hashString: string) {
+		if (this.#pinned.has(hashString)) {
+			this.#pinned.delete(hashString);
+		} else {
+			this.#pinned.add(hashString);
+		}
+		// trigger reactivity by reassigning
+		this.#pinned = new Set(this.#pinned);
+		this.#persist();
+	}
+
+	#persist() {
+		localStorage.setItem(PIN_KEY, JSON.stringify([...this.#pinned]));
+	}
+}
+
+export const pinStore = new PinStore();
+
+// ── Download directory store (localStorage + session-get) ────────────────
+
+const DIR_KEY = 'tx_download_dirs';
+
+class DownloadDirStore {
+	defaultDir = $state('');
+	savedDirs = $state<string[]>([]);
+	selectedDir = $state('');
+
+	get allDirs(): string[] {
+		const set = new Set<string>();
+		if (this.defaultDir) set.add(this.defaultDir);
+		for (const d of this.savedDirs) set.add(d);
+		return [...set];
+	}
+
+	constructor() {
+		try {
+			const raw = localStorage.getItem(DIR_KEY);
+			if (raw) this.savedDirs = JSON.parse(raw);
+		} catch {
+			// ignore corrupt data
+		}
+	}
+
+	async init() {
+		try {
+			const session = await getSession();
+			this.defaultDir = session['download-dir'] ?? '';
+			if (!this.selectedDir) this.selectedDir = this.defaultDir;
+		} catch {
+			// session-get may fail if server is unreachable
+		}
+	}
+
+	selectDir(path: string) {
+		this.selectedDir = path;
+	}
+
+	addDir(path: string) {
+		if (!path || path === this.defaultDir) return;
+		if (this.savedDirs.includes(path)) return;
+		this.savedDirs = [...this.savedDirs, path];
+		this.#persist();
+	}
+
+	removeDir(path: string) {
+		if (path === this.defaultDir) return;
+		this.savedDirs = this.savedDirs.filter((d) => d !== path);
+		this.#persist();
+	}
+
+	#persist() {
+		localStorage.setItem(DIR_KEY, JSON.stringify(this.savedDirs));
+	}
+}
+
+export const downloadDirStore = new DownloadDirStore();

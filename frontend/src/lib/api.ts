@@ -1,4 +1,4 @@
-import type { Torrent } from './types.js';
+import type { Torrent, TorrentDetail } from './types.js';
 
 const TORRENT_FIELDS = [
 	'id',
@@ -33,12 +33,20 @@ export async function getTorrents(): Promise<Torrent[]> {
 	return data.torrents;
 }
 
-export async function addTorrentMagnet(filename: string): Promise<void> {
-	await rpc('torrent-add', { filename });
+export async function getSession(): Promise<{ 'download-dir': string }> {
+	return rpc('session-get');
 }
 
-export async function addTorrentFile(metainfo: string): Promise<void> {
-	await rpc('torrent-add', { metainfo });
+export async function addTorrentMagnet(filename: string, downloadDir?: string): Promise<void> {
+	const args: Record<string, unknown> = { filename };
+	if (downloadDir) args['download-dir'] = downloadDir;
+	await rpc('torrent-add', args);
+}
+
+export async function addTorrentFile(metainfo: string, downloadDir?: string): Promise<void> {
+	const args: Record<string, unknown> = { metainfo };
+	if (downloadDir) args['download-dir'] = downloadDir;
+	await rpc('torrent-add', args);
 }
 
 export async function startTorrents(ids: number[]): Promise<void> {
@@ -51,4 +59,34 @@ export async function stopTorrents(ids: number[]): Promise<void> {
 
 export async function removeTorrents(ids: number[], deleteLocalData: boolean): Promise<void> {
 	await rpc('torrent-remove', { ids, 'delete-local-data': deleteLocalData });
+}
+
+export async function getTorrentDetails(id: number): Promise<TorrentDetail> {
+	const data = await rpc<{ torrents: TorrentDetail[] }>('torrent-get', {
+		ids: [id],
+		fields: ['id', 'files', 'fileStats', 'peers', 'trackerStats'],
+	});
+	return data.torrents[0];
+}
+
+export async function setFilesWanted(
+	torrentId: number,
+	wantedIndices: number[],
+	unwantedIndices: number[],
+): Promise<void> {
+	const args: Record<string, unknown> = { ids: [torrentId] };
+	if (wantedIndices.length > 0) args['files-wanted'] = wantedIndices;
+	if (unwantedIndices.length > 0) args['files-unwanted'] = unwantedIndices;
+	await rpc('torrent-set', args);
+}
+
+export async function setFilePriority(
+	torrentId: number,
+	fileIndex: number,
+	priority: 'low' | 'normal' | 'high',
+): Promise<void> {
+	await rpc('torrent-set', {
+		ids: [torrentId],
+		[`priority-${priority}`]: [fileIndex],
+	});
 }

@@ -1,0 +1,127 @@
+{
+	"id": "de",
+	"languages": {
+		"en": "English",
+		"ru": "Русский",
+		"es": "Español",
+		"de": "Deutsch"
+	},
+	"header": {
+		"add": "Hinzufügen",
+		"toggleTheme": "Design wechseln",
+		"settings": "Einstellungen"
+	},
+	"search": {
+		"placeholder": "Torrents suchen…"
+	},
+	"filters": {
+		"all": "Alle",
+		"downloading": "Herunterladen",
+		"seeding": "Seeden",
+		"paused": "Pausiert",
+		"done": "Fertig"
+	},
+	"sort": {
+		"label": "Sortierung:",
+		"added": "Hinzugefügt",
+		"name": "Name",
+		"size": "Größe",
+		"progress": "Fortschritt",
+		"status": "Status",
+		"toggleDirection": "Sortierrichtung umkehren"
+	},
+	"status": {
+		"stopped": "Gestoppt",
+		"checkQueue": "Prüf-Warteschlange",
+		"checking": "Wird geprüft",
+		"queued": "In Warteschlange",
+		"downloading": "Herunterladen",
+		"seedQueue": "Seed-Warteschlange",
+		"seeding": "Seeden"
+	},
+	"empty": {
+		"title": "Noch keine Torrents",
+		"description": "Füge einen Magnet-Link hinzu oder lade eine .torrent-Datei hoch.",
+		"addButton": "Torrent hinzufügen",
+		"noMatchTitle": "Keine Treffer",
+		"noMatchDescription": "Versuche einen anderen Suchbegriff oder Filter."
+	},
+	"error": {
+		"connection": "Verbindungsfehler"
+	},
+	"actions": {
+		"resume": "Fortsetzen",
+		"pause": "Pausieren",
+		"delete": "Löschen",
+		"pin": "Torrent anheften",
+		"unpin": "Torrent loslösen",
+		"scrollToTop": "Nach oben"
+	},
+	"addDialog": {
+		"title": "Torrent hinzufügen",
+		"description": "Magnet-Link hinzufügen oder .torrent-Datei hochladen.",
+		"magnetTab": "Magnet / URL",
+		"fileTab": ".torrent-Datei",
+		"magnetPlaceholder": "magnet:?xt=urn:btih:… oder http://…",
+		"dropHint": ".torrent-Datei hier ablegen oder klicken zum Auswählen",
+		"addButton": "Hinzufügen",
+		"cancel": "Abbrechen",
+		"destinationFolder": "Zielordner",
+		"defaultPath": "Standard",
+		"removePath": "Gespeicherten Pfad entfernen",
+		"invalidPath": "Pfad muss absolut sein (mit / beginnen)"
+	},
+	"deleteDialog": {
+		"title": "Torrent löschen",
+		"cannotUndo": "Diese Aktion kann nicht rückgängig gemacht werden.",
+		"deleteLocal": "Lokale Daten ebenfalls löschen",
+		"deleteButton": "Löschen",
+		"cancel": "Abbrechen"
+	},
+	"settings": {
+		"title": "Einstellungen",
+		"description": "Erscheinungsbild anpassen.",
+		"colorTheme": "Farbdesign",
+		"language": "Sprache",
+		"docs": "Dokumentation",
+		"close": "Schließen"
+	},
+	"themes": {
+		"yellow": "Gelb",
+		"blue": "Blau",
+		"green": "Grün",
+		"default": "Schwarz",
+		"orange": "Orange",
+		"red": "Rot",
+		"rose": "Rosa",
+		"violet": "Violett"
+	},
+	"detail": {
+		"files": "Dateien",
+		"peers": "Peers",
+		"trackers": "Tracker",
+		"refresh": "Aktualisieren",
+		"loading": "Laden…",
+		"error": "Details konnten nicht geladen werden",
+		"retry": "Erneut versuchen",
+		"noFiles": "Keine Dateien",
+		"noPeers": "Keine Peers verbunden",
+		"noTrackers": "Keine Tracker",
+		"trackerSeeders": "S",
+		"trackerLeechers": "L",
+		"priorityLow": "Niedrig",
+		"priorityNormal": "Normal",
+		"priorityHigh": "Hoch",
+		"cyclePriority": "Priorität wechseln"
+	},
+	"toast": {
+		"added": "Torrent hinzugefügt",
+		"deleted": "Gelöscht: {name}",
+		"started": "Gestartet: {name}",
+		"paused": "Pausiert: {name}",
+		"failAdd": "Torrent konnte nicht hinzugefügt werden",
+		"failStart": "Torrent konnte nicht gestartet werden",
+		"failPause": "Torrent konnte nicht pausiert werden",
+		"failDelete": "Torrent konnte nicht gelöscht werden"
+	}
+}

@@ -5,21 +5,28 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 )
 
 // Config holds all application configuration loaded from environment variables.
 type Config struct {
-	TransmissionURL  string
-	TransmissionUser string
-	TransmissionPass string
-	ListenAddr       string
-	CORSOrigin       string
-	TelegramToken    string
-	TelegramUsers    []string
-	LogLevel         slog.Level
+	TransmissionURL       string
+	TransmissionUser      string
+	TransmissionPass      string
+	ListenAddr            string
+	CORSOrigin            string
+	TelegramToken         string
+	TelegramUsers         []string
+	LogLevel              slog.Level
+	MonitorInterval       time.Duration
+	FilePriorityEnabled   bool
+	FilePriorityHighCount int
+	WebUIEnabled          bool
+	TelegramBotEnabled    bool
 }
 
 // Load reads configuration from environment variables, optionally loading a .env file first.
@@ -60,6 +67,11 @@ func Load() (*Config, error) {
 	}
 
 	cfg.LogLevel = parseLogLevel(os.Getenv("LOG_LEVEL"))
+	cfg.MonitorInterval = parseDuration(os.Getenv("MONITOR_INTERVAL"), 30*time.Second)
+	cfg.FilePriorityEnabled = strings.EqualFold(os.Getenv("FILE_PRIORITY_ENABLED"), "true")
+	cfg.FilePriorityHighCount = parsePositiveInt(os.Getenv("FILE_PRIORITY_HIGH_COUNT"), 3)
+	cfg.WebUIEnabled = parseBoolDefault(os.Getenv("WEBUI_ENABLED"), true)
+	cfg.TelegramBotEnabled = parseBoolDefault(os.Getenv("TELEGRAM_BOT_ENABLED"), false)
 
 	return cfg, nil
 }
@@ -69,6 +81,35 @@ func envOrDefault(key, def string) string {
 		return v
 	}
 	return def
+}
+
+func parseDuration(s string, def time.Duration) time.Duration {
+	if s == "" {
+		return def
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil || d <= 0 {
+		return def
+	}
+	return d
+}
+
+func parsePositiveInt(s string, def int) int {
+	if s == "" {
+		return def
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil || n <= 0 {
+		return def
+	}
+	return n
+}
+
+func parseBoolDefault(s string, def bool) bool {
+	if s == "" {
+		return def
+	}
+	return strings.EqualFold(s, "true") || s == "1"
 }
 
 func parseLogLevel(s string) slog.Level {

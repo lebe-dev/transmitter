@@ -3,6 +3,7 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import { ModeWatcher } from 'mode-watcher';
 	import { Toaster } from '$lib/components/ui/sonner/index.js';
+	import { waitLocale } from 'svelte-intl-precompile';
 
 	let { children } = $props();
 </script>
@@ -11,4 +12,6 @@
 
 <ModeWatcher defaultMode="system" themeStorageKey="transmitter-color-theme" />
 <Toaster richColors position="top-right" />
-{@render children()}
+{#await waitLocale() then}
+	{@render children()}
+{/await}

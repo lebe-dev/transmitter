@@ -25,8 +25,13 @@ func New(cfg *config.Config, client *transmission.Client, staticFS fs.FS, logger
 		return nil, err
 	}
 
+	priorityCfg := AutoPriorityConfig{
+		Enabled:   cfg.FilePriorityEnabled,
+		HighCount: cfg.FilePriorityHighCount,
+	}
+
 	mux := http.NewServeMux()
-	mux.Handle("POST /api/rpc", ProxyHandler(client))
+	mux.Handle("POST /api/rpc", ProxyHandler(client, priorityCfg))
 	mux.Handle("GET /api/health", HealthHandler(client))
 	mux.Handle("/", staticHandler)
 

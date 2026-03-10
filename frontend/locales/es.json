@@ -1,0 +1,127 @@
+{
+	"id": "es",
+	"languages": {
+		"en": "English",
+		"ru": "Русский",
+		"es": "Español",
+		"de": "Deutsch"
+	},
+	"header": {
+		"add": "Añadir",
+		"toggleTheme": "Cambiar tema",
+		"settings": "Ajustes"
+	},
+	"search": {
+		"placeholder": "Buscar torrents…"
+	},
+	"filters": {
+		"all": "Todos",
+		"downloading": "Descargando",
+		"seeding": "Sembrando",
+		"paused": "Pausado",
+		"done": "Listo"
+	},
+	"sort": {
+		"label": "Ordenar:",
+		"added": "Añadido",
+		"name": "Nombre",
+		"size": "Tamaño",
+		"progress": "Progreso",
+		"status": "Estado",
+		"toggleDirection": "Cambiar dirección de orden"
+	},
+	"status": {
+		"stopped": "Detenido",
+		"checkQueue": "Cola de verificación",
+		"checking": "Verificando",
+		"queued": "En cola",
+		"downloading": "Descargando",
+		"seedQueue": "Cola de sembrado",
+		"seeding": "Sembrando"
+	},
+	"empty": {
+		"title": "Sin torrents",
+		"description": "Añade un enlace magnet o sube un archivo .torrent para comenzar.",
+		"addButton": "Añadir torrent",
+		"noMatchTitle": "Sin resultados",
+		"noMatchDescription": "Prueba con otro término de búsqueda o filtro."
+	},
+	"error": {
+		"connection": "Error de conexión"
+	},
+	"actions": {
+		"resume": "Reanudar",
+		"pause": "Pausar",
+		"delete": "Eliminar",
+		"pin": "Fijar torrent",
+		"unpin": "Desfijar torrent",
+		"scrollToTop": "Ir arriba"
+	},
+	"addDialog": {
+		"title": "Añadir torrent",
+		"description": "Añade un enlace magnet o sube un archivo .torrent.",
+		"magnetTab": "Magnet / URL",
+		"fileTab": "Archivo .torrent",
+		"magnetPlaceholder": "magnet:?xt=urn:btih:… o http://…",
+		"dropHint": "Suelta un archivo .torrent aquí o haz clic para seleccionar",
+		"addButton": "Añadir",
+		"cancel": "Cancelar",
+		"destinationFolder": "Carpeta de destino",
+		"defaultPath": "Predeterminado",
+		"removePath": "Eliminar ruta guardada",
+		"invalidPath": "La ruta debe ser absoluta (comenzar con /)"
+	},
+	"deleteDialog": {
+		"title": "Eliminar torrent",
+		"cannotUndo": "Esta acción no se puede deshacer.",
+		"deleteLocal": "Eliminar también los datos locales",
+		"deleteButton": "Eliminar",
+		"cancel": "Cancelar"
+	},
+	"settings": {
+		"title": "Ajustes",
+		"description": "Personalizar apariencia.",
+		"colorTheme": "Tema de color",
+		"language": "Idioma",
+		"docs": "Documentación",
+		"close": "Cerrar"
+	},
+	"themes": {
+		"yellow": "Amarillo",
+		"blue": "Azul",
+		"green": "Verde",
+		"default": "Negro",
+		"orange": "Naranja",
+		"red": "Rojo",
+		"rose": "Rosa",
+		"violet": "Violeta"
+	},
+	"detail": {
+		"files": "Archivos",
+		"peers": "Pares",
+		"trackers": "Rastreadores",
+		"refresh": "Actualizar",
+		"loading": "Cargando…",
+		"error": "Error al cargar detalles",
+		"retry": "Reintentar",
+		"noFiles": "Sin archivos",
+		"noPeers": "Sin pares conectados",
+		"noTrackers": "Sin rastreadores",
+		"trackerSeeders": "S",
+		"trackerLeechers": "L",
+		"priorityLow": "Baja",
+		"priorityNormal": "Normal",
+		"priorityHigh": "Alta",
+		"cyclePriority": "Cambiar prioridad"
+	},
+	"toast": {
+		"added": "Torrent añadido",
+		"deleted": "Eliminado: {name}",
+		"started": "Iniciado: {name}",
+		"paused": "Pausado: {name}",
+		"failAdd": "Error al añadir torrent",
+		"failStart": "Error al iniciar torrent",
+		"failPause": "Error al pausar torrent",
+		"failDelete": "Error al eliminar torrent"
+	}
+}
