@@ -1,6 +1,6 @@
 services:
   transmitter:
-    image: tinyops/transmitter:0.1.0
+    image: tinyops/transmitter:0.2.0
     env_file: .env
     restart: unless-stopped
     network_mode: host
