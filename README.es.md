@@ -1,7 +1,6 @@
 # Transmitter
 
 ![Captura de pantalla de Transmitter](screenshot.png)
-![Captura de pantalla de Transmitter (modo oscuro)](screenshot-dark.png)
 
 Transmitter es una alternativa moderna y ligera a la interfaz web estándar de Transmission. Funciona sin dependencias externas. También incluye integración con bot de Telegram.
 

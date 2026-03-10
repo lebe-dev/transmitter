@@ -3,7 +3,6 @@
 [Русский](README.ru.md) | [Español](README.es.md) | [Deutsch](README.de.md)
 
 ![Transmitter screenshot](screenshot.png)
-![Transmitter screenshot dark](screenshot-dark.png)
 
 Transmitter is a modern, lightweight alternative to Transmission's stock UI. Runs with zero external dependencies. Also Telegram bot integration.
 
@@ -50,9 +49,7 @@ See [SECURITY.md](docs/SECURITY.md).
 
 ## Roadmap
 
-- Grouping by folders / labels (labels added in Transmission 4.0)
-- Pause / delete via Telegram bot (command expansion)
-- WebSocket instead of polling for real-time UI updates
+- Seed indicator
 - Web UI authentication (Basic Auth middleware) for external access via VPN
-- RSS feeds for automatic torrent addition
 - Support multiple Transmission instances
+- RSS feeds for automatic torrent addition
