@@ -14,6 +14,7 @@ export interface Torrent {
 	downloadDir: string;
 	error: number;
 	errorString: string;
+	uploadedEver: number;
 }
 
 export type FilterStatus = 'all' | 'downloading' | 'seeding' | 'paused' | 'done';

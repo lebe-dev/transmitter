@@ -31,6 +31,7 @@ type Torrent struct {
 	DownloadDir  string  `json:"downloadDir"`
 	Error        int     `json:"error"`
 	ErrorString  string  `json:"errorString"`
+	UploadedEver int64   `json:"uploadedEver"`
 }
 
 // TorrentGetArgs are arguments for torrent-get.
@@ -97,5 +98,5 @@ type TorrentWithFilesResult struct {
 var TorrentFields = []string{
 	"id", "name", "status", "percentDone", "totalSize",
 	"rateDownload", "rateUpload", "addedDate", "eta",
-	"hashString", "downloadDir", "error", "errorString",
+	"hashString", "downloadDir", "error", "errorString", "uploadedEver",
 }

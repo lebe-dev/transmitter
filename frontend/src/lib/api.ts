@@ -14,6 +14,7 @@ const TORRENT_FIELDS = [
 	'downloadDir',
 	'error',
 	'errorString',
+	'uploadedEver',
 ];
 
 async function rpc<T>(method: string, args?: Record<string, unknown>): Promise<T> {

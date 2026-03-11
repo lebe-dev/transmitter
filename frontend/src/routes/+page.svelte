@@ -620,9 +620,12 @@
 									</span>
 								</div>
 
-								<span class="text-xs text-muted-foreground tabular-nums flex-shrink-0">
-									{formatSize(t.totalSize)}
-								</span>
+								<div class="flex items-center gap-2 flex-shrink-0">
+								<span class="text-xs text-muted-foreground tabular-nums">{formatSize(t.totalSize)}</span>
+								{#if t.uploadedEver > 0}
+									<span class="text-xs text-primary tabular-nums" title="Uploaded total">⬆ {formatSize(t.uploadedEver)}</span>
+								{/if}
+							</div>
 							</div>
 
 							<!-- Row 3: Speeds + ETA + Error | Actions (no date) -->
@@ -718,9 +721,12 @@
 									</span>
 								</div>
 
-								<span class="text-xs text-muted-foreground tabular-nums flex-shrink-0">
-									{formatSize(t.totalSize)}
-								</span>
+								<div class="flex items-center gap-2 flex-shrink-0">
+								<span class="text-xs text-muted-foreground tabular-nums">{formatSize(t.totalSize)}</span>
+								{#if t.uploadedEver > 0}
+									<span class="text-xs text-primary tabular-nums" title="Uploaded total">⬆ {formatSize(t.uploadedEver)}</span>
+								{/if}
+							</div>
 							</div>
 
 							<!-- Row 3: Speeds + ETA + Date | Actions -->
