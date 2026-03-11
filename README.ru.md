@@ -36,8 +36,14 @@ docker-compose up -d
 | `TRANSMISSION_PASS` | Да | — |
 | `TRANSMISSION_URL` | Нет | `http://localhost:9091/transmission/rpc` |
 | `LISTEN_ADDR` | Нет | `:8080` |
-| `TELEGRAM_TOKEN` | Нет | (бот отключён, если не задано) |
+| `CORS_ORIGIN` | Нет | `http://localhost:8080` |
+| `WEBUI_ENABLED` | Нет | `true` |
+| `TELEGRAM_BOT_ENABLED` | Нет | `false` |
+| `TELEGRAM_TOKEN` | При использовании бота | — |
 | `TELEGRAM_USERS` | При использовании бота | — |
+| `LOG_LEVEL` | Нет | `info` |
+| `FILE_PRIORITY_ENABLED` | Нет | `false` |
+| `FILE_PRIORITY_HIGH_COUNT` | Нет | `3` |
 
 Все параметры см. в [.env.example](.env.example).
 

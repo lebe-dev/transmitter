@@ -38,8 +38,14 @@ All settings via environment variables:
 | `TRANSMISSION_PASS` | Yes | — |
 | `TRANSMISSION_URL` | No | `http://localhost:9091/transmission/rpc` |
 | `LISTEN_ADDR` | No | `:8080` |
-| `TELEGRAM_TOKEN` | No | (bot disabled if empty) |
+| `CORS_ORIGIN` | No | `http://localhost:8080` |
+| `WEBUI_ENABLED` | No | `true` |
+| `TELEGRAM_BOT_ENABLED` | No | `false` |
+| `TELEGRAM_TOKEN` | If using bot | — |
 | `TELEGRAM_USERS` | If using bot | — |
+| `LOG_LEVEL` | No | `info` |
+| `FILE_PRIORITY_ENABLED` | No | `false` |
+| `FILE_PRIORITY_HIGH_COUNT` | No | `3` |
 
 For all options, see [.env.example](.env.example).
 
