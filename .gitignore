@@ -18,3 +18,4 @@
 /dev/bandwidth-groups.json
 /dev/queue.json
 /dev/stats.json
+/dev/dht.dat
