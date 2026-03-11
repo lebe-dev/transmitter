@@ -50,6 +50,7 @@ See [SECURITY.md](docs/SECURITY.md).
 ## Roadmap
 
 - Seed indicator
+- Authentication
 - Web UI authentication (Basic Auth middleware) for external access via VPN
 - Support multiple Transmission instances
 - RSS feeds for automatic torrent addition

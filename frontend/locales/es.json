@@ -83,6 +83,7 @@
 		"description": "Personalizar apariencia.",
 		"colorTheme": "Tema de color",
 		"language": "Idioma",
+		"compactView": "Vista compacta",
 		"docs": "Documentación",
 		"close": "Cerrar"
 	},

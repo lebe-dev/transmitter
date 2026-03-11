@@ -83,6 +83,7 @@
 		"description": "Customize appearance.",
 		"colorTheme": "Color theme",
 		"language": "Language",
+		"compactView": "Compact view",
 		"docs": "Documentation",
 		"close": "Close"
 	},

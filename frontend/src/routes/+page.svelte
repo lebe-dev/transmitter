@@ -24,6 +24,7 @@
 	import XIcon from '@lucide/svelte/icons/x';
 	import FolderIcon from '@lucide/svelte/icons/folder';
 
+	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import { torrentStore, pinStore, downloadDirStore } from '$lib/stores.svelte.js';
 	import { addTorrentMagnet, addTorrentFile, startTorrents, stopTorrents, removeTorrents } from '$lib/api.js';
 	import type { Torrent, FilterStatus } from '$lib/types.js';
@@ -81,7 +82,8 @@
 
 	function statusPillClass(status: number): string {
 		switch (status) {
-			case 4: case 3: return 'bg-blue-500/10 text-blue-600 dark:text-blue-400';
+			case 4: return 'bg-primary/10 text-primary';
+			case 3: return 'bg-blue-500/10 text-blue-600 dark:text-blue-400';
 			case 6: case 5: return 'bg-primary/10 text-primary';
 			case 1: case 2: return 'bg-amber-500/10 text-amber-600 dark:text-amber-400';
 			case 0: default: return 'bg-muted text-muted-foreground';
@@ -312,6 +314,16 @@
 
 	let settingsOpen = $state(false);
 
+	// ── Compact view ─────────────────────────────────────────────────────────
+
+	const COMPACT_STORAGE_KEY = 'transmitter-compact';
+	let compactView = $state(false);
+
+	function onCompactViewChange(checked: boolean) {
+		compactView = checked;
+		localStorage.setItem(COMPACT_STORAGE_KEY, checked ? '1' : '0');
+	}
+
 	// ── Detail panel ─────────────────────────────────────────────────────────
 
 	let detailOpen = $state(false);
@@ -325,9 +337,9 @@
 	// ── Color theme ───────────────────────────────────────────────────────────
 
 	const COLOR_THEME_KEYS = [
-		{ value: 'yellow', tKey: 'themes.yellow' },
-		{ value: 'blue', tKey: 'themes.blue' },
 		{ value: 'green', tKey: 'themes.green' },
+		{ value: 'blue', tKey: 'themes.blue' },
+		{ value: 'yellow', tKey: 'themes.yellow' },
 		{ value: 'default', tKey: 'themes.default' },
 		{ value: 'orange', tKey: 'themes.orange' },
 		{ value: 'red', tKey: 'themes.red' },
@@ -336,9 +348,9 @@
 	] as const;
 
 	// mode-watcher manages data-theme attr & localStorage ('mode-watcher-theme')
-	// yellow = "" (default, no data-theme attr), others = theme name
-	const toMwTheme = (t: string) => (t === 'yellow' ? '' : t);
-	const fromMwTheme = (t: string) => (t || 'yellow');
+	// green = "" (default, no data-theme attr), others = theme name
+	const toMwTheme = (t: string) => (t === 'green' ? '' : t);
+	const fromMwTheme = (t: string) => (t || 'green');
 
 	let colorTheme = $derived(fromMwTheme(theme.current ?? ''));
 
@@ -368,12 +380,14 @@
 	// ── Lifecycle ─────────────────────────────────────────────────────────────
 
 	onMount(() => {
-		// migrate: old code stored 'yellow' literally, mode-watcher uses '' for no theme
+		// migrate: old code stored 'yellow' literally, mode-watcher uses '' for no theme (now green)
 		const stored = localStorage.getItem('transmitter-color-theme');
 		if (stored === 'yellow') {
 			localStorage.removeItem('transmitter-color-theme');
-			setTheme('');
+			setTheme('yellow');
 		}
+
+		compactView = localStorage.getItem(COMPACT_STORAGE_KEY) === '1';
 
 		// Restore saved locale, or detect from browser language
 		const supported = get(locales);
@@ -555,108 +569,209 @@
 
 		<!-- Torrent cards -->
 		{:else}
-			<div class="flex flex-col gap-2">
+			<div class="flex flex-col {compactView ? 'gap-1' : 'gap-2'}">
 				{#each sortedRows as row, i (row.id)}
 					{@const t = row.original}
 					{@const pinned = pinStore.isPinned(t.hashString)}
-					<div
-						class="group rounded-lg border p-4 transition-all hover:shadow-sm cursor-pointer {pinned
-							? 'border-primary/40 hover:border-primary/60'
-							: 'border-border/60 hover:border-border'} {t.error ? 'border-l-2 border-l-destructive' : ''}"
-						style="animation: card-enter 0.3s ease-out both; animation-delay: {Math.min(i, 10) * 30}ms"
-						onclick={() => openDetail(t)}
-						onkeydown={(e) => e.key === 'Enter' && openDetail(t)}
-						role="button"
-						tabindex="0"
-					>
-						<!-- Row 1: Name + Pin -->
-						<div class="flex items-start justify-between gap-3 mb-2">
-							<h3 class="font-display text-[15px] font-semibold leading-snug line-clamp-2 min-w-0">
-								{t.name}
-							</h3>
-							<button
-								onclick={(e) => { e.stopPropagation(); pinStore.toggle(t.hashString); }}
-								aria-label={pinned ? $tt('actions.unpin') : $tt('actions.pin')}
-								class="size-7 rounded-md flex items-center justify-center flex-shrink-0 transition-colors {pinned
-									? 'bg-primary/10 text-primary'
-									: 'text-muted-foreground/40 hover:text-muted-foreground'}"
-							>
-								<PinIcon class="size-3.5" />
-							</button>
-						</div>
+					{#if compactView}
+						<!-- Compact card: same structure, reduced padding, no date -->
+						<div
+							class="group rounded-lg border px-4 py-2.5 transition-all hover:shadow-sm cursor-pointer {pinned
+								? 'border-primary/40 hover:border-primary/60'
+								: 'border-border/60 hover:border-border'} {t.error ? 'border-l-2 border-l-destructive' : ''}"
+							style="animation: card-enter 0.3s ease-out both; animation-delay: {Math.min(i, 10) * 30}ms"
+							onclick={() => openDetail(t)}
+							onkeydown={(e) => e.key === 'Enter' && openDetail(t)}
+							role="button"
+							tabindex="0"
+						>
+							<!-- Row 1: Name + Pin -->
+							<div class="flex items-start justify-between gap-3 mb-1.5">
+								<h3 class="font-display text-[15px] font-semibold leading-snug line-clamp-2 min-w-0">
+									{t.name}
+								</h3>
+								<button
+									onclick={(e) => { e.stopPropagation(); pinStore.toggle(t.hashString); }}
+									aria-label={pinned ? $tt('actions.unpin') : $tt('actions.pin')}
+									class="size-7 rounded-md flex items-center justify-center flex-shrink-0 transition-colors {pinned
+										? 'bg-primary/10 text-primary'
+										: 'text-muted-foreground/40 hover:text-muted-foreground'}"
+								>
+									<PinIcon class="size-3.5" />
+								</button>
+							</div>
 
-						<!-- Row 2: Status + Progress + Size -->
-						<div class="flex items-center gap-2.5 mb-2">
-							<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium flex-shrink-0 {statusPillClass(t.status)}">
-								{$tt(STATUS_KEYS[t.status] ?? 'status.stopped')}
-							</span>
+							<!-- Row 2: Status + Progress + Size -->
+							<div class="flex items-center gap-2.5 mb-1.5">
+								<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium flex-shrink-0 {statusPillClass(t.status)}">
+									{$tt(STATUS_KEYS[t.status] ?? 'status.stopped')}
+								</span>
 
-							<div class="flex-1 flex items-center gap-2 min-w-0">
-								<div class="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-									<div
-										class="h-full rounded-full transition-[width] duration-700 ease-out {progressBarClass(t)}"
-										class:animate-[progress-pulse_2s_ease-in-out_infinite]={isDownloading(t)}
-										style="width: {t.percentDone * 100}%"
-									></div>
+								<div class="flex-1 flex items-center gap-2 min-w-0">
+									<div class="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+										<div
+											class="h-full rounded-full transition-[width] duration-700 ease-out {progressBarClass(t)}"
+											class:animate-[progress-pulse_2s_ease-in-out_infinite]={isDownloading(t)}
+											style="width: {t.percentDone * 100}%"
+										></div>
+									</div>
+									<span class="text-xs text-muted-foreground tabular-nums w-8 text-right flex-shrink-0">
+										{(t.percentDone * 100).toFixed(0)}%
+									</span>
 								</div>
-								<span class="text-xs text-muted-foreground tabular-nums w-8 text-right flex-shrink-0">
-									{(t.percentDone * 100).toFixed(0)}%
+
+								<span class="text-xs text-muted-foreground tabular-nums flex-shrink-0">
+									{formatSize(t.totalSize)}
 								</span>
 							</div>
 
-							<span class="text-xs text-muted-foreground tabular-nums flex-shrink-0">
-								{formatSize(t.totalSize)}
-							</span>
-						</div>
+							<!-- Row 3: Speeds + ETA + Error | Actions (no date) -->
+							<div class="flex items-center justify-between gap-2">
+								<div class="flex items-center gap-2 text-xs text-muted-foreground tabular-nums min-w-0 overflow-hidden">
+									{#if formatSpeed(t.rateDownload)}
+										<span class="text-blue-500 dark:text-blue-400">↓ {formatSpeed(t.rateDownload)}</span>
+									{/if}
+									{#if formatSpeed(t.rateUpload)}
+										<span class="text-primary">↑ {formatSpeed(t.rateUpload)}</span>
+									{/if}
+									{#if t.status !== 0 && t.status !== 6 && t.status !== 5 && formatEta(t.eta)}
+										<span>ETA {formatEta(t.eta)}</span>
+									{/if}
+									{#if t.errorString}
+										<span class="text-destructive truncate">{t.errorString}</span>
+									{/if}
+								</div>
 
-						<!-- Row 3: Speeds + ETA + Date | Actions -->
-						<div class="flex items-center justify-between gap-2">
-							<div class="flex items-center gap-2 text-xs text-muted-foreground tabular-nums min-w-0 overflow-hidden">
-								{#if formatSpeed(t.rateDownload)}
-									<span class="text-blue-500 dark:text-blue-400">↓ {formatSpeed(t.rateDownload)}</span>
-								{/if}
-								{#if formatSpeed(t.rateUpload)}
-									<span class="text-primary">↑ {formatSpeed(t.rateUpload)}</span>
-								{/if}
-								{#if t.status !== 0 && t.status !== 6 && t.status !== 5 && formatEta(t.eta)}
-									<span>ETA {formatEta(t.eta)}</span>
-								{/if}
-								{#if t.errorString}
-									<span class="text-destructive truncate">{t.errorString}</span>
-								{:else}
-									<span>{formatDate(t.addedDate)}</span>
-								{/if}
+								<!-- Action buttons -->
+								<div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity touch-device:opacity-100">
+									{#if t.status === 0}
+										<button
+											onclick={(e) => { e.stopPropagation(); handleStart(t); }}
+											aria-label={$tt('actions.resume')}
+											class="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+										>
+											<PlayIcon class="size-3.5" />
+										</button>
+									{:else if t.status === 4 || t.status === 3 || t.status === 6 || t.status === 5}
+										<button
+											onclick={(e) => { e.stopPropagation(); handleStop(t); }}
+											aria-label={$tt('actions.pause')}
+											class="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+										>
+											<PauseIcon class="size-3.5" />
+										</button>
+									{/if}
+									<button
+										onclick={(e) => { e.stopPropagation(); openDeleteDialog(t); }}
+										aria-label={$tt('actions.delete')}
+										class="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+									>
+										<Trash2Icon class="size-3.5" />
+									</button>
+								</div>
 							</div>
-
-							<!-- Action buttons: visible on hover (desktop), always on touch -->
-							<div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity touch-device:opacity-100">
-								{#if t.status === 0}
-									<button
-										onclick={(e) => { e.stopPropagation(); handleStart(t); }}
-										aria-label={$tt('actions.resume')}
-										class="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-									>
-										<PlayIcon class="size-3.5" />
-									</button>
-								{:else if t.status === 4 || t.status === 3 || t.status === 6 || t.status === 5}
-									<button
-										onclick={(e) => { e.stopPropagation(); handleStop(t); }}
-										aria-label={$tt('actions.pause')}
-										class="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-									>
-										<PauseIcon class="size-3.5" />
-									</button>
-								{/if}
+						</div>
+					{:else}
+						<!-- Normal card -->
+						<div
+							class="group rounded-lg border p-4 transition-all hover:shadow-sm cursor-pointer {pinned
+								? 'border-primary/40 hover:border-primary/60'
+								: 'border-border/60 hover:border-border'} {t.error ? 'border-l-2 border-l-destructive' : ''}"
+							style="animation: card-enter 0.3s ease-out both; animation-delay: {Math.min(i, 10) * 30}ms"
+							onclick={() => openDetail(t)}
+							onkeydown={(e) => e.key === 'Enter' && openDetail(t)}
+							role="button"
+							tabindex="0"
+						>
+							<!-- Row 1: Name + Pin -->
+							<div class="flex items-start justify-between gap-3 mb-2">
+								<h3 class="font-display text-[15px] font-semibold leading-snug line-clamp-2 min-w-0">
+									{t.name}
+								</h3>
 								<button
-									onclick={(e) => { e.stopPropagation(); openDeleteDialog(t); }}
-									aria-label={$tt('actions.delete')}
-									class="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+									onclick={(e) => { e.stopPropagation(); pinStore.toggle(t.hashString); }}
+									aria-label={pinned ? $tt('actions.unpin') : $tt('actions.pin')}
+									class="size-7 rounded-md flex items-center justify-center flex-shrink-0 transition-colors {pinned
+										? 'bg-primary/10 text-primary'
+										: 'text-muted-foreground/40 hover:text-muted-foreground'}"
 								>
-									<Trash2Icon class="size-3.5" />
+									<PinIcon class="size-3.5" />
 								</button>
 							</div>
+
+							<!-- Row 2: Status + Progress + Size -->
+							<div class="flex items-center gap-2.5 mb-2">
+								<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium flex-shrink-0 {statusPillClass(t.status)}">
+									{$tt(STATUS_KEYS[t.status] ?? 'status.stopped')}
+								</span>
+
+								<div class="flex-1 flex items-center gap-2 min-w-0">
+									<div class="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+										<div
+											class="h-full rounded-full transition-[width] duration-700 ease-out {progressBarClass(t)}"
+											class:animate-[progress-pulse_2s_ease-in-out_infinite]={isDownloading(t)}
+											style="width: {t.percentDone * 100}%"
+										></div>
+									</div>
+									<span class="text-xs text-muted-foreground tabular-nums w-8 text-right flex-shrink-0">
+										{(t.percentDone * 100).toFixed(0)}%
+									</span>
+								</div>
+
+								<span class="text-xs text-muted-foreground tabular-nums flex-shrink-0">
+									{formatSize(t.totalSize)}
+								</span>
+							</div>
+
+							<!-- Row 3: Speeds + ETA + Date | Actions -->
+							<div class="flex items-center justify-between gap-2">
+								<div class="flex items-center gap-2 text-xs text-muted-foreground tabular-nums min-w-0 overflow-hidden">
+									{#if formatSpeed(t.rateDownload)}
+										<span class="text-blue-500 dark:text-blue-400">↓ {formatSpeed(t.rateDownload)}</span>
+									{/if}
+									{#if formatSpeed(t.rateUpload)}
+										<span class="text-primary">↑ {formatSpeed(t.rateUpload)}</span>
+									{/if}
+									{#if t.status !== 0 && t.status !== 6 && t.status !== 5 && formatEta(t.eta)}
+										<span>ETA {formatEta(t.eta)}</span>
+									{/if}
+									{#if t.errorString}
+										<span class="text-destructive truncate">{t.errorString}</span>
+									{:else}
+										<span>{formatDate(t.addedDate)}</span>
+									{/if}
+								</div>
+
+								<!-- Action buttons: visible on hover (desktop), always on touch -->
+								<div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity touch-device:opacity-100">
+									{#if t.status === 0}
+										<button
+											onclick={(e) => { e.stopPropagation(); handleStart(t); }}
+											aria-label={$tt('actions.resume')}
+											class="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+										>
+											<PlayIcon class="size-3.5" />
+										</button>
+									{:else if t.status === 4 || t.status === 3 || t.status === 6 || t.status === 5}
+										<button
+											onclick={(e) => { e.stopPropagation(); handleStop(t); }}
+											aria-label={$tt('actions.pause')}
+											class="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+										>
+											<PauseIcon class="size-3.5" />
+										</button>
+									{/if}
+									<button
+										onclick={(e) => { e.stopPropagation(); openDeleteDialog(t); }}
+										aria-label={$tt('actions.delete')}
+										class="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+									>
+										<Trash2Icon class="size-3.5" />
+									</button>
+								</div>
+							</div>
 						</div>
-					</div>
+					{/if}
 				{/each}
 			</div>
 		{/if}
@@ -712,6 +827,17 @@
 					{/each}
 				</div>
 			</div>
+		</div>
+
+		<div class="flex items-center gap-3">
+			<Checkbox
+				id="compact-view"
+				checked={compactView}
+				onCheckedChange={onCompactViewChange}
+			/>
+			<label for="compact-view" class="text-sm font-medium cursor-pointer select-none">
+				{$tt('settings.compactView')}
+			</label>
 		</div>
 
 		<AlertDialog.Footer class="pt-4 flex items-center">

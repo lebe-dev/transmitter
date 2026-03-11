@@ -83,6 +83,7 @@
 		"description": "Erscheinungsbild anpassen.",
 		"colorTheme": "Farbdesign",
 		"language": "Sprache",
+		"compactView": "Kompakte Ansicht",
 		"docs": "Dokumentation",
 		"close": "Schließen"
 	},
