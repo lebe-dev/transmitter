@@ -26,13 +26,14 @@
 
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import { torrentStore, pinStore, downloadDirStore } from '$lib/stores.svelte.js';
-	import { addTorrentMagnet, addTorrentFile, startTorrents, stopTorrents, removeTorrents } from '$lib/api.js';
+	import { addTorrentMagnet, addTorrentFile, startTorrents, stopTorrents, removeTorrents, getTorrentFiles, setFilesWanted } from '$lib/api.js';
 	import type { Torrent, FilterStatus } from '$lib/types.js';
 	import { createSvelteTable } from '$lib/components/ui/data-table/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import TorrentDetailPanel from '$lib/components/TorrentDetailPanel.svelte';
+	import FileSelectDialog from '$lib/components/FileSelectDialog.svelte';
 
 	const LOCALE_STORAGE_KEY = 'transmitter-locale';
 
@@ -182,6 +183,36 @@
 		{ key: 'done', tKey: 'filters.done' },
 	];
 
+	// ── File selection dialog ─────────────────────────────────────────────────
+
+	let fileSelectOpen = $state(false);
+	let fileSelectTorrentId = $state(0);
+	let fileSelectTorrentName = $state('');
+
+	async function handleFileSelectConfirm(wantedIndices: number[], unwantedIndices: number[]) {
+		try {
+			if (unwantedIndices.length > 0) {
+				await setFilesWanted(fileSelectTorrentId, wantedIndices, unwantedIndices);
+			}
+			await startTorrents([fileSelectTorrentId]);
+			toast.success(get(tt)('toast.added'));
+			fileSelectOpen = false;
+			await torrentStore.refresh();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : get(tt)('toast.failAdd'));
+		}
+	}
+
+	async function handleFileSelectCancel() {
+		try {
+			await removeTorrents([fileSelectTorrentId], false);
+		} catch {
+			// best effort cleanup
+		}
+		fileSelectOpen = false;
+		await torrentStore.refresh();
+	}
+
 	// ── Add torrent dialog ────────────────────────────────────────────────────
 
 	let addOpen = $state(false);
@@ -234,7 +265,32 @@
 			} else {
 				if (!pendingFile) return;
 				const b64 = await readFileAsBase64(pendingFile);
-				await addTorrentFile(b64, dir);
+				const added = await addTorrentFile(b64, dir, true);
+
+				if (added.duplicate) {
+					toast.success(get(tt)('toast.added'));
+					if (dir) downloadDirStore.addDir(dir);
+					addOpen = false;
+					magnetUrl = '';
+					pendingFile = null;
+					await torrentStore.refresh();
+					return;
+				}
+
+				const files = await getTorrentFiles(added.id);
+
+				if (files.length <= 1) {
+					await startTorrents([added.id]);
+				} else {
+					if (dir) downloadDirStore.addDir(dir);
+					addOpen = false;
+					magnetUrl = '';
+					pendingFile = null;
+					fileSelectTorrentId = added.id;
+					fileSelectTorrentName = added.name;
+					fileSelectOpen = true;
+					return;
+				}
 			}
 			if (dir) downloadDirStore.addDir(dir);
 			toast.success(get(tt)('toast.added'));
@@ -803,7 +859,7 @@
 
 		<div class="flex flex-col gap-4">
 			<div class="flex flex-col gap-3">
-				<label class="text-sm font-medium">{$tt('settings.colorTheme')}</label>
+				<span class="text-sm font-medium">{$tt('settings.colorTheme')}</span>
 				<div class="grid grid-cols-4 gap-2">
 					{#each COLOR_THEME_KEYS as ct}
 						<button
@@ -819,7 +875,7 @@
 			</div>
 
 			<div class="flex flex-col gap-3">
-				<label class="text-sm font-medium">{$tt('settings.language')}</label>
+				<span class="text-sm font-medium">{$tt('settings.language')}</span>
 				<div class="grid grid-cols-2 gap-2">
 					{#each [...$locales] as loc}
 						<button
@@ -1040,6 +1096,15 @@
 		</AlertDialog.Footer>
 	</AlertDialog.Content>
 </AlertDialog.Root>
+
+<!-- ── File Selection Dialog ────────────────────────────────────────────── -->
+<FileSelectDialog
+	bind:open={fileSelectOpen}
+	torrentId={fileSelectTorrentId}
+	torrentName={fileSelectTorrentName}
+	onConfirm={handleFileSelectConfirm}
+	onCancel={handleFileSelectCancel}
+/>
 
 <!-- ── Torrent Detail Panel ─────────────────────────────────────────────── -->
 <TorrentDetailPanel bind:open={detailOpen} torrent={detailTorrent} />

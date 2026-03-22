@@ -71,6 +71,15 @@
 		"removePath": "Удалить сохранённый путь",
 		"invalidPath": "Путь должен быть абсолютным (начинаться с /)"
 	},
+	"fileSelectDialog": {
+		"title": "Выбор файлов",
+		"description": "Выберите файлы для загрузки",
+		"selectAll": "Выбрать все",
+		"deselectAll": "Снять все",
+		"selectedInfo": "{count} из {total} файлов ({size})",
+		"downloadButton": "Скачать",
+		"cancel": "Отмена"
+	},
 	"deleteDialog": {
 		"title": "Удалить торрент",
 		"cannotUndo": "Это действие нельзя отменить.",

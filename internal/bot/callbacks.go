@@ -43,6 +43,18 @@ func (b *Bot) handleCallback(c telebot.Context) error {
 		return b.callbackBackToList(c, data, "ba:", true)
 	case strings.HasPrefix(data, "b:"):
 		return b.callbackBackToList(c, data, "b:", false)
+	case strings.HasPrefix(data, "ft:"):
+		return b.callbackFileToggle(c, data)
+	case strings.HasPrefix(data, "fa:"):
+		return b.callbackFileSelectAll(c, data)
+	case strings.HasPrefix(data, "fn:"):
+		return b.callbackFileDeselectAll(c, data)
+	case strings.HasPrefix(data, "fc:"):
+		return b.callbackFileConfirm(c, data)
+	case strings.HasPrefix(data, "fk:"):
+		return b.callbackFileSkip(c, data)
+	case strings.HasPrefix(data, "fp:"):
+		return b.callbackFilePage(c, data)
 	case data == "noop":
 		return c.Respond()
 	default:

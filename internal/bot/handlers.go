@@ -134,7 +134,7 @@ func (b *Bot) handleDocument(c telebot.Context) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	added, err := b.client.AddTorrentFile(ctx, metainfo)
+	added, err := b.client.AddTorrentFilePaused(ctx, metainfo)
 	if err != nil {
 		b.logger.Warn("failed to add torrent file", "err", err)
 		if strings.Contains(err.Error(), "duplicate") {
@@ -143,15 +143,23 @@ func (b *Bot) handleDocument(c telebot.Context) error {
 		return c.Send("Error: "+html.EscapeString(err.Error()), telebot.ModeHTML)
 	}
 
-	b.applyAutoPriority(ctx, added.ID)
+	files, filesErr := b.client.GetTorrentFiles(ctx, added.ID)
+	if filesErr != nil || len(files) <= 1 {
+		// Single file or failed to get files — start immediately
+		if startErr := b.client.StartTorrents(ctx, []int64{added.ID}); startErr != nil {
+			b.logger.Warn("failed to start torrent", "err", startErr)
+		}
+		b.applyAutoPriority(ctx, added.ID)
 
-	rm := &telebot.ReplyMarkup{}
-	rm.Inline(rm.Row(rm.Data("📋 View Status", "vs", "s:0")))
+		rm := &telebot.ReplyMarkup{}
+		rm.Inline(rm.Row(rm.Data("📋 View Status", "vs", "s:0")))
+		return c.Send(
+			fmt.Sprintf("✅ Added: <b>%s</b>", html.EscapeString(added.Name)),
+			telebot.ModeHTML, rm,
+		)
+	}
 
-	return c.Send(
-		fmt.Sprintf("✅ Added: <b>%s</b>", html.EscapeString(added.Name)),
-		telebot.ModeHTML, rm,
-	)
+	return b.showFileSelectDialog(c, added.ID, added.Name, files)
 }
 
 func (b *Bot) applyAutoPriority(ctx context.Context, torrentID int64) {

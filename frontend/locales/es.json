@@ -71,6 +71,15 @@
 		"removePath": "Eliminar ruta guardada",
 		"invalidPath": "La ruta debe ser absoluta (comenzar con /)"
 	},
+	"fileSelectDialog": {
+		"title": "Seleccionar archivos",
+		"description": "Elige qué archivos descargar",
+		"selectAll": "Seleccionar todo",
+		"deselectAll": "Deseleccionar todo",
+		"selectedInfo": "{count} de {total} archivos ({size})",
+		"downloadButton": "Descargar",
+		"cancel": "Cancelar"
+	},
 	"deleteDialog": {
 		"title": "Eliminar torrent",
 		"cannotUndo": "Esta acción no se puede deshacer.",

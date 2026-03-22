@@ -49,6 +49,7 @@ type TorrentGetResult struct {
 type TorrentAddArgs struct {
 	Filename string `json:"filename,omitempty"`
 	Metainfo string `json:"metainfo,omitempty"`
+	Paused   bool   `json:"paused,omitempty"`
 }
 
 // TorrentAdded holds the added/duplicate torrent info.
@@ -72,9 +73,11 @@ type TorrentActionArgs struct {
 
 // TorrentSetArgs are arguments for torrent-set.
 type TorrentSetArgs struct {
-	IDs          []int64 `json:"ids"`
-	PriorityHigh []int   `json:"priority-high,omitempty"`
-	PriorityLow  []int   `json:"priority-low,omitempty"`
+	IDs           []int64 `json:"ids"`
+	PriorityHigh  []int   `json:"priority-high,omitempty"`
+	PriorityLow   []int   `json:"priority-low,omitempty"`
+	FilesWanted   []int   `json:"files-wanted,omitempty"`
+	FilesUnwanted []int   `json:"files-unwanted,omitempty"`
 }
 
 // TorrentFile holds file info returned by torrent-get with "files" field.

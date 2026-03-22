@@ -71,6 +71,15 @@
 		"removePath": "Gespeicherten Pfad entfernen",
 		"invalidPath": "Pfad muss absolut sein (mit / beginnen)"
 	},
+	"fileSelectDialog": {
+		"title": "Dateien auswählen",
+		"description": "Wähle die Dateien zum Herunterladen",
+		"selectAll": "Alle auswählen",
+		"deselectAll": "Alle abwählen",
+		"selectedInfo": "{count} von {total} Dateien ({size})",
+		"downloadButton": "Herunterladen",
+		"cancel": "Abbrechen"
+	},
 	"deleteDialog": {
 		"title": "Torrent löschen",
 		"cannotUndo": "Diese Aktion kann nicht rückgängig gemacht werden.",

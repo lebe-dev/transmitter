@@ -190,6 +190,11 @@ func (c *Client) AddTorrentFile(ctx context.Context, metainfo string) (TorrentAd
 	return c.addTorrent(ctx, TorrentAddArgs{Metainfo: metainfo})
 }
 
+// AddTorrentFilePaused adds a torrent from a base64-encoded .torrent file in paused state.
+func (c *Client) AddTorrentFilePaused(ctx context.Context, metainfo string) (TorrentAdded, error) {
+	return c.addTorrent(ctx, TorrentAddArgs{Metainfo: metainfo, Paused: true})
+}
+
 func (c *Client) addTorrent(ctx context.Context, addArgs TorrentAddArgs) (TorrentAdded, error) {
 	args, err := json.Marshal(addArgs)
 	if err != nil {
@@ -284,43 +289,70 @@ func (c *Client) torrentAction(ctx context.Context, method string, ids []int64) 
 	return nil
 }
 
-// SetHighPriorityFiles sets the first `count` files of a torrent to high priority
-// and the remaining files to low priority.
-func (c *Client) SetHighPriorityFiles(ctx context.Context, torrentID int64, count int) error {
-	// Get file list to determine count
+// GetTorrentFiles returns the file list for a torrent.
+func (c *Client) GetTorrentFiles(ctx context.Context, torrentID int64) ([]TorrentFile, error) {
 	getArgs, err := json.Marshal(TorrentGetArgs{
 		Fields: []string{"id", "files"},
 		IDs:    []int64{torrentID},
 	})
 	if err != nil {
-		return fmt.Errorf("marshal torrent-get: %w", err)
+		return nil, fmt.Errorf("marshal torrent-get: %w", err)
 	}
 
 	resp, err := c.Do(ctx, RPCRequest{Method: "torrent-get", Arguments: getArgs})
 	if err != nil {
-		return fmt.Errorf("torrent-get files: %w", err)
+		return nil, fmt.Errorf("torrent-get files: %w", err)
 	}
 	if resp.Result != "success" {
-		return fmt.Errorf("torrent-get files failed: %s", resp.Result)
+		return nil, fmt.Errorf("torrent-get files failed: %s", resp.Result)
 	}
 
 	var result TorrentWithFilesResult
 	if err := json.Unmarshal(resp.Arguments, &result); err != nil {
-		return fmt.Errorf("unmarshal files: %w", err)
+		return nil, fmt.Errorf("unmarshal files: %w", err)
 	}
 	if len(result.Torrents) == 0 {
-		return fmt.Errorf("torrent not found: %d", torrentID)
+		return nil, fmt.Errorf("torrent not found: %d", torrentID)
 	}
 
-	fileCount := len(result.Torrents[0].Files)
+	return result.Torrents[0].Files, nil
+}
+
+// SetFilesWanted sets which files should be downloaded for a torrent.
+func (c *Client) SetFilesWanted(ctx context.Context, torrentID int64, wanted, unwanted []int) error {
+	setArgs, err := json.Marshal(TorrentSetArgs{
+		IDs:           []int64{torrentID},
+		FilesWanted:   wanted,
+		FilesUnwanted: unwanted,
+	})
+	if err != nil {
+		return fmt.Errorf("marshal torrent-set: %w", err)
+	}
+
+	resp, err := c.Do(ctx, RPCRequest{Method: "torrent-set", Arguments: setArgs})
+	if err != nil {
+		return fmt.Errorf("torrent-set: %w", err)
+	}
+	if resp.Result != "success" {
+		return fmt.Errorf("torrent-set failed: %s", resp.Result)
+	}
+	return nil
+}
+
+// SetHighPriorityFiles sets the first `count` files of a torrent to high priority
+// and the remaining files to low priority.
+func (c *Client) SetHighPriorityFiles(ctx context.Context, torrentID int64, count int) error {
+	files, err := c.GetTorrentFiles(ctx, torrentID)
+	if err != nil {
+		return err
+	}
+
+	fileCount := len(files)
 	if fileCount == 0 {
 		return nil
 	}
 
-	highCount := count
-	if highCount > fileCount {
-		highCount = fileCount
-	}
+	highCount := min(count, fileCount)
 
 	highIndices := make([]int, highCount)
 	for i := range highCount {

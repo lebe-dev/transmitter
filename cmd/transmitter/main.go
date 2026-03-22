@@ -39,7 +39,7 @@ func main() {
 			logger.Error("TELEGRAM_BOT_ENABLED=true but TELEGRAM_TOKEN is not set")
 			os.Exit(1)
 		}
-		tgBot, err = bot.New(cfg.TelegramToken, cfg.TelegramUsers, client, logger, cfg.FilePriorityEnabled, cfg.FilePriorityHighCount)
+		tgBot, err = bot.New(cfg.TelegramToken, cfg.TelegramUsers, client, logger, cfg.FilePriorityEnabled, cfg.FilePriorityHighCount, cfg.FileSelectTimeout)
 		if err != nil {
 			logger.Error("bot init failed", "err", err)
 			os.Exit(1)

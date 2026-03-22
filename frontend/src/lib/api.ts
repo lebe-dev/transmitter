@@ -1,4 +1,4 @@
-import type { Torrent, TorrentDetail } from './types.js';
+import type { Torrent, TorrentDetail, TorrentFile } from './types.js';
 
 const TORRENT_FIELDS = [
 	'id',
@@ -44,10 +44,23 @@ export async function addTorrentMagnet(filename: string, downloadDir?: string): 
 	await rpc('torrent-add', args);
 }
 
-export async function addTorrentFile(metainfo: string, downloadDir?: string): Promise<void> {
+export async function addTorrentFile(
+	metainfo: string,
+	downloadDir?: string,
+	paused?: boolean,
+): Promise<{ id: number; name: string; duplicate: boolean }> {
 	const args: Record<string, unknown> = { metainfo };
 	if (downloadDir) args['download-dir'] = downloadDir;
-	await rpc('torrent-add', args);
+	if (paused) args['paused'] = true;
+	const data = await rpc<{
+		'torrent-added'?: { id: number; name: string };
+		'torrent-duplicate'?: { id: number; name: string };
+	}>('torrent-add', args);
+	const added = data['torrent-added'];
+	const duplicate = data['torrent-duplicate'];
+	const result = added ?? duplicate;
+	if (!result) throw new Error('Unexpected empty torrent-add result');
+	return { ...result, duplicate: !added };
 }
 
 export async function startTorrents(ids: number[]): Promise<void> {
@@ -60,6 +73,14 @@ export async function stopTorrents(ids: number[]): Promise<void> {
 
 export async function removeTorrents(ids: number[], deleteLocalData: boolean): Promise<void> {
 	await rpc('torrent-remove', { ids, 'delete-local-data': deleteLocalData });
+}
+
+export async function getTorrentFiles(id: number): Promise<TorrentFile[]> {
+	const data = await rpc<{ torrents: Array<{ files: TorrentFile[] }> }>('torrent-get', {
+		ids: [id],
+		fields: ['id', 'files'],
+	});
+	return data.torrents[0]?.files ?? [];
 }
 
 export async function getTorrentDetails(id: number): Promise<TorrentDetail> {

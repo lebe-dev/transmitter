@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"sync"
+	"time"
 
 	"github.com/lebe-dev/transmitter/internal/transmission"
 	"gopkg.in/telebot.v4"
@@ -27,10 +28,13 @@ type Bot struct {
 	notifyFn              func(string)      // injectable for tests
 	autoPriorityEnabled   bool
 	autoPriorityHighCount int
+	fileSelectMu          sync.Mutex
+	fileSelect            map[int64]*FileSelectState
+	fileSelectTimeout     time.Duration
 }
 
 // New creates a new Bot instance. Returns an error if the token is invalid.
-func New(token string, allowedUsers []string, client *transmission.Client, logger *slog.Logger, autoPriorityEnabled bool, autoPriorityHighCount int) (*Bot, error) {
+func New(token string, allowedUsers []string, client *transmission.Client, logger *slog.Logger, autoPriorityEnabled bool, autoPriorityHighCount int, fileSelectTimeout time.Duration) (*Bot, error) {
 	tg, err := telebot.NewBot(telebot.Settings{
 		Token:  token,
 		Poller: &telebot.LongPoller{Timeout: 10},
@@ -53,6 +57,8 @@ func New(token string, allowedUsers []string, client *transmission.Client, logge
 		chatIDs:               make(map[string]int64),
 		autoPriorityEnabled:   autoPriorityEnabled,
 		autoPriorityHighCount: autoPriorityHighCount,
+		fileSelect:            make(map[int64]*FileSelectState),
+		fileSelectTimeout:     fileSelectTimeout,
 	}
 	b.notifyFn = b.broadcastNotification
 

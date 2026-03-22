@@ -20,6 +20,7 @@ func (b *Bot) StartMonitor(ctx context.Context, interval time.Duration) {
 			return
 		case <-ticker.C:
 			b.pollOnce(ctx)
+			b.cleanupStaleFileSelectStates()
 		}
 	}
 }

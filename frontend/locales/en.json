@@ -71,6 +71,15 @@
 		"removePath": "Remove saved path",
 		"invalidPath": "Path must be absolute (start with /)"
 	},
+	"fileSelectDialog": {
+		"title": "Select Files",
+		"description": "Choose which files to download",
+		"selectAll": "Select all",
+		"deselectAll": "Deselect all",
+		"selectedInfo": "{count} of {total} files ({size})",
+		"downloadButton": "Download",
+		"cancel": "Cancel"
+	},
 	"deleteDialog": {
 		"title": "Delete Torrent",
 		"cannotUndo": "This action cannot be undone.",
