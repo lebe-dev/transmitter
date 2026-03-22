@@ -28,9 +28,9 @@ type AutoPriorityConfig struct {
 }
 
 // ProxyHandler proxies JSON-RPC requests to Transmission, enforcing method whitelist.
-func ProxyHandler(client *transmission.Client, priorityCfg AutoPriorityConfig) http.HandlerFunc {
+func ProxyHandler(client *transmission.Client, priorityCfg AutoPriorityConfig, maxBodyBytes int64) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // 1 MB limit
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
 
 		body, err := io.ReadAll(r.Body)
 		if err != nil {

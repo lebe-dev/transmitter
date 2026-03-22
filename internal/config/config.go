@@ -14,19 +14,20 @@ import (
 
 // Config holds all application configuration loaded from environment variables.
 type Config struct {
-	TransmissionURL       string
-	TransmissionUser      string
-	TransmissionPass      string
-	ListenAddr            string
-	CORSOrigin            string
-	TelegramToken         string
-	TelegramUsers         []string
-	LogLevel              slog.Level
-	MonitorInterval       time.Duration
-	FilePriorityEnabled   bool
-	FilePriorityHighCount int
-	WebUIEnabled          bool
-	TelegramBotEnabled    bool
+	TransmissionURL        string
+	TransmissionUser       string
+	TransmissionPass       string
+	ListenAddr             string
+	CORSOrigin             string
+	TelegramToken          string
+	TelegramUsers          []string
+	LogLevel               slog.Level
+	MonitorInterval        time.Duration
+	FilePriorityEnabled    bool
+	FilePriorityHighCount  int
+	WebUIEnabled           bool
+	TelegramBotEnabled     bool
+	MaxRequestBodyBytes    int64
 }
 
 // Load reads configuration from environment variables, optionally loading a .env file first.
@@ -72,6 +73,7 @@ func Load() (*Config, error) {
 	cfg.FilePriorityHighCount = parsePositiveInt(os.Getenv("FILE_PRIORITY_HIGH_COUNT"), 3)
 	cfg.WebUIEnabled = parseBoolDefault(os.Getenv("WEBUI_ENABLED"), true)
 	cfg.TelegramBotEnabled = parseBoolDefault(os.Getenv("TELEGRAM_BOT_ENABLED"), false)
+	cfg.MaxRequestBodyBytes = parsePositiveInt64(os.Getenv("MAX_REQUEST_BODY_BYTES"), 10<<20)
 
 	return cfg, nil
 }
@@ -99,6 +101,17 @@ func parsePositiveInt(s string, def int) int {
 		return def
 	}
 	n, err := strconv.Atoi(s)
+	if err != nil || n <= 0 {
+		return def
+	}
+	return n
+}
+
+func parsePositiveInt64(s string, def int64) int64 {
+	if s == "" {
+		return def
+	}
+	n, err := strconv.ParseInt(s, 10, 64)
 	if err != nil || n <= 0 {
 		return def
 	}

@@ -31,7 +31,7 @@ func New(cfg *config.Config, client *transmission.Client, staticFS fs.FS, logger
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("POST /api/rpc", ProxyHandler(client, priorityCfg))
+	mux.Handle("POST /api/rpc", ProxyHandler(client, priorityCfg, cfg.MaxRequestBodyBytes))
 	mux.Handle("GET /api/health", HealthHandler(client))
 	mux.Handle("/", staticHandler)
 
