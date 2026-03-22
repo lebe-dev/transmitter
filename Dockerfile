@@ -4,13 +4,13 @@ FROM --platform=$BUILDPLATFORM node:22-alpine3.23 AS frontend-build
 
 WORKDIR /build
 
-COPY frontend/package.json frontend/yarn.lock ./
+COPY frontend/ /build
+COPY cmd/transmitter/main.go /build/main.go
 
-RUN yarn install --frozen-lockfile
-
-COPY frontend/ ./
-
-RUN yarn build
+RUN APP_VERSION=$(grep 'Version' /build/main.go | head -1 | cut -d '"' -f 2) && \
+    sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$APP_VERSION\"/" /build/package.json && \
+    yarn --frozen-lockfile && \
+    yarn build
 
 FROM golang:1.26-alpine3.23 AS app-build
 
