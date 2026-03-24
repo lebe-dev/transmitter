@@ -62,3 +62,7 @@ export interface TorrentDetail {
 	peers: TorrentPeer[];
 	trackerStats: TorrentTrackerStat[];
 }
+
+export interface UISettings {
+	deleteWithData: boolean;
+}

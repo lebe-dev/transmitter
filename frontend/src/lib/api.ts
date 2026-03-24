@@ -1,4 +1,4 @@
-import type { Torrent, TorrentDetail, TorrentFile } from './types.js';
+import type { Torrent, TorrentDetail, TorrentFile, UISettings } from './types.js';
 
 const TORRENT_FIELDS = [
 	'id',
@@ -100,6 +100,12 @@ export async function setFilesWanted(
 	if (wantedIndices.length > 0) args['files-wanted'] = wantedIndices;
 	if (unwantedIndices.length > 0) args['files-unwanted'] = unwantedIndices;
 	await rpc('torrent-set', args);
+}
+
+export async function getSettings(): Promise<UISettings> {
+	const res = await fetch('/api/settings');
+	if (!res.ok) throw new Error(`HTTP ${res.status}`);
+	return res.json();
 }
 
 export async function setFilePriority(

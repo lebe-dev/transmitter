@@ -95,6 +95,19 @@ func applyAutoPriority(client *transmission.Client, respBody []byte, highCount i
 	}
 }
 
+// UISettings holds UI-relevant configuration exposed via /api/settings.
+type UISettings struct {
+	DeleteWithData bool `json:"deleteWithData"`
+}
+
+// SettingsHandler returns UI-relevant server configuration as JSON.
+func SettingsHandler(settings UISettings) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(settings) //nolint:errcheck
+	}
+}
+
 // HealthHandler checks Transmission availability via session-get.
 func HealthHandler(client *transmission.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

@@ -30,9 +30,14 @@ func New(cfg *config.Config, client *transmission.Client, staticFS fs.FS, logger
 		HighCount: cfg.FilePriorityHighCount,
 	}
 
+	uiSettings := UISettings{
+		DeleteWithData: cfg.DeleteWithData,
+	}
+
 	mux := http.NewServeMux()
 	mux.Handle("POST /api/rpc", ProxyHandler(client, priorityCfg, cfg.MaxRequestBodyBytes))
 	mux.Handle("GET /api/health", HealthHandler(client))
+	mux.Handle("GET /api/settings", SettingsHandler(uiSettings))
 	mux.Handle("/", staticHandler)
 
 	handler := CORSMiddleware(cfg.CORSOrigin, mux)

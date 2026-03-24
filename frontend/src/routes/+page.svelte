@@ -26,7 +26,7 @@
 
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import { torrentStore, pinStore, downloadDirStore } from '$lib/stores.svelte.js';
-	import { addTorrentMagnet, addTorrentFile, startTorrents, stopTorrents, removeTorrents, getTorrentFiles, setFilesWanted } from '$lib/api.js';
+	import { addTorrentMagnet, addTorrentFile, startTorrents, stopTorrents, removeTorrents, getTorrentFiles, setFilesWanted, getSettings } from '$lib/api.js';
 	import type { Torrent, FilterStatus } from '$lib/types.js';
 	import { createSvelteTable } from '$lib/components/ui/data-table/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
@@ -319,12 +319,13 @@
 
 	let deleteOpen = $state(false);
 	let deleteTarget = $state<Torrent | null>(null);
+	let defaultDeleteWithData = $state(false);
 	let deleteWithData = $state(false);
 	let isDeleting = $state(false);
 
 	function openDeleteDialog(t: Torrent) {
 		deleteTarget = t;
-		deleteWithData = false;
+		deleteWithData = defaultDeleteWithData;
 		deleteOpen = true;
 	}
 
@@ -457,6 +458,9 @@
 
 		torrentStore.init();
 		downloadDirStore.init();
+		getSettings()
+			.then((s) => { defaultDeleteWithData = s.deleteWithData; })
+			.catch(() => {});
 		window.addEventListener('scroll', onScroll, { passive: true });
 	});
 	onDestroy(() => {

@@ -29,6 +29,7 @@ type Config struct {
 	TelegramBotEnabled    bool
 	MaxRequestBodyBytes   int64
 	FileSelectTimeout     time.Duration
+	DeleteWithData        bool
 }
 
 // Load reads configuration from environment variables, optionally loading a .env file first.
@@ -76,6 +77,7 @@ func Load() (*Config, error) {
 	cfg.TelegramBotEnabled = parseBoolDefault(os.Getenv("TELEGRAM_BOT_ENABLED"), false)
 	cfg.MaxRequestBodyBytes = parsePositiveInt64(os.Getenv("MAX_REQUEST_BODY_BYTES"), 10<<20)
 	cfg.FileSelectTimeout = parseDuration(os.Getenv("FILE_SELECT_TIMEOUT"), 5*time.Minute)
+	cfg.DeleteWithData = strings.EqualFold(os.Getenv("DELETE_WITH_DATA"), "true")
 
 	return cfg, nil
 }
