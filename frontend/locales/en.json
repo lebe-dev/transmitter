@@ -78,7 +78,8 @@
 		"deselectAll": "Deselect all",
 		"selectedInfo": "{count} of {total} files ({size})",
 		"downloadButton": "Download",
-		"cancel": "Cancel"
+		"cancel": "Cancel",
+		"errorLoad": "Failed to load files"
 	},
 	"deleteDialog": {
 		"title": "Delete Torrent",
@@ -106,6 +107,26 @@
 		"rose": "Rose",
 		"violet": "Violet"
 	},
+	"units": {
+		"b": "B",
+		"kb": "KB",
+		"mb": "MB",
+		"gb": "GB",
+		"tb": "TB",
+		"perSec": "s"
+	},
+	"eta": {
+		"prefix": "ETA",
+		"h": "h",
+		"m": "m",
+		"s": "s",
+		"infinity": "∞"
+	},
+	"card": {
+		"downloadSpeed": "Download speed",
+		"uploadSpeed": "Upload speed",
+		"uploadedTotal": "Uploaded total"
+	},
 	"detail": {
 		"files": "Files",
 		"peers": "Peers",
@@ -113,12 +134,17 @@
 		"refresh": "Refresh",
 		"loading": "Loading…",
 		"error": "Failed to load details",
+		"errorUnknown": "Unknown error",
 		"retry": "Retry",
 		"noFiles": "No files",
 		"noPeers": "No peers connected",
 		"noTrackers": "No trackers",
 		"trackerSeeders": "S",
 		"trackerLeechers": "L",
+		"trackerInactive": "Inactive",
+		"trackerWaiting": "Waiting",
+		"trackerQueued": "Queued",
+		"trackerActive": "Active",
 		"priorityLow": "Low",
 		"priorityNormal": "Normal",
 		"priorityHigh": "High",

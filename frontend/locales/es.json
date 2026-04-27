@@ -78,7 +78,8 @@
 		"deselectAll": "Deseleccionar todo",
 		"selectedInfo": "{count} de {total} archivos ({size})",
 		"downloadButton": "Descargar",
-		"cancel": "Cancelar"
+		"cancel": "Cancelar",
+		"errorLoad": "No se pudieron cargar los archivos"
 	},
 	"deleteDialog": {
 		"title": "Eliminar torrent",
@@ -106,6 +107,26 @@
 		"rose": "Rosa",
 		"violet": "Violeta"
 	},
+	"units": {
+		"b": "B",
+		"kb": "KB",
+		"mb": "MB",
+		"gb": "GB",
+		"tb": "TB",
+		"perSec": "s"
+	},
+	"eta": {
+		"prefix": "Restante",
+		"h": "h",
+		"m": "m",
+		"s": "s",
+		"infinity": "∞"
+	},
+	"card": {
+		"downloadSpeed": "Velocidad de descarga",
+		"uploadSpeed": "Velocidad de subida",
+		"uploadedTotal": "Subido total"
+	},
 	"detail": {
 		"files": "Archivos",
 		"peers": "Pares",
@@ -113,12 +134,17 @@
 		"refresh": "Actualizar",
 		"loading": "Cargando…",
 		"error": "Error al cargar detalles",
+		"errorUnknown": "Error desconocido",
 		"retry": "Reintentar",
 		"noFiles": "Sin archivos",
 		"noPeers": "Sin pares conectados",
 		"noTrackers": "Sin rastreadores",
 		"trackerSeeders": "S",
 		"trackerLeechers": "L",
+		"trackerInactive": "Inactivo",
+		"trackerWaiting": "Esperando",
+		"trackerQueued": "En cola",
+		"trackerActive": "Activo",
 		"priorityLow": "Baja",
 		"priorityNormal": "Normal",
 		"priorityHigh": "Alta",

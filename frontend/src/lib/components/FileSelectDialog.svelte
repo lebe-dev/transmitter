@@ -6,6 +6,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { getTorrentFiles } from '$lib/api.js';
+	import { formatSize } from '$lib/format.js';
 	import type { TorrentFile } from '$lib/types.js';
 
 	let {
@@ -27,13 +28,6 @@
 	let loading = $state(false);
 	let error = $state<string | null>(null);
 
-	function formatSize(bytes: number): string {
-		if (bytes <= 0) return '0 B';
-		const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-		const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-		return `${(bytes / 1024 ** i).toFixed(1)} ${units[i]}`;
-	}
-
 	function basename(path: string): string {
 		return path.split('/').pop() ?? path;
 	}
@@ -45,7 +39,7 @@
 			files = await getTorrentFiles(torrentId);
 			selected = files.map(() => true);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to load files';
+			error = err instanceof Error ? err.message : get(tt)('fileSelectDialog.errorLoad');
 		} finally {
 			loading = false;
 		}
@@ -116,7 +110,7 @@
 			</div>
 
 			<p class="text-sm text-muted-foreground mb-2">
-				{get(tt)('fileSelectDialog.selectedInfo', { values: { count: selectedCount, total: files.length, size: formatSize(selectedSize) } })}
+				{$tt('fileSelectDialog.selectedInfo', { values: { count: selectedCount, total: files.length, size: formatSize(selectedSize, $tt) } })}
 			</p>
 
 			<div class="max-h-64 overflow-y-auto flex flex-col gap-0.5 rounded-md border border-border/60 p-1">
@@ -134,7 +128,7 @@
 							{basename(file.name)}
 						</span>
 						<span class="text-xs text-muted-foreground ml-auto flex-shrink-0">
-							{formatSize(file.length)}
+							{formatSize(file.length, $tt)}
 						</span>
 					</label>
 				{/each}

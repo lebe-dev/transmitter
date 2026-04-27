@@ -27,6 +27,7 @@
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import { torrentStore, pinStore, downloadDirStore } from '$lib/stores.svelte.js';
 	import { addTorrentMagnet, addTorrentFile, startTorrents, stopTorrents, removeTorrents, getTorrentFiles, setFilesWanted, getSettings } from '$lib/api.js';
+	import { formatSize, formatSpeed, formatEta, formatDate } from '$lib/format.js';
 	import type { Torrent, FilterStatus } from '$lib/types.js';
 	import { createSvelteTable } from '$lib/components/ui/data-table/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
@@ -36,38 +37,6 @@
 	import FileSelectDialog from '$lib/components/FileSelectDialog.svelte';
 
 	const LOCALE_STORAGE_KEY = 'transmitter-locale';
-
-	// ── Formatters ────────────────────────────────────────────────────────────
-
-	function formatSize(bytes: number): string {
-		if (bytes <= 0) return '0 B';
-		const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-		const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-		return `${(bytes / 1024 ** i).toFixed(1)} ${units[i]}`;
-	}
-
-	function formatSpeed(bps: number): string {
-		if (bps <= 0) return '';
-		return `${formatSize(bps)}/s`;
-	}
-
-	function formatEta(secs: number): string {
-		if (secs < 0) return '∞';
-		if (secs === 0) return '';
-		const h = Math.floor(secs / 3600);
-		const m = Math.floor((secs % 3600) / 60);
-		const s = secs % 60;
-		if (h > 0) return `${h}h ${m}m`;
-		if (m > 0) return `${m}m ${s}s`;
-		return `${s}s`;
-	}
-
-	function formatDate(ts: number): string {
-		return new Date(ts * 1000).toLocaleDateString(undefined, {
-			month: 'short',
-			day: 'numeric',
-		});
-	}
 
 	// ── Status ────────────────────────────────────────────────────────────────
 
@@ -681,9 +650,9 @@
 								</div>
 
 								<div class="flex items-center gap-2 flex-shrink-0">
-								<span class="text-xs text-muted-foreground tabular-nums">{formatSize(t.totalSize)}</span>
+								<span class="text-xs text-muted-foreground tabular-nums">{formatSize(t.totalSize, $tt)}</span>
 								{#if t.uploadedEver > 0}
-									<span class="text-xs text-primary tabular-nums" title="Uploaded total">⬆ {formatSize(t.uploadedEver)}</span>
+									<span class="text-xs text-primary tabular-nums" title={$tt('card.uploadedTotal')}>⬆ {formatSize(t.uploadedEver, $tt)}</span>
 								{/if}
 							</div>
 							</div>
@@ -691,14 +660,14 @@
 							<!-- Row 3: Speeds + ETA + Error | Actions (no date) -->
 							<div class="flex items-center justify-between gap-2">
 								<div class="flex items-center gap-2 text-xs text-muted-foreground tabular-nums min-w-0 overflow-hidden">
-									{#if formatSpeed(t.rateDownload)}
-										<span class="text-blue-500 dark:text-blue-400">↓ {formatSpeed(t.rateDownload)}</span>
+									{#if formatSpeed(t.rateDownload, $tt)}
+										<span class="text-primary" title={$tt('card.downloadSpeed')}>↓ {formatSpeed(t.rateDownload, $tt)}</span>
 									{/if}
-									{#if formatSpeed(t.rateUpload)}
-										<span class="text-primary">↑ {formatSpeed(t.rateUpload)}</span>
+									{#if formatSpeed(t.rateUpload, $tt)}
+										<span class="text-primary" title={$tt('card.uploadSpeed')}>↑ {formatSpeed(t.rateUpload, $tt)}</span>
 									{/if}
-									{#if t.status !== 0 && t.status !== 6 && t.status !== 5 && formatEta(t.eta)}
-										<span>ETA {formatEta(t.eta)}</span>
+									{#if t.status !== 0 && t.status !== 6 && t.status !== 5 && formatEta(t.eta, $tt)}
+										<span>{$tt('eta.prefix')} {formatEta(t.eta, $tt)}</span>
 									{/if}
 									{#if t.errorString}
 										<span class="text-destructive truncate">{t.errorString}</span>
@@ -782,9 +751,9 @@
 								</div>
 
 								<div class="flex items-center gap-2 flex-shrink-0">
-								<span class="text-xs text-muted-foreground tabular-nums">{formatSize(t.totalSize)}</span>
+								<span class="text-xs text-muted-foreground tabular-nums">{formatSize(t.totalSize, $tt)}</span>
 								{#if t.uploadedEver > 0}
-									<span class="text-xs text-primary tabular-nums" title="Uploaded total">⬆ {formatSize(t.uploadedEver)}</span>
+									<span class="text-xs text-primary tabular-nums" title={$tt('card.uploadedTotal')}>⬆ {formatSize(t.uploadedEver, $tt)}</span>
 								{/if}
 							</div>
 							</div>
@@ -792,19 +761,19 @@
 							<!-- Row 3: Speeds + ETA + Date | Actions -->
 							<div class="flex items-center justify-between gap-2">
 								<div class="flex items-center gap-2 text-xs text-muted-foreground tabular-nums min-w-0 overflow-hidden">
-									{#if formatSpeed(t.rateDownload)}
-										<span class="text-blue-500 dark:text-blue-400">↓ {formatSpeed(t.rateDownload)}</span>
+									{#if formatSpeed(t.rateDownload, $tt)}
+										<span class="text-primary" title={$tt('card.downloadSpeed')}>↓ {formatSpeed(t.rateDownload, $tt)}</span>
 									{/if}
-									{#if formatSpeed(t.rateUpload)}
-										<span class="text-primary">↑ {formatSpeed(t.rateUpload)}</span>
+									{#if formatSpeed(t.rateUpload, $tt)}
+										<span class="text-primary" title={$tt('card.uploadSpeed')}>↑ {formatSpeed(t.rateUpload, $tt)}</span>
 									{/if}
-									{#if t.status !== 0 && t.status !== 6 && t.status !== 5 && formatEta(t.eta)}
-										<span>ETA {formatEta(t.eta)}</span>
+									{#if t.status !== 0 && t.status !== 6 && t.status !== 5 && formatEta(t.eta, $tt)}
+										<span>{$tt('eta.prefix')} {formatEta(t.eta, $tt)}</span>
 									{/if}
 									{#if t.errorString}
 										<span class="text-destructive truncate">{t.errorString}</span>
 									{:else}
-										<span>{formatDate(t.addedDate)}</span>
+										<span>{formatDate(t.addedDate, $locale)}</span>
 									{/if}
 								</div>
 

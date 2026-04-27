@@ -78,7 +78,8 @@
 		"deselectAll": "Alle abwählen",
 		"selectedInfo": "{count} von {total} Dateien ({size})",
 		"downloadButton": "Herunterladen",
-		"cancel": "Abbrechen"
+		"cancel": "Abbrechen",
+		"errorLoad": "Dateien konnten nicht geladen werden"
 	},
 	"deleteDialog": {
 		"title": "Torrent löschen",
@@ -106,6 +107,26 @@
 		"rose": "Rosa",
 		"violet": "Violett"
 	},
+	"units": {
+		"b": "B",
+		"kb": "KB",
+		"mb": "MB",
+		"gb": "GB",
+		"tb": "TB",
+		"perSec": "s"
+	},
+	"eta": {
+		"prefix": "Restzeit",
+		"h": "h",
+		"m": "m",
+		"s": "s",
+		"infinity": "∞"
+	},
+	"card": {
+		"downloadSpeed": "Download-Geschwindigkeit",
+		"uploadSpeed": "Upload-Geschwindigkeit",
+		"uploadedTotal": "Gesamt hochgeladen"
+	},
 	"detail": {
 		"files": "Dateien",
 		"peers": "Peers",
@@ -113,12 +134,17 @@
 		"refresh": "Aktualisieren",
 		"loading": "Laden…",
 		"error": "Details konnten nicht geladen werden",
+		"errorUnknown": "Unbekannter Fehler",
 		"retry": "Erneut versuchen",
 		"noFiles": "Keine Dateien",
 		"noPeers": "Keine Peers verbunden",
 		"noTrackers": "Keine Tracker",
 		"trackerSeeders": "S",
 		"trackerLeechers": "L",
+		"trackerInactive": "Inaktiv",
+		"trackerWaiting": "Wartet",
+		"trackerQueued": "In Warteschlange",
+		"trackerActive": "Aktiv",
 		"priorityLow": "Niedrig",
 		"priorityNormal": "Normal",
 		"priorityHigh": "Hoch",

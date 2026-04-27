@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { t as tt } from 'svelte-intl-precompile';
+	import { get } from 'svelte/store';
 	import XIcon from '@lucide/svelte/icons/x';
 	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
 	import LockIcon from '@lucide/svelte/icons/lock';
@@ -15,6 +16,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { getTorrentDetails, setFilesWanted, setFilePriority } from '$lib/api.js';
+	import { formatSize, formatSpeed } from '$lib/format.js';
 	import type { Torrent, TorrentDetail, TorrentFile, FilePriority } from '$lib/types.js';
 
 	let {
@@ -52,7 +54,7 @@
 		try {
 			detail = await getTorrentDetails(torrent.id);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Unknown error';
+			error = err instanceof Error ? err.message : get(tt)('detail.errorUnknown');
 		} finally {
 			loading = false;
 		}
@@ -184,18 +186,6 @@
 		expanded = next;
 	}
 
-	function formatSize(bytes: number): string {
-		if (bytes <= 0) return '0 B';
-		const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-		const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-		return `${(bytes / 1024 ** i).toFixed(1)} ${units[i]}`;
-	}
-
-	function formatSpeed(bps: number): string {
-		if (bps <= 0) return '—';
-		return `${formatSize(bps)}/s`;
-	}
-
 	function priorityLabel(p: FilePriority): string {
 		switch (p) {
 			case -1: return $tt('detail.priorityLow');
@@ -284,10 +274,10 @@
 
 	function trackerStatus(state: number): string {
 		switch (state) {
-			case 0: return 'Inactive';
-			case 1: return 'Waiting';
-			case 2: return 'Queued';
-			case 3: return 'Active';
+			case 0: return $tt('detail.trackerInactive');
+			case 1: return $tt('detail.trackerWaiting');
+			case 2: return $tt('detail.trackerQueued');
+			case 3: return $tt('detail.trackerActive');
 			default: return `${state}`;
 		}
 	}
@@ -338,7 +328,7 @@
 					{(progress * 100).toFixed(0)}%
 				</span>
 				<span class="text-xs text-muted-foreground tabular-nums flex-shrink-0">
-					{agg ? formatSize(agg.size) : ''}
+					{agg ? formatSize(agg.size, $tt) : ''}
 				</span>
 			</button>
 		</div>
@@ -381,7 +371,7 @@
 					</button>
 				{/if}
 				<span class="text-xs text-muted-foreground tabular-nums flex-shrink-0">
-					{formatSize(file.length)}
+					{formatSize(file.length, $tt)}
 				</span>
 			</div>
 			<div class="flex items-center gap-2 pl-[22px]">
@@ -500,8 +490,8 @@
 										<div class="flex items-center justify-between gap-2">
 											<span class="text-xs text-muted-foreground truncate">{peer.clientName}</span>
 											<div class="flex items-center gap-2 text-xs tabular-nums flex-shrink-0">
-												<span class="text-blue-500 dark:text-blue-400">↓ {formatSpeed(peer.rateToClient)}</span>
-												<span class="text-primary">↑ {formatSpeed(peer.rateToPeer)}</span>
+												<span class="text-primary" title={$tt('card.downloadSpeed')}>↓ {formatSpeed(peer.rateToClient, $tt) || '—'}</span>
+												<span class="text-primary" title={$tt('card.uploadSpeed')}>↑ {formatSpeed(peer.rateToPeer, $tt) || '—'}</span>
 											</div>
 										</div>
 									</div>

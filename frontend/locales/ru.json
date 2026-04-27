@@ -78,7 +78,8 @@
 		"deselectAll": "Снять все",
 		"selectedInfo": "{count} из {total} файлов ({size})",
 		"downloadButton": "Скачать",
-		"cancel": "Отмена"
+		"cancel": "Отмена",
+		"errorLoad": "Не удалось загрузить список файлов"
 	},
 	"deleteDialog": {
 		"title": "Удалить торрент",
@@ -106,6 +107,26 @@
 		"rose": "Розовая",
 		"violet": "Фиолетовая"
 	},
+	"units": {
+		"b": "Б",
+		"kb": "КБ",
+		"mb": "МБ",
+		"gb": "ГБ",
+		"tb": "ТБ",
+		"perSec": "с"
+	},
+	"eta": {
+		"prefix": "Осталось",
+		"h": "ч",
+		"m": "м",
+		"s": "с",
+		"infinity": "∞"
+	},
+	"card": {
+		"downloadSpeed": "Скорость скачивания",
+		"uploadSpeed": "Скорость раздачи",
+		"uploadedTotal": "Всего роздано"
+	},
 	"detail": {
 		"files": "Файлы",
 		"peers": "Пиры",
@@ -113,12 +134,17 @@
 		"refresh": "Обновить",
 		"loading": "Загрузка…",
 		"error": "Не удалось загрузить детали",
+		"errorUnknown": "Неизвестная ошибка",
 		"retry": "Повторить",
 		"noFiles": "Нет файлов",
 		"noPeers": "Нет подключённых пиров",
 		"noTrackers": "Нет трекеров",
 		"trackerSeeders": "S",
 		"trackerLeechers": "L",
+		"trackerInactive": "Неактивен",
+		"trackerWaiting": "Ожидание",
+		"trackerQueued": "В очереди",
+		"trackerActive": "Активен",
 		"priorityLow": "Низкий",
 		"priorityNormal": "Обычный",
 		"priorityHigh": "Высокий",
