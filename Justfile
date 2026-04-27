@@ -70,7 +70,9 @@ run-frontend:
 
 # --- Image ---
 build-image: test && lint
-    docker buildx build --platform linux/arm/v7 -t {{ imageName }}:{{ version }} .
+    docker buildx build --platform linux/arm/v7,linux/amd64 --driver docker-container -t {{ imageName }}:{{ version }} .
+    # docker buildx build --platform linux/arm/v8 -t {{ imageName }}:{{ version }} .
+    # docker buildx build --platform linux/amd64 -t {{ imageName }}:{{ version }} .
 
 build-image-local:
     docker build -t {{ imageName }}:latest .
@@ -78,7 +80,11 @@ build-image-local:
 push-image:
     docker push {{ imageName }}:{{ version }}
 
-release-image: build-image && push-image
+release-image:
+    docker buildx inspect multibuilder > /dev/null 2>&1 || docker buildx create --name multibuilder --driver docker-container
+    docker buildx use multibuilder
+    docker buildx inspect --bootstrap
+    docker buildx build --platform linux/amd64,linux/arm/v7,linux/arm64/v8 -t {{ imageName }}:{{ version }} --push .
 
 release: release-image
 
