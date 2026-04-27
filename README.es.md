@@ -14,6 +14,7 @@ Transmitter es una alternativa moderna y ligera a la interfaz web estándar de T
 - **Gestión** — pausar, reanudar, eliminar torrents
 - **Auto-actualización** — actualizaciones en vivo cada 3–5 segundos
 - **Idiomas soportados**: en, ru, es, de
+- **Docker images**: linux/amd64, linux/arm/v7, linux/arm64/v8
 
 ## Primeros pasos
 

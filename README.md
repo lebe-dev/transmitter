@@ -16,6 +16,7 @@ Transmitter is a modern, lightweight alternative to Transmission's stock UI. Run
 - **Management** — pause, resume, delete torrents
 - **Auto-refresh** — live updates every 3–5 seconds
 - **Support locales**: en, ru, es, de
+- **Docker images**: linux/amd64, linux/arm/v7, linux/arm64/v8
 
 ## Getting Started
 
@@ -56,7 +57,7 @@ See [SECURITY.md](docs/SECURITY.md).
 
 ## Roadmap
 
-- Web UI authentication (Basic Auth middleware) for external access via VPN
+- Web UI authentication
 - Movie extensions
 - Support multiple Transmission instances
 - RSS feeds for automatic torrent addition
