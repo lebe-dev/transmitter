@@ -68,6 +68,11 @@
 		return parts[parts.length - 1];
 	}
 
+	function dirname(path: string): string {
+		const idx = path.lastIndexOf('/');
+		return idx === -1 ? '' : path.slice(0, idx);
+	}
+
 	function priorityLabel(p: FilePriority): string {
 		switch (p) {
 			case -1: return $tt('detail.priorityLow');
@@ -239,9 +244,16 @@
 													onchange={() => toggleWanted(i, stat?.wanted !== false)}
 													class="size-3.5 accent-primary flex-shrink-0 cursor-pointer mt-0.5"
 												/>
-												<span class="text-sm break-all leading-snug" title={file.name}>
-													{basename(file.name)}
-												</span>
+												<div class="min-w-0 flex-1">
+													{#if dirname(file.name)}
+														<div class="text-xs text-muted-foreground break-all leading-snug">
+															{dirname(file.name)}/
+														</div>
+													{/if}
+													<span class="text-sm break-all leading-snug" title={file.name}>
+														{basename(file.name)}
+													</span>
+												</div>
 											</div>
 											<div class="flex items-center gap-2 flex-shrink-0">
 												{#if stat}
