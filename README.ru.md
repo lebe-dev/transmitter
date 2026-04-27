@@ -1,6 +1,7 @@
 # Transmitter
 
 ![Снимок экрана Transmitter](screenshot.png)
+![Детали торрента](screenshot2.png)
 
 Transmitter — современная и лёгкая альтернатива стандартному веб-интерфейсу Transmission. Работает без внешних зависимостей. Также поддерживает интеграцию с Telegram-ботом.
 

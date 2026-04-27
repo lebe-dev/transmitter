@@ -2,7 +2,8 @@
 
 [Русский](README.ru.md) | [Español](README.es.md) | [Deutsch](README.de.md)
 
-![Transmitter screenshot](screenshot.png)
+![Main screen](screenshot.png)
+![Torrent details](screenshot2.png)
 
 Transmitter is a modern, lightweight alternative to Transmission's stock UI. Runs with zero external dependencies. Also Telegram bot integration.
 
