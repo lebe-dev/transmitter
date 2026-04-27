@@ -122,7 +122,9 @@
 		"priorityLow": "Niedrig",
 		"priorityNormal": "Normal",
 		"priorityHigh": "Hoch",
-		"cyclePriority": "Priorität wechseln"
+		"cyclePriority": "Priorität wechseln",
+		"selectAll": "Alle auswählen",
+		"selectNone": "Auswahl aufheben"
 	},
 	"toast": {
 		"added": "Torrent hinzugefügt",

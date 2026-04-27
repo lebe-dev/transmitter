@@ -21,7 +21,7 @@
 		bind:ref
 		data-slot="sheet-content"
 		class={cn(
-			"bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l shadow-lg duration-200 sm:w-[440px]",
+			"bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l shadow-lg duration-200 sm:w-[min(50vw,720px)] sm:min-w-[440px]",
 			className
 		)}
 		{...restProps}

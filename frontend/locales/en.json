@@ -122,7 +122,9 @@
 		"priorityLow": "Low",
 		"priorityNormal": "Normal",
 		"priorityHigh": "High",
-		"cyclePriority": "Cycle priority"
+		"cyclePriority": "Cycle priority",
+		"selectAll": "Select all",
+		"selectNone": "Select none"
 	},
 	"toast": {
 		"added": "Torrent added",

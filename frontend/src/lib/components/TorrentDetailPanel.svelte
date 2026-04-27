@@ -113,6 +113,21 @@
 		}
 	}
 
+	async function setAllWanted(wanted: boolean) {
+		if (!torrent || !detail || updatingFile !== null) return;
+		const indices = detail.files.map((_, i) => i);
+		const prev = detail.fileStats.map((s) => s.wanted);
+		updatingFile = -1;
+		detail.fileStats.forEach((s) => (s.wanted = wanted));
+		try {
+			await setFilesWanted(torrent.id, wanted ? indices : [], wanted ? [] : indices);
+		} catch {
+			detail.fileStats.forEach((s, i) => (s.wanted = prev[i]));
+		} finally {
+			updatingFile = null;
+		}
+	}
+
 	async function cyclePriority(fileIndex: number, current: FilePriority) {
 		if (!torrent || !detail || updatingFile !== null) return;
 		updatingFile = fileIndex;
@@ -191,21 +206,40 @@
 						{#if detail.files.length === 0}
 							<p class="text-sm text-muted-foreground py-6 text-center">{$tt('detail.noFiles')}</p>
 						{:else}
+							<div class="flex items-center gap-3 mb-2 text-xs">
+								<button
+									type="button"
+									class="text-primary hover:underline disabled:opacity-50 cursor-pointer"
+									disabled={updatingFile !== null}
+									onclick={() => setAllWanted(true)}
+								>
+									{$tt('detail.selectAll')}
+								</button>
+								<span class="text-muted-foreground/40">|</span>
+								<button
+									type="button"
+									class="text-primary hover:underline disabled:opacity-50 cursor-pointer"
+									disabled={updatingFile !== null}
+									onclick={() => setAllWanted(false)}
+								>
+									{$tt('detail.selectNone')}
+								</button>
+							</div>
 							<div class="flex flex-col gap-1.5">
 								{#each detail.files as file, i}
 									{@const stat = detail.fileStats[i]}
 									{@const progress = file.length > 0 ? file.bytesCompleted / file.length : 0}
 									<div class="rounded-md border border-border/60 px-3 py-2 transition-opacity {stat?.wanted === false ? 'opacity-50' : ''}">
-										<div class="flex items-center justify-between gap-2 mb-1">
-											<div class="flex items-center gap-2 min-w-0">
+										<div class="flex items-start justify-between gap-2 mb-1">
+											<div class="flex items-start gap-2 min-w-0 flex-1">
 												<input
 													type="checkbox"
 													checked={stat?.wanted !== false}
 													disabled={updatingFile !== null}
 													onchange={() => toggleWanted(i, stat?.wanted !== false)}
-													class="size-3.5 accent-primary flex-shrink-0 cursor-pointer"
+													class="size-3.5 accent-primary flex-shrink-0 cursor-pointer mt-0.5"
 												/>
-												<span class="text-sm truncate min-w-0" title={file.name}>
+												<span class="text-sm break-all leading-snug" title={file.name}>
 													{basename(file.name)}
 												</span>
 											</div>

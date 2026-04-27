@@ -122,7 +122,9 @@
 		"priorityLow": "Низкий",
 		"priorityNormal": "Обычный",
 		"priorityHigh": "Высокий",
-		"cyclePriority": "Сменить приоритет"
+		"cyclePriority": "Сменить приоритет",
+		"selectAll": "Выделить все",
+		"selectNone": "Снять выделение"
 	},
 	"toast": {
 		"added": "Торрент добавлен",
