@@ -55,14 +55,7 @@ Ver [SECURITY.md](docs/SECURITY.es.md).
 
 ## Hoja de ruta
 
-- UX:
-  - Sugerir rutas
-  - Recordar rutas
-- Alternar funciones: interfaz web, bot de Telegram
-- Agrupación por carpetas / etiquetas (etiquetas añadidas en Transmission 4.0)
-- Pausar / eliminar mediante bot de Telegram (expansión de comandos)
-- Notificaciones de Telegram al completar la descarga (sondeo + diferencia de estado)
-- WebSocket en lugar de sondeo para actualizaciones en tiempo real
-- Autenticación en la interfaz web (middleware Basic Auth) para acceso externo vía VPN
-- Feeds RSS para adición automática de torrents
+- Autenticación en la interfaz web
+- Video plugin
 - Soporte de múltiples instancias de Transmission
+- Feeds RSS para adición automática de torrents

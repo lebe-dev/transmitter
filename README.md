@@ -58,6 +58,6 @@ See [SECURITY.md](docs/SECURITY.md).
 ## Roadmap
 
 - Web UI authentication
-- Movie extensions
+- Video plugin
 - Support multiple Transmission instances
 - RSS feeds for automatic torrent addition
