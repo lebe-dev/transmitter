@@ -66,3 +66,19 @@ export interface TorrentDetail {
 export interface UISettings {
 	deleteWithData: boolean;
 }
+
+export interface ServerConfig {
+	transmissionUrl: string;
+	listenAddr: string;
+	corsOrigin: string;
+	maxRequestBodyBytes: number;
+	webUiEnabled: boolean;
+	telegramBotEnabled: boolean;
+	telegramUsers: string[];
+	logLevel: string;
+	filePriorityEnabled: boolean;
+	filePriorityHighCount: number;
+	deleteWithData: boolean;
+	monitorInterval: string;
+	fileSelectTimeout: string;
+}

@@ -95,7 +95,12 @@
 		"language": "Язык",
 		"compactView": "Компактный вид",
 		"docs": "Документация",
-		"close": "Закрыть"
+		"close": "Закрыть",
+		"tabGeneral": "Основные",
+		"tabServer": "Сервер",
+		"configEnvVar": "Переменная",
+		"configValue": "Значение",
+		"configError": "Не удалось загрузить конфигурацию"
 	},
 	"themes": {
 		"yellow": "Жёлтая",

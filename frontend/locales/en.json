@@ -95,7 +95,12 @@
 		"language": "Language",
 		"compactView": "Compact view",
 		"docs": "Documentation",
-		"close": "Close"
+		"close": "Close",
+		"tabGeneral": "General",
+		"tabServer": "Server",
+		"configEnvVar": "Variable",
+		"configValue": "Value",
+		"configError": "Failed to load server config"
 	},
 	"themes": {
 		"yellow": "Yellow",

@@ -26,11 +26,13 @@
 
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import { torrentStore, pinStore, downloadDirStore } from '$lib/stores.svelte.js';
-	import { addTorrentMagnet, addTorrentFile, startTorrents, stopTorrents, removeTorrents, getTorrentFiles, setFilesWanted, getSettings } from '$lib/api.js';
+	import { addTorrentMagnet, addTorrentFile, startTorrents, stopTorrents, removeTorrents, getTorrentFiles, setFilesWanted, getSettings, getServerConfig } from '$lib/api.js';
 	import { formatSize, formatSpeed, formatEta, formatDate } from '$lib/format.js';
-	import type { Torrent, FilterStatus } from '$lib/types.js';
+	import type { Torrent, FilterStatus, ServerConfig } from '$lib/types.js';
 	import { createSvelteTable } from '$lib/components/ui/data-table/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
+	import * as Tabs from '$lib/components/ui/tabs/index.js';
+	import * as Table from '$lib/components/ui/table/index.js';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import TorrentDetailPanel from '$lib/components/TorrentDetailPanel.svelte';
@@ -339,6 +341,53 @@
 	// ── Settings dialog ──────────────────────────────────────────────────────
 
 	let settingsOpen = $state(false);
+	let settingsTab = $state('general');
+	let serverConfig = $state<ServerConfig | null>(null);
+	let serverConfigLoading = $state(false);
+	let serverConfigError = $state(false);
+
+	async function loadServerConfig() {
+		if (serverConfig !== null) return;
+		serverConfigLoading = true;
+		serverConfigError = false;
+		try {
+			serverConfig = await getServerConfig();
+		} catch {
+			serverConfigError = true;
+		} finally {
+			serverConfigLoading = false;
+		}
+	}
+
+	const CONFIG_ROWS: { envVar: string; key: keyof ServerConfig }[] = [
+		{ envVar: 'TRANSMISSION_URL',         key: 'transmissionUrl' },
+		{ envVar: 'LISTEN_ADDR',              key: 'listenAddr' },
+		{ envVar: 'CORS_ORIGIN',              key: 'corsOrigin' },
+		{ envVar: 'LOG_LEVEL',                key: 'logLevel' },
+		{ envVar: 'WEBUI_ENABLED',            key: 'webUiEnabled' },
+		{ envVar: 'TELEGRAM_BOT_ENABLED',     key: 'telegramBotEnabled' },
+		{ envVar: 'TELEGRAM_USERS',           key: 'telegramUsers' },
+		{ envVar: 'FILE_PRIORITY_ENABLED',    key: 'filePriorityEnabled' },
+		{ envVar: 'FILE_PRIORITY_HIGH_COUNT', key: 'filePriorityHighCount' },
+		{ envVar: 'DELETE_WITH_DATA',         key: 'deleteWithData' },
+		{ envVar: 'MONITOR_INTERVAL',         key: 'monitorInterval' },
+		{ envVar: 'FILE_SELECT_TIMEOUT',      key: 'fileSelectTimeout' },
+		{ envVar: 'MAX_REQUEST_BODY_BYTES',   key: 'maxRequestBodyBytes' },
+	];
+
+	function formatConfigValue(v: unknown): string {
+		if (Array.isArray(v)) return v.length === 0 ? '—' : v.join(', ');
+		if (typeof v === 'boolean') return v ? 'true' : 'false';
+		return String(v ?? '—');
+	}
+
+	$effect(() => {
+		if (!settingsOpen) settingsTab = 'general';
+	});
+
+	$effect(() => {
+		if (settingsTab === 'server') loadServerConfig();
+	});
 
 	// ── Compact view ─────────────────────────────────────────────────────────
 
@@ -824,56 +873,97 @@
 
 <!-- ── Settings Dialog ────────────────────────────────────────────────────── -->
 <AlertDialog.Root bind:open={settingsOpen}>
-	<AlertDialog.Content class="sm:max-w-sm">
-		<AlertDialog.Header class="pb-4">
+	<AlertDialog.Content class="sm:max-w-lg">
+		<AlertDialog.Header class="pb-3">
 			<AlertDialog.Title class="font-display text-lg font-semibold">{$tt('settings.title')}</AlertDialog.Title>
-			<AlertDialog.Description class="text-sm text-muted-foreground">{$tt('settings.description')}</AlertDialog.Description>
 		</AlertDialog.Header>
 
-		<div class="flex flex-col gap-4">
-			<div class="flex flex-col gap-3">
-				<span class="text-sm font-medium">{$tt('settings.colorTheme')}</span>
-				<div class="grid grid-cols-4 gap-2">
-					{#each COLOR_THEME_KEYS as ct}
-						<button
-							class="h-9 rounded-lg border text-xs font-medium transition-colors {colorTheme === ct.value
-								? 'border-primary bg-primary/10 text-foreground'
-								: 'border-border/60 text-muted-foreground hover:border-border hover:bg-accent/50'}"
-							onclick={() => onColorThemeChange(ct.value)}
-						>
-							{$tt(ct.tKey)}
-						</button>
-					{/each}
-				</div>
-			</div>
+		<Tabs.Root bind:value={settingsTab}>
+			<Tabs.List class="mb-3">
+				<Tabs.Trigger value="general">{$tt('settings.tabGeneral')}</Tabs.Trigger>
+				<Tabs.Trigger value="server">{$tt('settings.tabServer')}</Tabs.Trigger>
+			</Tabs.List>
 
-			<div class="flex flex-col gap-3">
-				<span class="text-sm font-medium">{$tt('settings.language')}</span>
-				<div class="grid grid-cols-2 gap-2">
-					{#each [...$locales] as loc}
-						<button
-							class="h-9 rounded-lg border text-xs font-medium transition-colors {$locale === loc
-								? 'border-primary bg-primary/10 text-foreground'
-								: 'border-border/60 text-muted-foreground hover:border-border hover:bg-accent/50'}"
-							onclick={() => onLocaleChange(loc)}
-						>
-							{$tt(`languages.${loc}`)}
-						</button>
-					{/each}
-				</div>
-			</div>
-		</div>
+			<Tabs.Content value="general">
+				<div class="flex flex-col gap-4">
+					<div class="flex flex-col gap-3">
+						<span class="text-sm font-medium">{$tt('settings.colorTheme')}</span>
+						<div class="grid grid-cols-4 gap-2">
+							{#each COLOR_THEME_KEYS as ct}
+								<button
+									class="h-9 rounded-lg border text-xs font-medium transition-colors {colorTheme === ct.value
+										? 'border-primary bg-primary/10 text-foreground'
+										: 'border-border/60 text-muted-foreground hover:border-border hover:bg-accent/50'}"
+									onclick={() => onColorThemeChange(ct.value)}
+								>
+									{$tt(ct.tKey)}
+								</button>
+							{/each}
+						</div>
+					</div>
 
-		<div class="flex items-center gap-3">
-			<Checkbox
-				id="compact-view"
-				checked={compactView}
-				onCheckedChange={onCompactViewChange}
-			/>
-			<label for="compact-view" class="text-sm font-medium cursor-pointer select-none">
-				{$tt('settings.compactView')}
-			</label>
-		</div>
+					<div class="flex flex-col gap-3">
+						<span class="text-sm font-medium">{$tt('settings.language')}</span>
+						<div class="grid grid-cols-2 gap-2">
+							{#each [...$locales] as loc}
+								<button
+									class="h-9 rounded-lg border text-xs font-medium transition-colors {$locale === loc
+										? 'border-primary bg-primary/10 text-foreground'
+										: 'border-border/60 text-muted-foreground hover:border-border hover:bg-accent/50'}"
+									onclick={() => onLocaleChange(loc)}
+								>
+									{$tt(`languages.${loc}`)}
+								</button>
+							{/each}
+						</div>
+					</div>
+
+					<div class="flex items-center gap-3">
+						<Checkbox
+							id="compact-view"
+							checked={compactView}
+							onCheckedChange={onCompactViewChange}
+						/>
+						<label for="compact-view" class="text-sm font-medium cursor-pointer select-none">
+							{$tt('settings.compactView')}
+						</label>
+					</div>
+				</div>
+			</Tabs.Content>
+
+			<Tabs.Content value="server">
+				{#if serverConfigLoading}
+					<div class="flex justify-center py-6">
+						<Spinner class="size-5" />
+					</div>
+				{:else if serverConfigError}
+					<p class="text-sm text-destructive py-4 text-center">{$tt('settings.configError')}</p>
+				{:else if serverConfig}
+					<div class="max-h-64 overflow-hidden overflow-y-auto rounded-lg border border-border/60">
+						<Table.Root class="table-fixed w-full">
+							<Table.Header>
+								<Table.Row>
+									<Table.Head class="text-xs w-[45%]">{$tt('settings.configEnvVar')}</Table.Head>
+									<Table.Head class="text-xs">{$tt('settings.configValue')}</Table.Head>
+								</Table.Row>
+							</Table.Header>
+							<Table.Body>
+								{#each CONFIG_ROWS as row}
+									<Table.Row>
+										<Table.Cell class="font-mono text-xs py-2 text-muted-foreground break-all">
+											{row.envVar}
+										</Table.Cell>
+										<Table.Cell class="font-mono text-xs py-2 break-all">
+											{formatConfigValue(serverConfig[row.key])}
+										</Table.Cell>
+									</Table.Row>
+								{/each}
+							</Table.Body>
+						</Table.Root>
+					</div>
+				{/if}
+			</Tabs.Content>
+		</Tabs.Root>
 
 		<AlertDialog.Footer class="pt-4 flex items-center">
 			<span class="text-xs text-muted-foreground mr-auto flex items-center gap-2">

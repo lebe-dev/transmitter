@@ -1,4 +1,4 @@
-import type { Torrent, TorrentDetail, TorrentFile, UISettings } from './types.js';
+import type { Torrent, TorrentDetail, TorrentFile, UISettings, ServerConfig } from './types.js';
 
 const TORRENT_FIELDS = [
 	'id',
@@ -104,6 +104,12 @@ export async function setFilesWanted(
 
 export async function getSettings(): Promise<UISettings> {
 	const res = await fetch('/api/settings');
+	if (!res.ok) throw new Error(`HTTP ${res.status}`);
+	return res.json();
+}
+
+export async function getServerConfig(): Promise<ServerConfig> {
+	const res = await fetch('/api/config');
 	if (!res.ok) throw new Error(`HTTP ${res.status}`);
 	return res.json();
 }

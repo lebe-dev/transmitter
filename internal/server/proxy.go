@@ -108,6 +108,31 @@ func SettingsHandler(settings UISettings) http.HandlerFunc {
 	}
 }
 
+// ServerConfig holds non-sensitive env configuration exposed via /api/config.
+type ServerConfig struct {
+	TransmissionURL       string   `json:"transmissionUrl"`
+	ListenAddr            string   `json:"listenAddr"`
+	CORSOrigin            string   `json:"corsOrigin"`
+	MaxRequestBodyBytes   int64    `json:"maxRequestBodyBytes"`
+	WebUIEnabled          bool     `json:"webUiEnabled"`
+	TelegramBotEnabled    bool     `json:"telegramBotEnabled"`
+	TelegramUsers         []string `json:"telegramUsers"`
+	LogLevel              string   `json:"logLevel"`
+	FilePriorityEnabled   bool     `json:"filePriorityEnabled"`
+	FilePriorityHighCount int      `json:"filePriorityHighCount"`
+	DeleteWithData        bool     `json:"deleteWithData"`
+	MonitorInterval       string   `json:"monitorInterval"`
+	FileSelectTimeout     string   `json:"fileSelectTimeout"`
+}
+
+// ConfigHandler returns non-sensitive server configuration as JSON.
+func ConfigHandler(cfg ServerConfig) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(cfg) //nolint:errcheck
+	}
+}
+
 // HealthHandler checks Transmission availability via session-get.
 func HealthHandler(client *transmission.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

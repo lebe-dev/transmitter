@@ -95,7 +95,12 @@
 		"language": "Idioma",
 		"compactView": "Vista compacta",
 		"docs": "Documentación",
-		"close": "Cerrar"
+		"close": "Cerrar",
+		"tabGeneral": "General",
+		"tabServer": "Servidor",
+		"configEnvVar": "Variable",
+		"configValue": "Valor",
+		"configError": "No se pudo cargar la configuración"
 	},
 	"themes": {
 		"yellow": "Amarillo",

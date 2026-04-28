@@ -34,10 +34,31 @@ func New(cfg *config.Config, client *transmission.Client, staticFS fs.FS, logger
 		DeleteWithData: cfg.DeleteWithData,
 	}
 
+	telegramUsers := cfg.TelegramUsers
+	if telegramUsers == nil {
+		telegramUsers = []string{}
+	}
+	serverConfig := ServerConfig{
+		TransmissionURL:       cfg.TransmissionURL,
+		ListenAddr:            cfg.ListenAddr,
+		CORSOrigin:            cfg.CORSOrigin,
+		MaxRequestBodyBytes:   cfg.MaxRequestBodyBytes,
+		WebUIEnabled:          cfg.WebUIEnabled,
+		TelegramBotEnabled:    cfg.TelegramBotEnabled,
+		TelegramUsers:         telegramUsers,
+		LogLevel:              cfg.LogLevel.String(),
+		FilePriorityEnabled:   cfg.FilePriorityEnabled,
+		FilePriorityHighCount: cfg.FilePriorityHighCount,
+		DeleteWithData:        cfg.DeleteWithData,
+		MonitorInterval:       cfg.MonitorInterval.String(),
+		FileSelectTimeout:     cfg.FileSelectTimeout.String(),
+	}
+
 	mux := http.NewServeMux()
 	mux.Handle("POST /api/rpc", ProxyHandler(client, priorityCfg, cfg.MaxRequestBodyBytes))
 	mux.Handle("GET /api/health", HealthHandler(client))
 	mux.Handle("GET /api/settings", SettingsHandler(uiSettings))
+	mux.Handle("GET /api/config", ConfigHandler(serverConfig))
 	mux.Handle("/", staticHandler)
 
 	handler := CORSMiddleware(cfg.CORSOrigin, mux)
