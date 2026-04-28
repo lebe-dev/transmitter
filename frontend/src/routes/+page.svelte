@@ -1153,16 +1153,12 @@
 		</AlertDialog.Header>
 
 		<label class="flex items-center gap-2.5 text-sm cursor-pointer">
-			<input
-				type="checkbox"
-				class="rounded"
-				bind:checked={deleteWithData}
-			/>
+			<Checkbox bind:checked={deleteWithData} disabled={isDeleting} />
 			{$tt('deleteDialog.deleteLocal')}
 		</label>
 
 		<AlertDialog.Footer class="pt-4">
-			<AlertDialog.Cancel disabled={isDeleting}>{$tt('deleteDialog.cancel')}</AlertDialog.Cancel>
+			<Button variant="outline" disabled={isDeleting} onclick={() => { deleteOpen = false; }}>{$tt('deleteDialog.cancel')}</Button>
 			<Button variant="destructive" class="font-display font-semibold" onclick={handleDelete} disabled={isDeleting}>
 				{#if isDeleting}
 					<Spinner class="size-4" />
