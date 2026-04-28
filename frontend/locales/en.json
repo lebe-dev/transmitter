@@ -100,7 +100,23 @@
 		"tabServer": "Server",
 		"configEnvVar": "Variable",
 		"configValue": "Value",
-		"configError": "Failed to load server config"
+		"configError": "Failed to load server config",
+		"configNote": "Configuration is loaded from environment variables or a .env file. Changes require a server restart.",
+		"configHint": {
+			"transmissionUrl": "Transmission RPC endpoint URL.",
+			"listenAddr": "Address and port the HTTP server listens on.",
+			"corsOrigin": "Allowed frontend origin for CORS. Wildcards are not permitted.",
+			"logLevel": "Log verbosity level: debug, info, warn, error.",
+			"webUiEnabled": "Enable or disable the web interface.",
+			"telegramBotEnabled": "Enable or disable the Telegram bot.",
+			"telegramUsers": "Comma-separated list of Telegram usernames allowed to use the bot.",
+			"filePriorityEnabled": "Automatically set high priority on the first N files when a torrent is added.",
+			"filePriorityHighCount": "Number of files to mark as high priority when a torrent is added.",
+			"deleteWithData": "Pre-check \"delete local data\" in the delete dialog.",
+			"monitorInterval": "How often the Telegram bot polls torrent status.",
+			"fileSelectTimeout": "Timeout for file selection flow in the Telegram bot.",
+			"maxRequestBodyBytes": "Maximum allowed size of an incoming HTTP request body."
+		}
 	},
 	"themes": {
 		"yellow": "Yellow",

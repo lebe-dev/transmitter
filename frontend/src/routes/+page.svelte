@@ -33,6 +33,8 @@
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
+	import * as HoverCard from '$lib/components/ui/hover-card/index.js';
+	import InfoIcon from '@lucide/svelte/icons/info';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import TorrentDetailPanel from '$lib/components/TorrentDetailPanel.svelte';
@@ -373,7 +375,7 @@
 		{ envVar: 'MONITOR_INTERVAL',         key: 'monitorInterval' },
 		{ envVar: 'FILE_SELECT_TIMEOUT',      key: 'fileSelectTimeout' },
 		{ envVar: 'MAX_REQUEST_BODY_BYTES',   key: 'maxRequestBodyBytes' },
-	];
+	] as const;
 
 	function formatConfigValue(v: unknown): string {
 		if (Array.isArray(v)) return v.length === 0 ? '—' : v.join(', ');
@@ -939,6 +941,7 @@
 				{:else if serverConfigError}
 					<p class="text-sm text-destructive py-4 text-center">{$tt('settings.configError')}</p>
 				{:else if serverConfig}
+					<p class="text-xs text-muted-foreground mb-3">{$tt('settings.configNote')}</p>
 					<div class="max-h-64 overflow-hidden overflow-y-auto rounded-lg border border-border/60">
 						<Table.Root class="table-fixed w-full">
 							<Table.Header>
@@ -951,7 +954,17 @@
 								{#each CONFIG_ROWS as row}
 									<Table.Row>
 										<Table.Cell class="font-mono text-xs py-2 text-muted-foreground break-all">
-											{row.envVar}
+											<HoverCard.Root>
+												<HoverCard.Trigger class="flex items-center gap-1.5 cursor-default">
+													{row.envVar}
+													<InfoIcon class="size-3 shrink-0 text-muted-foreground/50" />
+												</HoverCard.Trigger>
+												<HoverCard.Portal>
+													<HoverCard.Content class="w-64 text-xs" side="right">
+														{$tt(`settings.configHint.${row.key}`)}
+													</HoverCard.Content>
+												</HoverCard.Portal>
+											</HoverCard.Root>
 										</Table.Cell>
 										<Table.Cell class="font-mono text-xs py-2 break-all">
 											{formatConfigValue(serverConfig[row.key])}
