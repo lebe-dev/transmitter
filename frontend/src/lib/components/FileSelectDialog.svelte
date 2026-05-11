@@ -89,7 +89,7 @@
 		<AlertDialog.Header>
 			<AlertDialog.Title>{get(tt)('fileSelectDialog.title')}</AlertDialog.Title>
 			<AlertDialog.Description>
-				<span class="block truncate" title={torrentName}>{torrentName}</span>
+				<span class="block break-all" title={torrentName}>{torrentName}</span>
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 
@@ -124,7 +124,7 @@
 							onchange={() => toggle(i)}
 							class="size-3.5 accent-primary flex-shrink-0 cursor-pointer"
 						/>
-						<span class="text-sm truncate min-w-0" title={file.name}>
+						<span class="text-sm break-all min-w-0" title={file.name}>
 							{basename(file.name)}
 						</span>
 						<span class="text-xs text-muted-foreground ml-auto flex-shrink-0">

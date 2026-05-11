@@ -37,7 +37,7 @@ docker-compose up -d
 | `TRANSMISSION_USER` | Да | — |
 | `TRANSMISSION_PASS` | Да | — |
 | `TRANSMISSION_URL` | Нет | `http://localhost:9091/transmission/rpc` |
-| `LISTEN_ADDR` | Нет | `:8080` |
+| `LISTEN_ADDR` | Нет | `127.0.0.1:8080` (в Docker-образе: `0.0.0.0:8080`) |
 | `CORS_ORIGIN` | Нет | `http://localhost:8080` |
 | `WEBUI_ENABLED` | Нет | `true` |
 | `TELEGRAM_BOT_ENABLED` | Нет | `false` |

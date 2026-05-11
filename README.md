@@ -39,7 +39,7 @@ All settings via environment variables:
 | `TRANSMISSION_USER` | Yes | — |
 | `TRANSMISSION_PASS` | Yes | — |
 | `TRANSMISSION_URL` | No | `http://localhost:9091/transmission/rpc` |
-| `LISTEN_ADDR` | No | `:8080` |
+| `LISTEN_ADDR` | No | `127.0.0.1:8080` (Docker image: `0.0.0.0:8080`) |
 | `CORS_ORIGIN` | No | `http://localhost:8080` |
 | `WEBUI_ENABLED` | No | `true` |
 | `TELEGRAM_BOT_ENABLED` | No | `false` |
