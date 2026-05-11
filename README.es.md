@@ -37,7 +37,7 @@ Todos los ajustes se realizan mediante variables de entorno:
 | `TRANSMISSION_USER` | Sí | — |
 | `TRANSMISSION_PASS` | Sí | — |
 | `TRANSMISSION_URL` | No | `http://localhost:9091/transmission/rpc` |
-| `LISTEN_ADDR` | No | `:8080` |
+| `LISTEN_ADDR` | No | `127.0.0.1:8080` (imagen Docker: `0.0.0.0:8080`) |
 | `CORS_ORIGIN` | No | `http://localhost:8080` |
 | `WEBUI_ENABLED` | No | `true` |
 | `TELEGRAM_BOT_ENABLED` | No | `false` |

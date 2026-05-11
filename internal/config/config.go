@@ -46,7 +46,7 @@ func Load() (*Config, error) {
 		TransmissionURL:  envOrDefault("TRANSMISSION_URL", "http://localhost:9091/transmission/rpc"),
 		TransmissionUser: os.Getenv("TRANSMISSION_USER"),
 		TransmissionPass: os.Getenv("TRANSMISSION_PASS"),
-		ListenAddr:       envOrDefault("LISTEN_ADDR", ":8080"),
+		ListenAddr:       envOrDefault("LISTEN_ADDR", "127.0.0.1:8080"),
 		CORSOrigin:       envOrDefault("CORS_ORIGIN", "http://localhost:8080"),
 		TelegramToken:    os.Getenv("TELEGRAM_TOKEN"),
 	}

@@ -46,6 +46,8 @@ RUN chown -R transmitter: /app && chmod +x /app/transmitter
 
 USER transmitter
 
+ENV LISTEN_ADDR=0.0.0.0:8080
+
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD wget -q -O- http://localhost:8080/api/health || exit 1
 

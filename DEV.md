@@ -76,7 +76,7 @@ All parameters are read from environment variables. A `.env` file in the working
 | `TRANSMISSION_URL` | Transmission RPC URL | `http://localhost:9091/transmission/rpc` |
 | `TRANSMISSION_USER` | Transmission login | `admin` |
 | `TRANSMISSION_PASS` | Transmission password | `secret` |
-| `LISTEN_ADDR` | Web server listen address | `:8080` |
+| `LISTEN_ADDR` | Web server listen address | `127.0.0.1:8080` (Docker image overrides to `0.0.0.0:8080`) |
 | `CORS_ORIGIN` | CORS origin (no wildcard) | `http://localhost:8080` |
 | `TELEGRAM_TOKEN` | Telegram bot token | `123456:ABC...` |
 | `TELEGRAM_USERS` | Whitelist user IDs (comma-separated) | `12345,67890` |
