@@ -1,6 +1,6 @@
 services:
   transmitter:
-    image: tinyops/transmitter:1.0.0
+    image: tinyops/transmitter:1.0.1
     environment:
       - LISTEN_ADDR=0.0.0.0:8080
     env_file: .env

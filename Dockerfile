@@ -5,9 +5,9 @@ FROM --platform=$BUILDPLATFORM node:22-alpine3.23 AS frontend-build
 WORKDIR /build
 
 COPY frontend/ /build
-COPY cmd/transmitter/main.go /build/main.go
+COPY VERSION /build/VERSION
 
-RUN APP_VERSION=$(grep 'Version' /build/main.go | head -1 | cut -d '"' -f 2) && \
+RUN APP_VERSION=$(cat /build/VERSION) && \
     sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$APP_VERSION\"/" /build/package.json && \
     yarn --frozen-lockfile && \
     yarn build
@@ -26,11 +26,12 @@ COPY . /build
 
 COPY --from=frontend-build /build/build/ /build/static/dist/
 
-RUN CGO_ENABLED=0 go build -ldflags="-w -s" -o transmitter ./cmd/transmitter && \
+RUN APP_VERSION=$(cat VERSION) && \
+    CGO_ENABLED=0 go build -ldflags="-w -s -X main.Version=$APP_VERSION" -o transmitter ./cmd/transmitter && \
     upx -9 --lzma transmitter && \
     chmod +x transmitter
 
-FROM alpine:3.23.3
+FROM alpine:3.23
 
 WORKDIR /app
 

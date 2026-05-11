@@ -1,4 +1,4 @@
-version := `cat cmd/transmitter/main.go | grep Version | head -1 | cut -d " " -f 4 | tr -d "\""`
+version := `cat VERSION`
 imageName := 'tinyops/transmitter'
 
 # --- Utility ---
@@ -23,7 +23,7 @@ build-frontend:
     cp -r frontend/build/* static/dist/
 
 build: build-frontend && format
-    go build -ldflags="-s -w" -o transmitter ./cmd/transmitter
+    go build -ldflags="-s -w -X main.Version={{ version }}" -o transmitter ./cmd/transmitter
 
 # --- Lints ---
 lint-backend: format

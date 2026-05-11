@@ -15,7 +15,7 @@ import (
 	"github.com/lebe-dev/transmitter/static"
 )
 
-const Version = "1.0.0"
+var Version = "dev"
 
 func main() {
 	cfg, err := config.Load()
