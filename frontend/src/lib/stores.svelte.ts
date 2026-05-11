@@ -260,3 +260,43 @@ class DownloadDirStore {
 }
 
 export const downloadDirStore = new DownloadDirStore();
+
+// ── Expanded directories per torrent (localStorage) ──────────────────────
+
+const EXPANDED_KEY = 'tx_expanded_dirs';
+
+class ExpandedDirsStore {
+	#byHash = $state<Map<string, Set<string>>>(new Map());
+
+	constructor() {
+		try {
+			const raw = localStorage.getItem(EXPANDED_KEY);
+			if (raw) {
+				const obj = JSON.parse(raw) as Record<string, string[]>;
+				this.#byHash = new Map(
+					Object.entries(obj).map(([h, paths]) => [h, new Set(paths)]),
+				);
+			}
+		} catch {
+			// ignore corrupt data
+		}
+	}
+
+	get(hashString: string): Set<string> | null {
+		return this.#byHash.get(hashString) ?? null;
+	}
+
+	set(hashString: string, paths: Set<string>) {
+		this.#byHash.set(hashString, new Set(paths));
+		this.#byHash = new Map(this.#byHash);
+		this.#persist();
+	}
+
+	#persist() {
+		const obj: Record<string, string[]> = {};
+		for (const [h, set] of this.#byHash) obj[h] = [...set];
+		localStorage.setItem(EXPANDED_KEY, JSON.stringify(obj));
+	}
+}
+
+export const expandedDirsStore = new ExpandedDirsStore();

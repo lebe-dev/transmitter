@@ -17,6 +17,7 @@
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { getTorrentDetails, setFilesWanted, setFilePriority } from '$lib/api.js';
 	import { formatSize, formatSpeed } from '$lib/format.js';
+	import { expandedDirsStore } from '$lib/stores.svelte.js';
 	import type { Torrent, TorrentDetail, TorrentFile, FilePriority } from '$lib/types.js';
 
 	let {
@@ -75,10 +76,16 @@
 	const tree = $derived.by<TreeNode[]>(() => (detail ? buildTree(detail.files) : []));
 
 	$effect(() => {
-		if (!detail) return;
-		const next = new Set<string>();
-		collectDirPaths(tree, next);
-		expanded = next;
+		if (!detail || !torrent) return;
+		const stored = expandedDirsStore.get(torrent.hashString);
+		if (stored) {
+			expanded = new Set(stored);
+		} else {
+			const next = new Set<string>();
+			collectDirPaths(tree, next);
+			expanded = next;
+			expandedDirsStore.set(torrent.hashString, next);
+		}
 	});
 
 	const dirAggs = $derived.by(() => {
@@ -180,10 +187,12 @@
 	}
 
 	function toggleExpand(path: string) {
+		if (!torrent) return;
 		const next = new Set(expanded);
 		if (next.has(path)) next.delete(path);
 		else next.add(path);
 		expanded = next;
+		expandedDirsStore.set(torrent.hashString, next);
 	}
 
 	function priorityLabel(p: FilePriority): string {
