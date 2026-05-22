@@ -339,6 +339,26 @@ func (c *Client) SetFilesWanted(ctx context.Context, torrentID int64, wanted, un
 	return nil
 }
 
+// SetLabels replaces the labels of the given torrents.
+// Passing an empty slice clears all labels.
+func (c *Client) SetLabels(ctx context.Context, ids []int64, labels []string) error {
+	if labels == nil {
+		labels = []string{}
+	}
+	setArgs, err := json.Marshal(TorrentSetArgs{IDs: ids, Labels: &labels})
+	if err != nil {
+		return fmt.Errorf("marshal torrent-set: %w", err)
+	}
+	resp, err := c.Do(ctx, RPCRequest{Method: "torrent-set", Arguments: setArgs})
+	if err != nil {
+		return fmt.Errorf("torrent-set: %w", err)
+	}
+	if resp.Result != "success" {
+		return fmt.Errorf("torrent-set failed: %s", resp.Result)
+	}
+	return nil
+}
+
 // SetHighPriorityFiles sets the first `count` files of a torrent to high priority
 // and the remaining files to low priority.
 func (c *Client) SetHighPriorityFiles(ctx context.Context, torrentID int64, count int) error {

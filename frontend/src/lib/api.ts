@@ -15,6 +15,7 @@ const TORRENT_FIELDS = [
 	'error',
 	'errorString',
 	'uploadedEver',
+	'labels',
 ];
 
 async function rpc<T>(method: string, args?: Record<string, unknown>): Promise<T> {
@@ -112,6 +113,10 @@ export async function getServerConfig(): Promise<ServerConfig> {
 	const res = await fetch('/api/config');
 	if (!res.ok) throw new Error(`HTTP ${res.status}`);
 	return res.json();
+}
+
+export async function setTorrentLabels(torrentId: number, labels: string[]): Promise<void> {
+	await rpc('torrent-set', { ids: [torrentId], labels });
 }
 
 export async function setFilePriority(

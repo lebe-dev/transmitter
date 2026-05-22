@@ -12,6 +12,7 @@ Transmitter ist eine moderne, schlanke Alternative zur Standard-Weboberfläche v
 - **Suche** — Torrents nach Name filtern (Groß-/Kleinschreibung ignoriert)
 - **Torrents hinzufügen** — Magnet-Links oder .torrent-Datei-Upload
 - **Verwaltung** — Torrents pausieren, fortsetzen, löschen
+- **Nachtschicht** — markierte Torrents werden nur im konfigurierten Zeitfenster heruntergeladen; abgeschlossene werden weiter geseedet
 - **Auto-Aktualisierung** — Live-Updates alle 3–5 Sekunden
 - **Unterstützte Sprachen**: en, ru, es, de
 - **Docker images**: linux/amd64, linux/arm/v7, linux/arm64/v8
@@ -46,6 +47,9 @@ Alle Einstellungen über Umgebungsvariablen:
 | `LOG_LEVEL` | Nein | `info` |
 | `FILE_PRIORITY_ENABLED` | Nein | `false` |
 | `FILE_PRIORITY_HIGH_COUNT` | Nein | `3` |
+| `NIGHT_SHIFT_START` | Nein | — (deaktiviert) |
+| `NIGHT_SHIFT_END` | Nein | — (deaktiviert) |
+| `NIGHT_SHIFT_INTERVAL` | Nein | `1m` |
 
 Alle Optionen siehe [.env.example](.env.example).
 

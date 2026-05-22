@@ -20,13 +20,14 @@
 	import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
 	import SettingsIcon from '@lucide/svelte/icons/settings';
 	import PinIcon from '@lucide/svelte/icons/pin';
+	import MoonStarIcon from '@lucide/svelte/icons/moon-star';
 
 	import XIcon from '@lucide/svelte/icons/x';
 	import FolderIcon from '@lucide/svelte/icons/folder';
 
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import { torrentStore, pinStore, downloadDirStore } from '$lib/stores.svelte.js';
-	import { addTorrentMagnet, addTorrentFile, startTorrents, stopTorrents, removeTorrents, getTorrentFiles, setFilesWanted, getSettings, getServerConfig } from '$lib/api.js';
+	import { addTorrentMagnet, addTorrentFile, startTorrents, stopTorrents, removeTorrents, getTorrentFiles, setFilesWanted, setTorrentLabels, getSettings, getServerConfig } from '$lib/api.js';
 	import { formatSize, formatSpeed, formatEta, formatDate } from '$lib/format.js';
 	import type { Torrent, FilterStatus, ServerConfig } from '$lib/types.js';
 	import { createSvelteTable } from '$lib/components/ui/data-table/index.js';
@@ -41,6 +42,7 @@
 	import FileSelectDialog from '$lib/components/FileSelectDialog.svelte';
 
 	const LOCALE_STORAGE_KEY = 'transmitter-locale';
+	const NIGHT_SHIFT_LABEL = 'night-shift';
 
 	// ── Status ────────────────────────────────────────────────────────────────
 
@@ -340,6 +342,34 @@
 		}
 	}
 
+	// ── Night Shift ──────────────────────────────────────────────────────────
+
+	let nightShiftEnabled = $state(false);
+	let nightShiftStart = $state<string | undefined>(undefined);
+	let nightShiftEnd = $state<string | undefined>(undefined);
+
+	function isNightShift(t: Torrent): boolean {
+		return Array.isArray(t.labels) && t.labels.includes(NIGHT_SHIFT_LABEL);
+	}
+
+	async function handleNightShiftToggle(t: Torrent) {
+		const current = t.labels ?? [];
+		const next = isNightShift(t)
+			? current.filter((l) => l !== NIGHT_SHIFT_LABEL)
+			: [...current, NIGHT_SHIFT_LABEL];
+		try {
+			await setTorrentLabels(t.id, next);
+			toast.success(
+				get(tt)(isNightShift(t) ? 'toast.nightShiftOff' : 'toast.nightShiftOn', {
+					values: { name: t.name },
+				}),
+			);
+			await torrentStore.refresh();
+		} catch {
+			toast.error(get(tt)('toast.failNightShift'));
+		}
+	}
+
 	// ── Settings dialog ──────────────────────────────────────────────────────
 
 	let settingsOpen = $state(false);
@@ -361,7 +391,7 @@
 		}
 	}
 
-	const CONFIG_ROWS: { envVar: string; key: keyof ServerConfig }[] = [
+	const CONFIG_ROWS_BASE: { envVar: string; key: keyof ServerConfig }[] = [
 		{ envVar: 'TRANSMISSION_URL',         key: 'transmissionUrl' },
 		{ envVar: 'LISTEN_ADDR',              key: 'listenAddr' },
 		{ envVar: 'CORS_ORIGIN',              key: 'corsOrigin' },
@@ -375,7 +405,18 @@
 		{ envVar: 'MONITOR_INTERVAL',         key: 'monitorInterval' },
 		{ envVar: 'FILE_SELECT_TIMEOUT',      key: 'fileSelectTimeout' },
 		{ envVar: 'MAX_REQUEST_BODY_BYTES',   key: 'maxRequestBodyBytes' },
-	] as const;
+	];
+
+	const NIGHT_SHIFT_CONFIG_ROWS: { envVar: string; key: keyof ServerConfig }[] = [
+		{ envVar: 'NIGHT_SHIFT_START',        key: 'nightShiftStart' },
+		{ envVar: 'NIGHT_SHIFT_END',          key: 'nightShiftEnd' },
+	];
+
+	const configRows = $derived(
+		serverConfig?.nightShiftEnabled
+			? [...CONFIG_ROWS_BASE, ...NIGHT_SHIFT_CONFIG_ROWS]
+			: CONFIG_ROWS_BASE,
+	);
 
 	function formatConfigValue(v: unknown): string {
 		if (Array.isArray(v)) return v.length === 0 ? '—' : v.join(', ');
@@ -479,7 +520,12 @@
 		torrentStore.init();
 		downloadDirStore.init();
 		getSettings()
-			.then((s) => { defaultDeleteWithData = s.deleteWithData; })
+			.then((s) => {
+				defaultDeleteWithData = s.deleteWithData;
+				nightShiftEnabled = s.nightShiftEnabled;
+				nightShiftStart = s.nightShiftStart;
+				nightShiftEnd = s.nightShiftEnd;
+			})
 			.catch(() => {});
 		window.addEventListener('scroll', onScroll, { passive: true });
 	});
@@ -665,20 +711,37 @@
 							role="button"
 							tabindex="0"
 						>
-							<!-- Row 1: Name + Pin -->
+							<!-- Row 1: Name + Night Shift + Pin -->
 							<div class="flex items-start justify-between gap-3 mb-1.5">
 								<h3 class="font-display text-[15px] font-semibold leading-snug line-clamp-2 min-w-0">
 									{t.name}
 								</h3>
-								<button
-									onclick={(e) => { e.stopPropagation(); pinStore.toggle(t.hashString); }}
-									aria-label={pinned ? $tt('actions.unpin') : $tt('actions.pin')}
-									class="size-7 rounded-md flex items-center justify-center flex-shrink-0 transition-colors {pinned
-										? 'bg-primary/10 text-primary'
-										: 'text-muted-foreground/40 hover:text-muted-foreground'}"
-								>
-									<PinIcon class="size-3.5" />
-								</button>
+								<div class="flex items-center gap-0.5 flex-shrink-0">
+									{#if nightShiftEnabled}
+										{@const onNS = isNightShift(t)}
+										<button
+											onclick={(e) => { e.stopPropagation(); handleNightShiftToggle(t); }}
+											aria-label={onNS ? $tt('actions.nightShiftOff') : $tt('actions.nightShiftOn')}
+											title={nightShiftStart && nightShiftEnd
+												? $tt('actions.nightShiftWindow', { values: { start: nightShiftStart, end: nightShiftEnd } })
+												: onNS ? $tt('actions.nightShiftOff') : $tt('actions.nightShiftOn')}
+											class="size-7 rounded-md flex items-center justify-center transition-colors {onNS
+												? 'bg-indigo-600/10 text-indigo-600 dark:text-indigo-300'
+												: 'text-muted-foreground/40 hover:text-muted-foreground'}"
+										>
+											<MoonStarIcon class="size-3.5" />
+										</button>
+									{/if}
+									<button
+										onclick={(e) => { e.stopPropagation(); pinStore.toggle(t.hashString); }}
+										aria-label={pinned ? $tt('actions.unpin') : $tt('actions.pin')}
+										class="size-7 rounded-md flex items-center justify-center transition-colors {pinned
+											? 'bg-primary/10 text-primary'
+											: 'text-muted-foreground/40 hover:text-muted-foreground'}"
+									>
+										<PinIcon class="size-3.5" />
+									</button>
+								</div>
 							</div>
 
 							<!-- Row 2: Status + Progress + Size -->
@@ -766,20 +829,37 @@
 							role="button"
 							tabindex="0"
 						>
-							<!-- Row 1: Name + Pin -->
+							<!-- Row 1: Name + Night Shift + Pin -->
 							<div class="flex items-start justify-between gap-3 mb-2">
 								<h3 class="font-display text-[15px] font-semibold leading-snug line-clamp-2 min-w-0">
 									{t.name}
 								</h3>
-								<button
-									onclick={(e) => { e.stopPropagation(); pinStore.toggle(t.hashString); }}
-									aria-label={pinned ? $tt('actions.unpin') : $tt('actions.pin')}
-									class="size-7 rounded-md flex items-center justify-center flex-shrink-0 transition-colors {pinned
-										? 'bg-primary/10 text-primary'
-										: 'text-muted-foreground/40 hover:text-muted-foreground'}"
-								>
-									<PinIcon class="size-3.5" />
-								</button>
+								<div class="flex items-center gap-0.5 flex-shrink-0">
+									{#if nightShiftEnabled}
+										{@const onNS = isNightShift(t)}
+										<button
+											onclick={(e) => { e.stopPropagation(); handleNightShiftToggle(t); }}
+											aria-label={onNS ? $tt('actions.nightShiftOff') : $tt('actions.nightShiftOn')}
+											title={nightShiftStart && nightShiftEnd
+												? $tt('actions.nightShiftWindow', { values: { start: nightShiftStart, end: nightShiftEnd } })
+												: onNS ? $tt('actions.nightShiftOff') : $tt('actions.nightShiftOn')}
+											class="size-7 rounded-md flex items-center justify-center transition-colors {onNS
+												? 'bg-indigo-600/10 text-indigo-600 dark:text-indigo-300'
+												: 'text-muted-foreground/40 hover:text-muted-foreground'}"
+										>
+											<MoonStarIcon class="size-3.5" />
+										</button>
+									{/if}
+									<button
+										onclick={(e) => { e.stopPropagation(); pinStore.toggle(t.hashString); }}
+										aria-label={pinned ? $tt('actions.unpin') : $tt('actions.pin')}
+										class="size-7 rounded-md flex items-center justify-center transition-colors {pinned
+											? 'bg-primary/10 text-primary'
+											: 'text-muted-foreground/40 hover:text-muted-foreground'}"
+									>
+										<PinIcon class="size-3.5" />
+									</button>
+								</div>
 							</div>
 
 							<!-- Row 2: Status + Progress + Size -->
@@ -884,6 +964,9 @@
 			<Tabs.List class="mb-3">
 				<Tabs.Trigger value="general">{$tt('settings.tabGeneral')}</Tabs.Trigger>
 				<Tabs.Trigger value="server">{$tt('settings.tabServer')}</Tabs.Trigger>
+				{#if nightShiftEnabled}
+					<Tabs.Trigger value="nightShift">{$tt('settings.tabNightShift')}</Tabs.Trigger>
+				{/if}
 			</Tabs.List>
 
 			<Tabs.Content value="general">
@@ -951,7 +1034,7 @@
 								</Table.Row>
 							</Table.Header>
 							<Table.Body>
-								{#each CONFIG_ROWS as row}
+								{#each configRows as row}
 									<Table.Row>
 										<Table.Cell class="font-mono text-xs py-2 text-muted-foreground break-all">
 											<HoverCard.Root>
@@ -976,6 +1059,22 @@
 					</div>
 				{/if}
 			</Tabs.Content>
+
+			{#if nightShiftEnabled}
+				<Tabs.Content value="nightShift">
+					<div class="flex flex-col gap-4">
+						<div class="rounded-lg border border-border/60 bg-accent/30 p-4">
+							<p class="text-sm text-muted-foreground leading-relaxed">{$tt('settings.nightShiftDescription')}</p>
+						</div>
+
+						<div class="flex flex-col gap-2 rounded-lg border border-border/60 p-4">
+							<span class="text-xs uppercase tracking-wide text-muted-foreground">{$tt('settings.nightShiftWindowLabel')}</span>
+							<span class="font-mono text-base tabular-nums">{nightShiftStart ?? '—'} – {nightShiftEnd ?? '—'}</span>
+							<span class="text-xs text-muted-foreground">{$tt('settings.nightShiftWindowHint')}</span>
+						</div>
+					</div>
+				</Tabs.Content>
+			{/if}
 		</Tabs.Root>
 
 		<AlertDialog.Footer class="pt-4 flex items-center">

@@ -31,7 +31,12 @@ func New(cfg *config.Config, client *transmission.Client, staticFS fs.FS, logger
 	}
 
 	uiSettings := UISettings{
-		DeleteWithData: cfg.DeleteWithData,
+		DeleteWithData:    cfg.DeleteWithData,
+		NightShiftEnabled: cfg.NightShiftEnabled,
+	}
+	if cfg.NightShiftEnabled {
+		uiSettings.NightShiftStart = cfg.NightShiftStart.String()
+		uiSettings.NightShiftEnd = cfg.NightShiftEnd.String()
 	}
 
 	telegramUsers := cfg.TelegramUsers
@@ -52,6 +57,11 @@ func New(cfg *config.Config, client *transmission.Client, staticFS fs.FS, logger
 		DeleteWithData:        cfg.DeleteWithData,
 		MonitorInterval:       cfg.MonitorInterval.String(),
 		FileSelectTimeout:     cfg.FileSelectTimeout.String(),
+		NightShiftEnabled:     cfg.NightShiftEnabled,
+	}
+	if cfg.NightShiftEnabled {
+		serverConfig.NightShiftStart = cfg.NightShiftStart.String()
+		serverConfig.NightShiftEnd = cfg.NightShiftEnd.String()
 	}
 
 	mux := http.NewServeMux()

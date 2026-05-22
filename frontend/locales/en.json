@@ -55,7 +55,10 @@
 		"delete": "Delete",
 		"pin": "Pin torrent",
 		"unpin": "Unpin torrent",
-		"scrollToTop": "Scroll to top"
+		"scrollToTop": "Scroll to top",
+		"nightShiftOn": "Schedule for night shift",
+		"nightShiftOff": "Remove from night shift",
+		"nightShiftWindow": "Night shift: {start}–{end}"
 	},
 	"addDialog": {
 		"title": "Add Torrent",
@@ -98,6 +101,10 @@
 		"close": "Close",
 		"tabGeneral": "General",
 		"tabServer": "Server",
+		"tabNightShift": "Night Shift",
+		"nightShiftDescription": "Torrents are downloaded only during the configured window. Outside the window they are paused; completed torrents keep seeding as usual.",
+		"nightShiftWindowLabel": "Configured window",
+		"nightShiftWindowHint": "Set via NIGHT_SHIFT_START and NIGHT_SHIFT_END environment variables.",
 		"configEnvVar": "Variable",
 		"configValue": "Value",
 		"configError": "Failed to load server config",
@@ -115,7 +122,10 @@
 			"deleteWithData": "Pre-check \"delete local data\" in the delete dialog.",
 			"monitorInterval": "How often the Telegram bot polls torrent status.",
 			"fileSelectTimeout": "Timeout for file selection flow in the Telegram bot.",
-			"maxRequestBodyBytes": "Maximum allowed size of an incoming HTTP request body."
+			"maxRequestBodyBytes": "Maximum allowed size of an incoming HTTP request body.",
+			"nightShiftEnabled": "Whether the Night Shift scheduler is active (set NIGHT_SHIFT_START and NIGHT_SHIFT_END to enable).",
+			"nightShiftStart": "Start of the Night Shift window (HH:MM, 24h). Torrents tagged for night shift are downloaded only during this window.",
+			"nightShiftEnd": "End of the Night Shift window (HH:MM, 24h). The window may wrap over midnight when end ≤ start."
 		}
 	},
 	"themes": {
@@ -181,6 +191,9 @@
 		"failAdd": "Failed to add torrent",
 		"failStart": "Failed to start torrent",
 		"failPause": "Failed to pause torrent",
-		"failDelete": "Failed to delete torrent"
+		"failDelete": "Failed to delete torrent",
+		"nightShiftOn": "Scheduled for night shift: {name}",
+		"nightShiftOff": "Removed from night shift: {name}",
+		"failNightShift": "Failed to update night shift"
 	}
 }

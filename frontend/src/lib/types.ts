@@ -15,6 +15,7 @@ export interface Torrent {
 	error: number;
 	errorString: string;
 	uploadedEver: number;
+	labels: string[];
 }
 
 export type FilterStatus = 'all' | 'downloading' | 'seeding' | 'paused' | 'done';
@@ -65,6 +66,9 @@ export interface TorrentDetail {
 
 export interface UISettings {
 	deleteWithData: boolean;
+	nightShiftEnabled: boolean;
+	nightShiftStart?: string;
+	nightShiftEnd?: string;
 }
 
 export interface ServerConfig {
@@ -81,4 +85,7 @@ export interface ServerConfig {
 	deleteWithData: boolean;
 	monitorInterval: string;
 	fileSelectTimeout: string;
+	nightShiftEnabled: boolean;
+	nightShiftStart?: string;
+	nightShiftEnd?: string;
 }
