@@ -28,6 +28,7 @@ build: build-frontend && format
 # --- Lints ---
 lint-backend: format
     go vet ./...
+    golangci-lint run ./...
 
 lint-frontend: format
     cd frontend && yarn run check
@@ -52,7 +53,8 @@ coverage:
 
 # --- Format ---
 format:
-    go fmt ./...
+    gofmt -s -w .
+    goimports -w .
 
 # --- Dev Environment ---
 start-env:
