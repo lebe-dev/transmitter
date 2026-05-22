@@ -97,7 +97,10 @@ func applyAutoPriority(client *transmission.Client, respBody []byte, highCount i
 
 // UISettings holds UI-relevant configuration exposed via /api/settings.
 type UISettings struct {
-	DeleteWithData bool `json:"deleteWithData"`
+	DeleteWithData    bool   `json:"deleteWithData"`
+	NightShiftEnabled bool   `json:"nightShiftEnabled"`
+	NightShiftStart   string `json:"nightShiftStart,omitempty"`
+	NightShiftEnd     string `json:"nightShiftEnd,omitempty"`
 }
 
 // SettingsHandler returns UI-relevant server configuration as JSON.
@@ -123,6 +126,9 @@ type ServerConfig struct {
 	DeleteWithData        bool     `json:"deleteWithData"`
 	MonitorInterval       string   `json:"monitorInterval"`
 	FileSelectTimeout     string   `json:"fileSelectTimeout"`
+	NightShiftEnabled     bool     `json:"nightShiftEnabled"`
+	NightShiftStart       string   `json:"nightShiftStart"`
+	NightShiftEnd         string   `json:"nightShiftEnd"`
 }
 
 // ConfigHandler returns non-sensitive server configuration as JSON.

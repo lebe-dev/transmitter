@@ -55,7 +55,10 @@
 		"delete": "Löschen",
 		"pin": "Torrent anheften",
 		"unpin": "Torrent loslösen",
-		"scrollToTop": "Nach oben"
+		"scrollToTop": "Nach oben",
+		"nightShiftOn": "Für Nachtschicht einplanen",
+		"nightShiftOff": "Aus Nachtschicht entfernen",
+		"nightShiftWindow": "Nachtschicht: {start}–{end}"
 	},
 	"addDialog": {
 		"title": "Torrent hinzufügen",
@@ -98,6 +101,10 @@
 		"close": "Schließen",
 		"tabGeneral": "Allgemein",
 		"tabServer": "Server",
+		"tabNightShift": "Nachtschicht",
+		"nightShiftDescription": "Torrents werden nur im konfigurierten Zeitfenster heruntergeladen. Außerhalb des Fensters werden sie pausiert; abgeschlossene Torrents werden wie gewohnt weiter geseedet.",
+		"nightShiftWindowLabel": "Konfiguriertes Fenster",
+		"nightShiftWindowHint": "Wird über die Umgebungsvariablen NIGHT_SHIFT_START und NIGHT_SHIFT_END gesetzt.",
 		"configEnvVar": "Variable",
 		"configValue": "Wert",
 		"configError": "Konfiguration konnte nicht geladen werden",
@@ -115,7 +122,10 @@
 			"deleteWithData": "\"Lokale Daten löschen\" im Löschdialog vorab aktivieren.",
 			"monitorInterval": "Wie oft der Telegram-Bot den Torrent-Status abfragt.",
 			"fileSelectTimeout": "Timeout für die Dateiauswahl im Telegram-Bot.",
-			"maxRequestBodyBytes": "Maximale Größe des eingehenden HTTP-Anfragetexts."
+			"maxRequestBodyBytes": "Maximale Größe des eingehenden HTTP-Anfragetexts.",
+			"nightShiftEnabled": "Ob der Nachtschicht-Scheduler aktiv ist (NIGHT_SHIFT_START und NIGHT_SHIFT_END setzen, um zu aktivieren).",
+			"nightShiftStart": "Beginn des Nachtschicht-Fensters (HH:MM, 24h). Markierte Torrents werden nur in diesem Fenster heruntergeladen.",
+			"nightShiftEnd": "Ende des Nachtschicht-Fensters (HH:MM, 24h). Das Fenster darf Mitternacht überspannen, wenn Ende ≤ Beginn."
 		}
 	},
 	"themes": {
@@ -181,6 +191,9 @@
 		"failAdd": "Torrent konnte nicht hinzugefügt werden",
 		"failStart": "Torrent konnte nicht gestartet werden",
 		"failPause": "Torrent konnte nicht pausiert werden",
-		"failDelete": "Torrent konnte nicht gelöscht werden"
+		"failDelete": "Torrent konnte nicht gelöscht werden",
+		"nightShiftOn": "Für Nachtschicht eingeplant: {name}",
+		"nightShiftOff": "Aus Nachtschicht entfernt: {name}",
+		"failNightShift": "Nachtschicht konnte nicht aktualisiert werden"
 	}
 }

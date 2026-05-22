@@ -18,20 +18,21 @@ type RPCResponse struct {
 
 // Torrent holds fields returned by torrent-get.
 type Torrent struct {
-	ID           int64   `json:"id"`
-	Name         string  `json:"name"`
-	Status       int     `json:"status"`
-	PercentDone  float64 `json:"percentDone"`
-	TotalSize    int64   `json:"totalSize"`
-	RateDownload int64   `json:"rateDownload"`
-	RateUpload   int64   `json:"rateUpload"`
-	AddedDate    int64   `json:"addedDate"`
-	ETA          int64   `json:"eta"`
-	HashString   string  `json:"hashString"`
-	DownloadDir  string  `json:"downloadDir"`
-	Error        int     `json:"error"`
-	ErrorString  string  `json:"errorString"`
-	UploadedEver int64   `json:"uploadedEver"`
+	ID           int64    `json:"id"`
+	Name         string   `json:"name"`
+	Status       int      `json:"status"`
+	PercentDone  float64  `json:"percentDone"`
+	TotalSize    int64    `json:"totalSize"`
+	RateDownload int64    `json:"rateDownload"`
+	RateUpload   int64    `json:"rateUpload"`
+	AddedDate    int64    `json:"addedDate"`
+	ETA          int64    `json:"eta"`
+	HashString   string   `json:"hashString"`
+	DownloadDir  string   `json:"downloadDir"`
+	Error        int      `json:"error"`
+	ErrorString  string   `json:"errorString"`
+	UploadedEver int64    `json:"uploadedEver"`
+	Labels       []string `json:"labels"`
 }
 
 // TorrentGetArgs are arguments for torrent-get.
@@ -73,11 +74,12 @@ type TorrentActionArgs struct {
 
 // TorrentSetArgs are arguments for torrent-set.
 type TorrentSetArgs struct {
-	IDs           []int64 `json:"ids"`
-	PriorityHigh  []int   `json:"priority-high,omitempty"`
-	PriorityLow   []int   `json:"priority-low,omitempty"`
-	FilesWanted   []int   `json:"files-wanted,omitempty"`
-	FilesUnwanted []int   `json:"files-unwanted,omitempty"`
+	IDs           []int64   `json:"ids"`
+	PriorityHigh  []int     `json:"priority-high,omitempty"`
+	PriorityLow   []int     `json:"priority-low,omitempty"`
+	FilesWanted   []int     `json:"files-wanted,omitempty"`
+	FilesUnwanted []int     `json:"files-unwanted,omitempty"`
+	Labels        *[]string `json:"labels,omitempty"`
 }
 
 // TorrentFile holds file info returned by torrent-get with "files" field.
@@ -102,4 +104,5 @@ var TorrentFields = []string{
 	"id", "name", "status", "percentDone", "totalSize",
 	"rateDownload", "rateUpload", "addedDate", "eta",
 	"hashString", "downloadDir", "error", "errorString", "uploadedEver",
+	"labels",
 }

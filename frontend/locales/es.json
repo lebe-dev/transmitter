@@ -55,7 +55,10 @@
 		"delete": "Eliminar",
 		"pin": "Fijar torrent",
 		"unpin": "Desfijar torrent",
-		"scrollToTop": "Ir arriba"
+		"scrollToTop": "Ir arriba",
+		"nightShiftOn": "Programar para turno nocturno",
+		"nightShiftOff": "Quitar del turno nocturno",
+		"nightShiftWindow": "Turno nocturno: {start}–{end}"
 	},
 	"addDialog": {
 		"title": "Añadir torrent",
@@ -98,6 +101,10 @@
 		"close": "Cerrar",
 		"tabGeneral": "General",
 		"tabServer": "Servidor",
+		"tabNightShift": "Turno nocturno",
+		"nightShiftDescription": "Los torrents se descargan sólo durante la ventana configurada. Fuera de la ventana se pausan; los torrents completados siguen compartiendo como de costumbre.",
+		"nightShiftWindowLabel": "Ventana configurada",
+		"nightShiftWindowHint": "Se establece con las variables de entorno NIGHT_SHIFT_START y NIGHT_SHIFT_END.",
 		"configEnvVar": "Variable",
 		"configValue": "Valor",
 		"configError": "No se pudo cargar la configuración",
@@ -115,7 +122,10 @@
 			"deleteWithData": "Marcar previamente «eliminar datos locales» en el diálogo de eliminación.",
 			"monitorInterval": "Con qué frecuencia el bot de Telegram comprueba el estado de los torrents.",
 			"fileSelectTimeout": "Tiempo de espera para la selección de archivos en el bot de Telegram.",
-			"maxRequestBodyBytes": "Tamaño máximo permitido del cuerpo de una solicitud HTTP entrante."
+			"maxRequestBodyBytes": "Tamaño máximo permitido del cuerpo de una solicitud HTTP entrante.",
+			"nightShiftEnabled": "Si el planificador del turno nocturno está activo (configura NIGHT_SHIFT_START y NIGHT_SHIFT_END para activarlo).",
+			"nightShiftStart": "Inicio de la ventana del turno nocturno (HH:MM, 24h). Los torrents marcados se descargan sólo en esta ventana.",
+			"nightShiftEnd": "Fin de la ventana del turno nocturno (HH:MM, 24h). La ventana puede cruzar la medianoche si el fin ≤ inicio."
 		}
 	},
 	"themes": {
@@ -181,6 +191,9 @@
 		"failAdd": "Error al añadir torrent",
 		"failStart": "Error al iniciar torrent",
 		"failPause": "Error al pausar torrent",
-		"failDelete": "Error al eliminar torrent"
+		"failDelete": "Error al eliminar torrent",
+		"nightShiftOn": "Programado para turno nocturno: {name}",
+		"nightShiftOff": "Quitado del turno nocturno: {name}",
+		"failNightShift": "No se pudo actualizar el turno nocturno"
 	}
 }

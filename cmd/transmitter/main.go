@@ -10,6 +10,7 @@ import (
 
 	"github.com/lebe-dev/transmitter/internal/bot"
 	"github.com/lebe-dev/transmitter/internal/config"
+	"github.com/lebe-dev/transmitter/internal/nightshift"
 	"github.com/lebe-dev/transmitter/internal/server"
 	"github.com/lebe-dev/transmitter/internal/transmission"
 	"github.com/lebe-dev/transmitter/static"
@@ -65,6 +66,13 @@ func main() {
 		}()
 	} else {
 		logger.Info("web UI disabled (WEBUI_ENABLED=false)")
+	}
+
+	if cfg.NightShiftEnabled {
+		scheduler := nightshift.New(client, cfg, logger)
+		go scheduler.Run(ctx)
+	} else {
+		logger.Info("night-shift disabled (NIGHT_SHIFT_START/NIGHT_SHIFT_END not set)")
 	}
 
 	if !cfg.WebUIEnabled && !cfg.TelegramBotEnabled {

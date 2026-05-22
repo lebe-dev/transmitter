@@ -30,6 +30,26 @@ type Config struct {
 	MaxRequestBodyBytes   int64
 	FileSelectTimeout     time.Duration
 	DeleteWithData        bool
+	NightShiftEnabled     bool
+	NightShiftStart       DayTime
+	NightShiftEnd         DayTime
+	NightShiftInterval    time.Duration
+}
+
+// DayTime represents a wall-clock time of day (hours and minutes, 0..24h-1m).
+type DayTime struct {
+	Hour   int
+	Minute int
+}
+
+// Minutes returns the time-of-day as minutes since midnight.
+func (d DayTime) Minutes() int {
+	return d.Hour*60 + d.Minute
+}
+
+// String formats as HH:MM.
+func (d DayTime) String() string {
+	return fmt.Sprintf("%02d:%02d", d.Hour, d.Minute)
 }
 
 // Load reads configuration from environment variables, optionally loading a .env file first.
@@ -79,7 +99,44 @@ func Load() (*Config, error) {
 	cfg.FileSelectTimeout = parseDuration(os.Getenv("FILE_SELECT_TIMEOUT"), 5*time.Minute)
 	cfg.DeleteWithData = strings.EqualFold(os.Getenv("DELETE_WITH_DATA"), "true")
 
+	cfg.NightShiftInterval = parseDuration(os.Getenv("NIGHT_SHIFT_INTERVAL"), time.Minute)
+
+	startRaw := strings.TrimSpace(os.Getenv("NIGHT_SHIFT_START"))
+	endRaw := strings.TrimSpace(os.Getenv("NIGHT_SHIFT_END"))
+	if startRaw != "" && endRaw != "" {
+		start, err := parseDayTime(startRaw)
+		if err != nil {
+			return nil, fmt.Errorf("NIGHT_SHIFT_START: %w", err)
+		}
+		end, err := parseDayTime(endRaw)
+		if err != nil {
+			return nil, fmt.Errorf("NIGHT_SHIFT_END: %w", err)
+		}
+		if start == end {
+			return nil, fmt.Errorf("NIGHT_SHIFT_START and NIGHT_SHIFT_END must differ")
+		}
+		cfg.NightShiftEnabled = true
+		cfg.NightShiftStart = start
+		cfg.NightShiftEnd = end
+	}
+
 	return cfg, nil
+}
+
+func parseDayTime(s string) (DayTime, error) {
+	parts := strings.SplitN(s, ":", 2)
+	if len(parts) != 2 {
+		return DayTime{}, fmt.Errorf("expected HH:MM, got %q", s)
+	}
+	h, err := strconv.Atoi(parts[0])
+	if err != nil || h < 0 || h > 23 {
+		return DayTime{}, fmt.Errorf("invalid hour in %q", s)
+	}
+	m, err := strconv.Atoi(parts[1])
+	if err != nil || m < 0 || m > 59 {
+		return DayTime{}, fmt.Errorf("invalid minute in %q", s)
+	}
+	return DayTime{Hour: h, Minute: m}, nil
 }
 
 func envOrDefault(key, def string) string {
