@@ -102,7 +102,7 @@
 		"tabGeneral": "Основные",
 		"tabServer": "Сервер",
 		"tabNightShift": "Ночная смена",
-		"nightShiftDescription": "Торренты скачиваются только в заданном окне. Вне окна они приостанавливаются; уже завершённые торренты продолжают раздачу как обычно.",
+		"nightShiftDescription": "Отмеченные торренты скачиваются и раздаются только в заданном окне. Вне окна они приостанавливаются.",
 		"nightShiftWindowLabel": "Настроенное окно",
 		"nightShiftWindowHint": "Задаётся переменными окружения NIGHT_SHIFT_START и NIGHT_SHIFT_END.",
 		"configEnvVar": "Переменная",

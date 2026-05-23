@@ -14,7 +14,7 @@ Transmitter is a modern, lightweight alternative to Transmission's stock UI. Run
 - **Search** — filter torrents by name (case-insensitive)
 - **Add torrents** — magnet links or .torrent file upload
 - **Management** — pause, resume, delete torrents
-- **Night Shift** — mark torrents (moon-star button) to download only inside a configured time window; completed torrents keep seeding
+- **Night Shift** — mark torrents (moon-star button) to download and seed only inside a configured time window; outside the window they are paused
 - **Auto-refresh** — live updates every 3–5 seconds
 - **Support locales**: en, ru, es, de
 - **Docker images**: linux/amd64, linux/arm/v7, linux/arm64/v8

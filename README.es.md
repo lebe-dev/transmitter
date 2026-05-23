@@ -12,7 +12,7 @@ Transmitter es una alternativa moderna y ligera a la interfaz web estándar de T
 - **Búsqueda** — filtra torrents por nombre (sin distinción de mayúsculas)
 - **Añadir torrents** — enlaces magnet o carga de archivos .torrent
 - **Gestión** — pausar, reanudar, eliminar torrents
-- **Turno nocturno** — marca torrents para descargarlos sólo dentro de una ventana horaria configurada; los completados siguen sembrando
+- **Turno nocturno** — marca torrents para descargarlos y compartirlos sólo dentro de una ventana horaria configurada; fuera de la ventana se pausan
 - **Auto-actualización** — actualizaciones en vivo cada 3–5 segundos
 - **Idiomas soportados**: en, ru, es, de
 - **Docker images**: linux/amd64, linux/arm/v7, linux/arm64/v8

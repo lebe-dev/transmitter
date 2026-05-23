@@ -102,7 +102,7 @@
 		"tabGeneral": "General",
 		"tabServer": "Server",
 		"tabNightShift": "Night Shift",
-		"nightShiftDescription": "Torrents are downloaded only during the configured window. Outside the window they are paused; completed torrents keep seeding as usual.",
+		"nightShiftDescription": "Marked torrents are downloaded and seeded only during the configured window. Outside the window they are paused.",
 		"nightShiftWindowLabel": "Configured window",
 		"nightShiftWindowHint": "Set via NIGHT_SHIFT_START and NIGHT_SHIFT_END environment variables.",
 		"configEnvVar": "Variable",

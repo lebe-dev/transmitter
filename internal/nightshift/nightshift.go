@@ -1,9 +1,9 @@
 // Package nightshift schedules start/stop of torrents tagged with the night-shift label.
 //
 // A torrent is considered "night-shift" when its labels include [Label].
-// During the configured window, all such torrents that still need data are started.
-// Outside the window, the same torrents are stopped. Already-completed torrents are
-// left alone — Transmission keeps them seeding regardless of the schedule.
+// During the configured window all such torrents are started (downloading or
+// seeding, depending on progress). Outside the window the same torrents are
+// stopped.
 package nightshift
 
 import (
@@ -71,19 +71,19 @@ func (s *Scheduler) reconcile(ctx context.Context) {
 		return
 	}
 
-	inWindow := InWindow(s.now(), s.start, s.end)
+	now := s.now()
+	inWindow := InWindow(now, s.start, s.end)
 
+	var tagged []int64
 	var toStart, toStop []int64
 	for _, t := range torrents {
 		if !slices.Contains(t.Labels, Label) {
 			continue
 		}
-		// Completed torrents seed on their own — Transmission keeps them in
-		// "seeding" status (6) or paused after completion. We only manage the
-		// download lifecycle.
-		if t.PercentDone >= 1 {
-			continue
-		}
+		tagged = append(tagged, t.ID)
+		// Apply the same window to both downloading and seeding torrents:
+		// completed (100%) torrents resume seeding inside the window and are
+		// paused outside of it, just like in-progress downloads.
 		switch {
 		case inWindow && t.Status == 0:
 			toStart = append(toStart, t.ID)
@@ -91,6 +91,17 @@ func (s *Scheduler) reconcile(ctx context.Context) {
 			toStop = append(toStop, t.ID)
 		}
 	}
+
+	s.logger.Info("night-shift: reconcile",
+		"now", now.Format("15:04 MST"),
+		"window", s.start.String()+"-"+s.end.String(),
+		"in_window", inWindow,
+		"torrents_total", len(torrents),
+		"tagged", len(tagged),
+		"tagged_ids", tagged,
+		"to_start", toStart,
+		"to_stop", toStop,
+	)
 
 	if len(toStart) > 0 {
 		if err := s.client.StartTorrents(ctx, toStart); err != nil {

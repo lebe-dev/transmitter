@@ -1,8 +1,9 @@
 services:
   transmitter:
-    image: tinyops/transmitter:1.0.1
+    image: tinyops/transmitter:1.1.1
     environment:
       - LISTEN_ADDR=0.0.0.0:8080
+      - TZ=Europe/Moscow
     env_file: .env
     restart: unless-stopped
     network_mode: host

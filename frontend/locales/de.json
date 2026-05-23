@@ -102,7 +102,7 @@
 		"tabGeneral": "Allgemein",
 		"tabServer": "Server",
 		"tabNightShift": "Nachtschicht",
-		"nightShiftDescription": "Torrents werden nur im konfigurierten Zeitfenster heruntergeladen. Außerhalb des Fensters werden sie pausiert; abgeschlossene Torrents werden wie gewohnt weiter geseedet.",
+		"nightShiftDescription": "Markierte Torrents werden nur im konfigurierten Zeitfenster heruntergeladen und geseedet. Außerhalb des Fensters werden sie pausiert.",
 		"nightShiftWindowLabel": "Konfiguriertes Fenster",
 		"nightShiftWindowHint": "Wird über die Umgebungsvariablen NIGHT_SHIFT_START und NIGHT_SHIFT_END gesetzt.",
 		"configEnvVar": "Variable",

@@ -102,7 +102,7 @@
 		"tabGeneral": "General",
 		"tabServer": "Servidor",
 		"tabNightShift": "Turno nocturno",
-		"nightShiftDescription": "Los torrents se descargan sólo durante la ventana configurada. Fuera de la ventana se pausan; los torrents completados siguen compartiendo como de costumbre.",
+		"nightShiftDescription": "Los torrents marcados se descargan y comparten sólo durante la ventana configurada. Fuera de la ventana se pausan.",
 		"nightShiftWindowLabel": "Ventana configurada",
 		"nightShiftWindowHint": "Se establece con las variables de entorno NIGHT_SHIFT_START y NIGHT_SHIFT_END.",
 		"configEnvVar": "Variable",

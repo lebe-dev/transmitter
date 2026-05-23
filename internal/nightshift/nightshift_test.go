@@ -114,18 +114,22 @@ func (w testWriter) Write(p []byte) (int, error) { w.t.Log(string(p)); return le
 
 func TestReconcileStartsTaggedDuringWindow(t *testing.T) {
 	rs := &recordingServer{torrents: []transmission.Torrent{
-		{ID: 1, Status: 0, PercentDone: 0.2, Labels: []string{"night-shift"}},
-		{ID: 2, Status: 0, PercentDone: 0.5, Labels: []string{"other"}},
-		{ID: 3, Status: 4, PercentDone: 0.3, Labels: []string{"night-shift"}}, // already running
-		{ID: 4, Status: 0, PercentDone: 1.0, Labels: []string{"night-shift"}}, // completed, skip
+		{ID: 1, Status: 0, PercentDone: 0.2, Labels: []string{"night-shift"}},   // start downloading
+		{ID: 2, Status: 0, PercentDone: 0.5, Labels: []string{"other"}},         // wrong label
+		{ID: 3, Status: 4, PercentDone: 0.3, Labels: []string{"night-shift"}},   // already running
+		{ID: 4, Status: 0, PercentDone: 1.0, Labels: []string{"night-shift"}},   // completed, start seeding
 	}}
 	s := newScheduler(t, rs, time.Date(2026, 1, 1, 23, 30, 0, 0, time.UTC),
 		config.DayTime{Hour: 23, Minute: 0}, config.DayTime{Hour: 7, Minute: 0})
 
 	s.reconcile(context.Background())
 
-	if len(rs.starts) != 1 || len(rs.starts[0]) != 1 || rs.starts[0][0] != 1 {
-		t.Errorf("starts = %v, want [[1]]", rs.starts)
+	if len(rs.starts) != 1 {
+		t.Fatalf("starts = %v, want one batch", rs.starts)
+	}
+	got := rs.starts[0]
+	if len(got) != 2 || got[0] != 1 || got[1] != 4 {
+		t.Errorf("start ids = %v, want [1 4]", got)
 	}
 	if len(rs.stops) != 0 {
 		t.Errorf("stops = %v, want none", rs.stops)
@@ -134,11 +138,11 @@ func TestReconcileStartsTaggedDuringWindow(t *testing.T) {
 
 func TestReconcileStopsTaggedOutsideWindow(t *testing.T) {
 	rs := &recordingServer{torrents: []transmission.Torrent{
-		{ID: 1, Status: 4, PercentDone: 0.2, Labels: []string{"night-shift"}},
-		{ID: 2, Status: 3, PercentDone: 0.5, Labels: []string{"night-shift"}},
-		{ID: 3, Status: 0, PercentDone: 0.3, Labels: []string{"night-shift"}}, // already stopped
-		{ID: 4, Status: 4, PercentDone: 0.5, Labels: []string{}},              // untagged, untouched
-		{ID: 5, Status: 6, PercentDone: 1.0, Labels: []string{"night-shift"}}, // completed, seeding -> skip
+		{ID: 1, Status: 4, PercentDone: 0.2, Labels: []string{"night-shift"}},   // stop downloading
+		{ID: 2, Status: 3, PercentDone: 0.5, Labels: []string{"night-shift"}},   // stop queued
+		{ID: 3, Status: 0, PercentDone: 0.3, Labels: []string{"night-shift"}},   // already stopped
+		{ID: 4, Status: 4, PercentDone: 0.5, Labels: []string{}},                // untagged, untouched
+		{ID: 5, Status: 6, PercentDone: 1.0, Labels: []string{"night-shift"}},   // stop seeding (completed)
 	}}
 	s := newScheduler(t, rs, time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC),
 		config.DayTime{Hour: 23, Minute: 0}, config.DayTime{Hour: 7, Minute: 0})
@@ -152,8 +156,8 @@ func TestReconcileStopsTaggedOutsideWindow(t *testing.T) {
 		t.Fatalf("stops = %v, want one batch", rs.stops)
 	}
 	got := rs.stops[0]
-	if len(got) != 2 || got[0] != 1 || got[1] != 2 {
-		t.Errorf("stop ids = %v, want [1 2]", got)
+	if len(got) != 3 || got[0] != 1 || got[1] != 2 || got[2] != 5 {
+		t.Errorf("stop ids = %v, want [1 2 5]", got)
 	}
 }
 

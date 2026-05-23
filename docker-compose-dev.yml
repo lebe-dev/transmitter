@@ -5,7 +5,7 @@ services:
     environment:
       - PUID=1000
       - PGID=1000
-      - TZ=UTC
+      - TZ=Europe/Moscow
     volumes:
       - ./dev:/config
       - transmission-downloads:/downloads
