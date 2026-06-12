@@ -34,6 +34,8 @@ type Config struct {
 	NightShiftStart       DayTime
 	NightShiftEnd         DayTime
 	NightShiftInterval    time.Duration
+	SentryDSN             string
+	SentryEnvironment     string
 }
 
 // DayTime represents a wall-clock time of day (hours and minutes, 0..24h-1m).
@@ -100,6 +102,12 @@ func Load() (*Config, error) {
 	cfg.DeleteWithData = strings.EqualFold(os.Getenv("DELETE_WITH_DATA"), "true")
 
 	cfg.NightShiftInterval = parseDuration(os.Getenv("NIGHT_SHIFT_INTERVAL"), time.Minute)
+
+	cfg.SentryDSN = strings.TrimSpace(os.Getenv("SENTRY_DSN"))
+	cfg.SentryEnvironment = strings.TrimSpace(os.Getenv("SENTRY_ENVIRONMENT"))
+	if cfg.SentryDSN != "" && cfg.SentryEnvironment == "" {
+		return nil, fmt.Errorf("SENTRY_ENVIRONMENT is required when SENTRY_DSN is set")
+	}
 
 	startRaw := strings.TrimSpace(os.Getenv("NIGHT_SHIFT_START"))
 	endRaw := strings.TrimSpace(os.Getenv("NIGHT_SHIFT_END"))

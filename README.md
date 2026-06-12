@@ -52,6 +52,8 @@ All settings via environment variables:
 | `NIGHT_SHIFT_START` | No | — (disabled) |
 | `NIGHT_SHIFT_END` | No | — (disabled) |
 | `NIGHT_SHIFT_INTERVAL` | No | `1m` |
+| `SENTRY_DSN` | No | — (disabled) |
+| `SENTRY_ENVIRONMENT` | If using Sentry | — |
 
 For all options, see [.env.example](.env.example).
 

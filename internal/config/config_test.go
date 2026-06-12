@@ -84,3 +84,43 @@ func TestLoadNightShift(t *testing.T) {
 		}
 	})
 }
+
+func TestLoadSentry(t *testing.T) {
+	t.Setenv("TRANSMISSION_USER", "u")
+	t.Setenv("TRANSMISSION_PASS", "p")
+
+	t.Run("disabled when DSN empty", func(t *testing.T) {
+		t.Setenv("SENTRY_DSN", "")
+		t.Setenv("SENTRY_ENVIRONMENT", "")
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if cfg.SentryDSN != "" {
+			t.Errorf("expected empty DSN, got %q", cfg.SentryDSN)
+		}
+	})
+
+	t.Run("enabled when DSN and environment set", func(t *testing.T) {
+		t.Setenv("SENTRY_DSN", "https://key@example.com/1")
+		t.Setenv("SENTRY_ENVIRONMENT", "production")
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if cfg.SentryDSN != "https://key@example.com/1" {
+			t.Errorf("DSN = %q", cfg.SentryDSN)
+		}
+		if cfg.SentryEnvironment != "production" {
+			t.Errorf("environment = %q", cfg.SentryEnvironment)
+		}
+	})
+
+	t.Run("error when DSN set without environment", func(t *testing.T) {
+		t.Setenv("SENTRY_DSN", "https://key@example.com/1")
+		t.Setenv("SENTRY_ENVIRONMENT", "")
+		if _, err := Load(); err == nil {
+			t.Fatal("expected error")
+		}
+	})
+}

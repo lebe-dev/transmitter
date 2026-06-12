@@ -11,6 +11,7 @@ import (
 	"github.com/lebe-dev/transmitter/internal/bot"
 	"github.com/lebe-dev/transmitter/internal/config"
 	"github.com/lebe-dev/transmitter/internal/nightshift"
+	"github.com/lebe-dev/transmitter/internal/sentrylog"
 	"github.com/lebe-dev/transmitter/internal/server"
 	"github.com/lebe-dev/transmitter/internal/transmission"
 	"github.com/lebe-dev/transmitter/static"
@@ -25,9 +26,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: cfg.LogLevel}))
+	var handler slog.Handler = slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: cfg.LogLevel})
+	if cfg.SentryDSN != "" {
+		if err := sentrylog.Init(cfg.SentryDSN, cfg.SentryEnvironment, Version); err != nil {
+			slog.Error("sentry init failed", "err", err)
+			os.Exit(1)
+		}
+		defer sentrylog.Flush(2 * time.Second)
+		handler = sentrylog.NewHandler(handler, nil)
+	}
+
+	logger := slog.New(handler)
 	slog.SetDefault(logger)
 	logger.Info("starting transmitter", "version", Version)
+	if cfg.SentryDSN != "" {
+		logger.Info("sentry enabled", "environment", cfg.SentryEnvironment)
+	}
 
 	client := transmission.NewClient(cfg.TransmissionURL, cfg.TransmissionUser, cfg.TransmissionPass)
 

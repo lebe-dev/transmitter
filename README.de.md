@@ -50,6 +50,8 @@ Alle Einstellungen über Umgebungsvariablen:
 | `NIGHT_SHIFT_START` | Nein | — (deaktiviert) |
 | `NIGHT_SHIFT_END` | Nein | — (deaktiviert) |
 | `NIGHT_SHIFT_INTERVAL` | Nein | `1m` |
+| `SENTRY_DSN` | Nein | — (deaktiviert) |
+| `SENTRY_ENVIRONMENT` | Bei Verwendung von Sentry | — |
 
 Alle Optionen siehe [.env.example](.env.example).
 

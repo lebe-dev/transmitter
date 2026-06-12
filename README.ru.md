@@ -50,6 +50,8 @@ docker-compose up -d
 | `NIGHT_SHIFT_START` | Нет | — (отключено) |
 | `NIGHT_SHIFT_END` | Нет | — (отключено) |
 | `NIGHT_SHIFT_INTERVAL` | Нет | `1m` |
+| `SENTRY_DSN` | Нет | — (отключено) |
+| `SENTRY_ENVIRONMENT` | При использовании Sentry | — |
 
 Все параметры см. в [.env.example](.env.example).
 

@@ -50,6 +50,8 @@ Todos los ajustes se realizan mediante variables de entorno:
 | `NIGHT_SHIFT_START` | No | — (desactivado) |
 | `NIGHT_SHIFT_END` | No | — (desactivado) |
 | `NIGHT_SHIFT_INTERVAL` | No | `1m` |
+| `SENTRY_DSN` | No | — (desactivado) |
+| `SENTRY_ENVIRONMENT` | Si se usa Sentry | — |
 
 Para todas las opciones, consulta [.env.example](.env.example).
 
