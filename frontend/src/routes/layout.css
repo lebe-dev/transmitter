@@ -115,6 +115,9 @@
     * {
         @apply border-border outline-ring/50;
     }
+    html {
+        overflow-y: scroll;
+    }
     body {
         @apply bg-background text-foreground;
         font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
