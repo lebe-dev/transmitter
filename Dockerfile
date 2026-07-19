@@ -1,6 +1,6 @@
 ARG BUILDPLATFORM=linux/amd64
 
-FROM --platform=$BUILDPLATFORM node:22-alpine3.23 AS frontend-build
+FROM --platform=$BUILDPLATFORM node:24-alpine3.24 AS frontend-build
 
 WORKDIR /build
 
@@ -12,7 +12,7 @@ RUN APP_VERSION=$(cat /build/VERSION) && \
     yarn --frozen-lockfile && \
     yarn build
 
-FROM golang:1.26-alpine3.23 AS app-build
+FROM golang:1.26-alpine3.24 AS app-build
 
 WORKDIR /build
 
@@ -22,7 +22,10 @@ COPY go.mod go.sum ./
 
 RUN go mod download
 
-COPY . /build
+COPY cmd/ ./cmd/
+COPY internal/ ./internal/
+COPY static/embed.go ./static/embed.go
+COPY VERSION ./VERSION
 
 COPY --from=frontend-build /build/build/ /build/static/dist/
 
@@ -31,7 +34,7 @@ RUN APP_VERSION=$(cat VERSION) && \
     upx -9 --lzma transmitter && \
     chmod +x transmitter
 
-FROM alpine:3.23
+FROM alpine:3.24
 
 WORKDIR /app
 
