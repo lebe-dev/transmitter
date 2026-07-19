@@ -9,7 +9,8 @@
 	"header": {
 		"add": "Añadir",
 		"toggleTheme": "Cambiar tema",
-		"settings": "Ajustes"
+		"settings": "Ajustes",
+		"freeSpace": "Espacio libre en disco"
 	},
 	"search": {
 		"placeholder": "Buscar torrents…"
@@ -72,7 +73,10 @@
 		"destinationFolder": "Carpeta de destino",
 		"defaultPath": "Predeterminado",
 		"removePath": "Eliminar ruta guardada",
-		"invalidPath": "La ruta debe ser absoluta (comenzar con /)"
+		"invalidPath": "La ruta debe ser absoluta (comenzar con /)",
+		"torrentSize": "Tamaño del torrent",
+		"freeSpace": "Espacio libre",
+		"notEnoughSpace": "No hay suficiente espacio libre en la carpeta de destino"
 	},
 	"fileSelectDialog": {
 		"title": "Seleccionar archivos",
@@ -97,6 +101,7 @@
 		"colorTheme": "Tema de color",
 		"language": "Idioma",
 		"compactView": "Vista compacta",
+		"showFreeSpace": "Mostrar espacio libre en el encabezado",
 		"docs": "Documentación",
 		"close": "Cerrar",
 		"tabGeneral": "General",

@@ -21,14 +21,16 @@
 	import SettingsIcon from '@lucide/svelte/icons/settings';
 	import PinIcon from '@lucide/svelte/icons/pin';
 	import MoonStarIcon from '@lucide/svelte/icons/moon-star';
+	import HardDriveIcon from '@lucide/svelte/icons/hard-drive';
 
 	import XIcon from '@lucide/svelte/icons/x';
 	import FolderIcon from '@lucide/svelte/icons/folder';
 
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import { torrentStore, pinStore, downloadDirStore } from '$lib/stores.svelte.js';
-	import { addTorrentMagnet, addTorrentFile, startTorrents, stopTorrents, removeTorrents, getTorrentFiles, setFilesWanted, setTorrentLabels, getSettings, getServerConfig } from '$lib/api.js';
+	import { addTorrentMagnet, addTorrentFile, startTorrents, stopTorrents, removeTorrents, getTorrentFiles, setFilesWanted, setTorrentLabels, getSettings, getServerConfig, getFreeSpace } from '$lib/api.js';
 	import { formatSize, formatSpeed, formatEta, formatDate } from '$lib/format.js';
+	import { parseTorrentSize } from '$lib/bencode.js';
 	import type { Torrent, FilterStatus, ServerConfig } from '$lib/types.js';
 	import { createSvelteTable } from '$lib/components/ui/data-table/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
@@ -200,7 +202,61 @@
 	let downloadDir = $state('');
 	let showDirDropdown = $state(false);
 
+	// Free-space guard for the destination folder
+	let pendingFileSize = $state<number | null>(null);
+	let destFreeSpace = $state<number | null>(null);
+	let freeSpaceTimer: ReturnType<typeof setTimeout> | null = null;
+
 	const isDirValid = $derived(!downloadDir.trim() || downloadDir.trim().startsWith('/'));
+
+	// Not enough space only when we know both the torrent size and free space
+	const notEnoughSpace = $derived(
+		pendingFileSize !== null && destFreeSpace !== null && pendingFileSize > destFreeSpace,
+	);
+
+	// Parse the selected .torrent client-side to learn its total size
+	$effect(() => {
+		const file = pendingFile;
+		if (!file) {
+			pendingFileSize = null;
+			return;
+		}
+		let cancelled = false;
+		file
+			.arrayBuffer()
+			.then((buf) => {
+				if (!cancelled) pendingFileSize = parseTorrentSize(buf);
+			})
+			.catch(() => {
+				if (!cancelled) pendingFileSize = null;
+			});
+		return () => {
+			cancelled = true;
+		};
+	});
+
+	// Fetch free space for the chosen destination (debounced while typing)
+	$effect(() => {
+		if (!addOpen) return;
+		const path = downloadDir.trim() || downloadDirStore.defaultDir;
+		if (freeSpaceTimer) clearTimeout(freeSpaceTimer);
+		if (!path || !path.startsWith('/')) {
+			destFreeSpace = null;
+			return;
+		}
+		freeSpaceTimer = setTimeout(() => {
+			getFreeSpace(path)
+				.then((bytes) => {
+					destFreeSpace = bytes;
+				})
+				.catch(() => {
+					destFreeSpace = null;
+				});
+		}, 350);
+		return () => {
+			if (freeSpaceTimer) clearTimeout(freeSpaceTimer);
+		};
+	});
 
 	function readFileAsBase64(file: File): Promise<string> {
 		return new Promise((resolve, reject) => {
@@ -230,7 +286,7 @@
 	}
 
 	async function handleAdd() {
-		if (isAdding) return;
+		if (isAdding || notEnoughSpace) return;
 		isAdding = true;
 		try {
 			const dir = downloadDir.trim() || undefined;
@@ -273,6 +329,7 @@
 			magnetUrl = '';
 			pendingFile = null;
 			await torrentStore.refresh();
+			void downloadDirStore.refreshFreeSpace();
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : get(tt)('toast.failAdd'));
 		} finally {
@@ -283,10 +340,16 @@
 	function resetAddDialog() {
 		magnetUrl = '';
 		pendingFile = null;
+		pendingFileSize = null;
 		addMode = 'file';
 		isAdding = false;
 		dragOver = false;
 		downloadDir = downloadDirStore.selectedDir || downloadDirStore.defaultDir;
+		// Seed with the cached free space for the default dir so the info row is
+		// present on the first frame — the debounced fetch then refreshes it in
+		// place instead of appearing late and shifting the dialog.
+		destFreeSpace =
+			downloadDir === downloadDirStore.defaultDir ? downloadDirStore.defaultFreeSpace : null;
 		showDirDropdown = false;
 	}
 
@@ -313,6 +376,7 @@
 			deleteOpen = false;
 			deleteTarget = null;
 			await torrentStore.refresh();
+			void downloadDirStore.refreshFreeSpace();
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : get(tt)('toast.failDelete'));
 		} finally {
@@ -442,6 +506,17 @@
 		localStorage.setItem(COMPACT_STORAGE_KEY, checked ? '1' : '0');
 	}
 
+	// ── Free space in header ───────────────────────────────────────────────────
+
+	const FREE_SPACE_STORAGE_KEY = 'transmitter-show-free-space';
+	let showFreeSpace = $state(true);
+	let freeSpaceInterval: ReturnType<typeof setInterval> | null = null;
+
+	function onShowFreeSpaceChange(checked: boolean) {
+		showFreeSpace = checked;
+		localStorage.setItem(FREE_SPACE_STORAGE_KEY, checked ? '1' : '0');
+	}
+
 	// ── Detail panel ─────────────────────────────────────────────────────────
 
 	let detailOpen = $state(false);
@@ -506,6 +581,7 @@
 		}
 
 		compactView = localStorage.getItem(COMPACT_STORAGE_KEY) === '1';
+		showFreeSpace = localStorage.getItem(FREE_SPACE_STORAGE_KEY) !== '0';
 
 		// Restore saved locale, or detect from browser language
 		const supported = get(locales);
@@ -528,10 +604,15 @@
 			})
 			.catch(() => {});
 		window.addEventListener('scroll', onScroll, { passive: true });
+
+		freeSpaceInterval = setInterval(() => {
+			if (!document.hidden) void downloadDirStore.refreshFreeSpace();
+		}, 20_000);
 	});
 	onDestroy(() => {
 		torrentStore.destroy();
 		window.removeEventListener('scroll', onScroll);
+		if (freeSpaceInterval) clearInterval(freeSpaceInterval);
 	});
 </script>
 
@@ -541,11 +622,20 @@
 	<!-- Header -->
 	<header class="border-b border-border/50">
 		<div class="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
-			<div class="flex items-center gap-2.5 mr-auto">
+			<div class="flex items-center gap-2.5 mr-auto min-w-0">
 				<div class="size-7 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
 					<span class="text-primary-foreground font-bold text-sm leading-none font-display">T</span>
 				</div>
 				<span class="font-display font-semibold text-[17px] tracking-tight">Transmitter</span>
+				{#if showFreeSpace && downloadDirStore.defaultFreeSpace !== null}
+					<span
+						class="inline-flex items-center gap-1.5 rounded-md bg-muted/60 px-2 py-1 text-xs font-medium text-muted-foreground tabular-nums"
+						title={$tt('header.freeSpace')}
+					>
+						<HardDriveIcon class="size-3.5 flex-shrink-0" />
+						<span class="truncate">{formatSize(downloadDirStore.defaultFreeSpace, $tt)}</span>
+					</span>
+				{/if}
 			</div>
 
 			<button
@@ -1013,6 +1103,17 @@
 							{$tt('settings.compactView')}
 						</label>
 					</div>
+
+					<div class="flex items-center gap-3">
+						<Checkbox
+							id="show-free-space"
+							checked={showFreeSpace}
+							onCheckedChange={onShowFreeSpaceChange}
+						/>
+						<label for="show-free-space" class="text-sm font-medium cursor-pointer select-none">
+							{$tt('settings.showFreeSpace')}
+						</label>
+					</div>
 				</div>
 			</Tabs.Content>
 
@@ -1223,12 +1324,36 @@
 			{/if}
 		</div>
 
+		<!-- Size / free space -->
+		{#if pendingFileSize !== null || destFreeSpace !== null}
+			<div class="mt-3 flex flex-col gap-1.5 rounded-lg border border-border/60 bg-accent/30 px-3 py-2.5 text-sm">
+				{#if pendingFileSize !== null}
+					<div class="flex items-center justify-between gap-2">
+						<span class="text-muted-foreground">{$tt('addDialog.torrentSize')}</span>
+						<span class="font-medium tabular-nums">{formatSize(pendingFileSize, $tt)}</span>
+					</div>
+				{/if}
+				{#if destFreeSpace !== null}
+					<div class="flex items-center justify-between gap-2">
+						<span class="text-muted-foreground">{$tt('addDialog.freeSpace')}</span>
+						<span class="font-medium tabular-nums {notEnoughSpace ? 'text-destructive' : ''}">{formatSize(destFreeSpace, $tt)}</span>
+					</div>
+				{/if}
+				{#if notEnoughSpace}
+					<p class="flex items-center gap-1.5 text-xs text-destructive mt-0.5">
+						<AlertCircleIcon class="size-3.5 flex-shrink-0" />
+						{$tt('addDialog.notEnoughSpace')}
+					</p>
+				{/if}
+			</div>
+		{/if}
+
 		<AlertDialog.Footer class="pt-4">
 			<AlertDialog.Cancel disabled={isAdding} onclick={resetAddDialog}>{$tt('addDialog.cancel')}</AlertDialog.Cancel>
 			<Button
 				class="font-display font-semibold"
 				onclick={handleAdd}
-				disabled={isAdding || !isDirValid || (addMode === 'magnet' ? !magnetUrl.trim() : !pendingFile)}
+				disabled={isAdding || !isDirValid || notEnoughSpace || (addMode === 'magnet' ? !magnetUrl.trim() : !pendingFile)}
 			>
 				{#if isAdding}
 					<Spinner class="size-4" />

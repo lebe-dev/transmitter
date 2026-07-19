@@ -208,6 +208,7 @@ const DIR_KEY = 'tx_download_dirs';
 
 class DownloadDirStore {
 	defaultDir = $state('');
+	defaultFreeSpace = $state<number | null>(null);
 	savedDirs = $state<string[]>([]);
 	selectedDir = $state('');
 
@@ -231,9 +232,20 @@ class DownloadDirStore {
 		try {
 			const session = await getSession();
 			this.defaultDir = session['download-dir'] ?? '';
+			this.defaultFreeSpace = session['download-dir-free-space'] ?? null;
 			if (!this.selectedDir) this.selectedDir = this.defaultDir;
 		} catch {
 			// session-get may fail if server is unreachable
+		}
+	}
+
+	async refreshFreeSpace() {
+		try {
+			const session = await getSession();
+			if (session['download-dir']) this.defaultDir = session['download-dir'];
+			this.defaultFreeSpace = session['download-dir-free-space'] ?? null;
+		} catch {
+			// leave the last known value in place on transient failures
 		}
 	}
 

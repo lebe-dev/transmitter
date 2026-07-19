@@ -9,7 +9,8 @@
 	"header": {
 		"add": "Добавить",
 		"toggleTheme": "Сменить тему",
-		"settings": "Настройки"
+		"settings": "Настройки",
+		"freeSpace": "Свободно на диске"
 	},
 	"search": {
 		"placeholder": "Поиск торрентов…"
@@ -72,7 +73,10 @@
 		"destinationFolder": "Папка назначения",
 		"defaultPath": "По умолчанию",
 		"removePath": "Удалить сохранённый путь",
-		"invalidPath": "Путь должен быть абсолютным (начинаться с /)"
+		"invalidPath": "Путь должен быть абсолютным (начинаться с /)",
+		"torrentSize": "Размер торрента",
+		"freeSpace": "Свободно",
+		"notEnoughSpace": "Недостаточно свободного места в папке назначения"
 	},
 	"fileSelectDialog": {
 		"title": "Выбор файлов",
@@ -97,6 +101,7 @@
 		"colorTheme": "Цветовая тема",
 		"language": "Язык",
 		"compactView": "Компактный вид",
+		"showFreeSpace": "Показывать свободное место в шапке",
 		"docs": "Документация",
 		"close": "Закрыть",
 		"tabGeneral": "Основные",

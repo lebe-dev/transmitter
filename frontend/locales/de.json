@@ -9,7 +9,8 @@
 	"header": {
 		"add": "Hinzufügen",
 		"toggleTheme": "Design wechseln",
-		"settings": "Einstellungen"
+		"settings": "Einstellungen",
+		"freeSpace": "Freier Speicherplatz"
 	},
 	"search": {
 		"placeholder": "Torrents suchen…"
@@ -72,7 +73,10 @@
 		"destinationFolder": "Zielordner",
 		"defaultPath": "Standard",
 		"removePath": "Gespeicherten Pfad entfernen",
-		"invalidPath": "Pfad muss absolut sein (mit / beginnen)"
+		"invalidPath": "Pfad muss absolut sein (mit / beginnen)",
+		"torrentSize": "Torrent-Größe",
+		"freeSpace": "Freier Speicher",
+		"notEnoughSpace": "Nicht genügend freier Speicherplatz im Zielordner"
 	},
 	"fileSelectDialog": {
 		"title": "Dateien auswählen",
@@ -97,6 +101,7 @@
 		"colorTheme": "Farbdesign",
 		"language": "Sprache",
 		"compactView": "Kompakte Ansicht",
+		"showFreeSpace": "Freien Speicher im Header anzeigen",
 		"docs": "Dokumentation",
 		"close": "Schließen",
 		"tabGeneral": "Allgemein",

@@ -35,8 +35,16 @@ export async function getTorrents(): Promise<Torrent[]> {
 	return data.torrents;
 }
 
-export async function getSession(): Promise<{ 'download-dir': string }> {
+export async function getSession(): Promise<{
+	'download-dir': string;
+	'download-dir-free-space': number;
+}> {
 	return rpc('session-get');
+}
+
+export async function getFreeSpace(path: string): Promise<number> {
+	const data = await rpc<{ 'size-bytes': number }>('free-space', { path });
+	return data['size-bytes'];
 }
 
 export async function addTorrentMagnet(filename: string, downloadDir?: string): Promise<void> {

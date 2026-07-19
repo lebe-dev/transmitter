@@ -9,7 +9,8 @@
 	"header": {
 		"add": "Add",
 		"toggleTheme": "Toggle theme",
-		"settings": "Settings"
+		"settings": "Settings",
+		"freeSpace": "Free space on disk"
 	},
 	"search": {
 		"placeholder": "Search torrents…"
@@ -72,7 +73,10 @@
 		"destinationFolder": "Destination folder",
 		"defaultPath": "Default",
 		"removePath": "Remove saved path",
-		"invalidPath": "Path must be absolute (start with /)"
+		"invalidPath": "Path must be absolute (start with /)",
+		"torrentSize": "Torrent size",
+		"freeSpace": "Free space",
+		"notEnoughSpace": "Not enough free space in the destination folder"
 	},
 	"fileSelectDialog": {
 		"title": "Select Files",
@@ -97,6 +101,7 @@
 		"colorTheme": "Color theme",
 		"language": "Language",
 		"compactView": "Compact view",
+		"showFreeSpace": "Show free space in header",
 		"docs": "Documentation",
 		"close": "Close",
 		"tabGeneral": "General",

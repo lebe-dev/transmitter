@@ -19,6 +19,7 @@ var allowedMethods = map[string]bool{
 	"torrent-remove": true,
 	"torrent-set":    true,
 	"session-get":    true,
+	"free-space":     true,
 }
 
 // AutoPriorityConfig holds settings for automatic file priority.
