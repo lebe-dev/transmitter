@@ -1,4 +1,6 @@
 /transmitter
+/coverage.out
+/coverage.html
 *.md
 !README.md
 !DEV.md
