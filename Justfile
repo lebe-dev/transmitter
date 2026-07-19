@@ -1,3 +1,6 @@
+# Load variables from .env (gitignored) into recipe environments — e.g. SONAR_TOKEN.
+set dotenv-load
+
 version := `cat VERSION`
 imageName := 'tinyops/transmitter'
 
@@ -36,6 +39,26 @@ lint-frontend: format
 lint: format
     just lint-backend
     just lint-frontend
+
+# --- SonarQube (static analysis) ---
+sonarHostUrl := env_var_or_default("SONAR_HOST_URL", "http://host.docker.internal:9000")
+
+sonar-scan:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -z "${SONAR_TOKEN:-}" ]; then
+        echo "error: SONAR_TOKEN is not set." >&2
+        echo "  Generate a token at {{ sonarHostUrl }} -> My Account -> Security," >&2
+        echo "  then add it to .env:  SONAR_TOKEN=sqp_xxx" >&2
+        exit 1
+    fi
+    docker run --rm \
+        --add-host=host.docker.internal:host-gateway \
+        -e SONAR_HOST_URL="{{ sonarHostUrl }}" \
+        -e SONAR_TOKEN="$SONAR_TOKEN" \
+        -v "$PWD:/usr/src" \
+        sonarsource/sonar-scanner-cli:latest \
+        -Dsonar.projectVersion="{{ version }}"
 
 # --- Tests ---
 test-backend:
