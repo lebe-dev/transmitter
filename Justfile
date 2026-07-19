@@ -41,15 +41,27 @@ lint: format
 test-backend:
     go test ./...
 
+test-frontend:
+    cd frontend && yarn test
+
+# Run all tests (backend + frontend), or a focused backend test: just test name=Foo
 test name='':
-    go test ./... -run '{{ name }}'
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -z "{{ name }}" ]; then
+        just test-backend
+        just test-frontend
+    else
+        go test ./... -run '{{ name }}'
+    fi
 
 # --- Coverage ---
 coverage:
     go test ./... -coverprofile=coverage.out
     go tool cover -func=coverage.out
     go tool cover -html=coverage.out -o coverage.html
-    @echo "Coverage report generated at coverage.html"
+    @echo "Backend coverage report generated at coverage.html"
+    cd frontend && yarn test:coverage
 
 # --- Format ---
 format:
