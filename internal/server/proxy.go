@@ -11,6 +11,11 @@ import (
 	"github.com/lebe-dev/transmitter/internal/transmission"
 )
 
+const (
+	headerContentType = "Content-Type"
+	mimeJSON          = "application/json"
+)
+
 var allowedMethods = map[string]bool{
 	"torrent-get":    true,
 	"torrent-add":    true,
@@ -49,7 +54,7 @@ func ProxyHandler(client *transmission.Client, priorityCfg AutoPriorityConfig, m
 
 		if !allowedMethods[parsed.Method] {
 			slog.Warn("blocked rpc method", "method", parsed.Method, "remote", r.RemoteAddr)
-			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set(headerContentType, mimeJSON)
 			w.WriteHeader(http.StatusForbidden)
 			w.Write([]byte(`{"result":"method not allowed"}`)) //nolint:errcheck
 			return
@@ -62,7 +67,7 @@ func ProxyHandler(client *transmission.Client, priorityCfg AutoPriorityConfig, m
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set(headerContentType, mimeJSON)
 		w.Write(respBody) //nolint:errcheck
 
 		if priorityCfg.Enabled && parsed.Method == "torrent-add" {
@@ -107,7 +112,7 @@ type UISettings struct {
 // SettingsHandler returns UI-relevant server configuration as JSON.
 func SettingsHandler(settings UISettings) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set(headerContentType, mimeJSON)
 		json.NewEncoder(w).Encode(settings) //nolint:errcheck
 	}
 }
@@ -135,7 +140,7 @@ type ServerConfig struct {
 // ConfigHandler returns non-sensitive server configuration as JSON.
 func ConfigHandler(cfg ServerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set(headerContentType, mimeJSON)
 		json.NewEncoder(w).Encode(cfg) //nolint:errcheck
 	}
 }
@@ -144,7 +149,7 @@ func ConfigHandler(cfg ServerConfig) http.HandlerFunc {
 func HealthHandler(client *transmission.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		_, err := client.SessionGet(r.Context())
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set(headerContentType, mimeJSON)
 		if err != nil {
 			slog.Warn("health check failed", "err", err)
 			w.WriteHeader(http.StatusServiceUnavailable)

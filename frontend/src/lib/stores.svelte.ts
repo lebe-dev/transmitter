@@ -103,14 +103,14 @@ class TorrentStore {
 		this.#fetch().then(() => this.#scheduleNext());
 	}
 
-	#onUnload = () => {
+	readonly #onUnload = () => {
 		if (this.#leader) {
 			localStorage.removeItem(LEADER_KEY);
 			localStorage.removeItem(HB_KEY);
 		}
 	};
 
-	#onVisibilityChange = () => {
+	readonly #onVisibilityChange = () => {
 		if (document.hidden) return;
 		if (this.#leader) {
 			this.#clearTimer();

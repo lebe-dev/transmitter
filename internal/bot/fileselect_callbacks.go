@@ -14,12 +14,12 @@ import (
 func (b *Bot) callbackFileToggle(c telebot.Context, data string) error {
 	torrentID, fileIndex, err := parseTwoInts(data, "ft:")
 	if err != nil {
-		return c.Respond(&telebot.CallbackResponse{Text: "Invalid data", ShowAlert: true})
+		return c.Respond(&telebot.CallbackResponse{Text: msgInvalidData, ShowAlert: true})
 	}
 
 	state := b.getFileSelectState(torrentID)
 	if state == nil {
-		return c.Respond(&telebot.CallbackResponse{Text: "Session expired", ShowAlert: true})
+		return c.Respond(&telebot.CallbackResponse{Text: msgSessionExpired, ShowAlert: true})
 	}
 
 	idx := int(fileIndex)
@@ -36,12 +36,12 @@ func (b *Bot) callbackFileToggle(c telebot.Context, data string) error {
 func (b *Bot) callbackFileSelectAll(c telebot.Context, data string) error {
 	torrentID, err := parseID(data, "fa:")
 	if err != nil {
-		return c.Respond(&telebot.CallbackResponse{Text: "Invalid data", ShowAlert: true})
+		return c.Respond(&telebot.CallbackResponse{Text: msgInvalidData, ShowAlert: true})
 	}
 
 	state := b.getFileSelectState(torrentID)
 	if state == nil {
-		return c.Respond(&telebot.CallbackResponse{Text: "Session expired", ShowAlert: true})
+		return c.Respond(&telebot.CallbackResponse{Text: msgSessionExpired, ShowAlert: true})
 	}
 
 	for i := range state.Selected {
@@ -55,12 +55,12 @@ func (b *Bot) callbackFileSelectAll(c telebot.Context, data string) error {
 func (b *Bot) callbackFileDeselectAll(c telebot.Context, data string) error {
 	torrentID, err := parseID(data, "fn:")
 	if err != nil {
-		return c.Respond(&telebot.CallbackResponse{Text: "Invalid data", ShowAlert: true})
+		return c.Respond(&telebot.CallbackResponse{Text: msgInvalidData, ShowAlert: true})
 	}
 
 	state := b.getFileSelectState(torrentID)
 	if state == nil {
-		return c.Respond(&telebot.CallbackResponse{Text: "Session expired", ShowAlert: true})
+		return c.Respond(&telebot.CallbackResponse{Text: msgSessionExpired, ShowAlert: true})
 	}
 
 	for i := range state.Selected {
@@ -74,12 +74,12 @@ func (b *Bot) callbackFileDeselectAll(c telebot.Context, data string) error {
 func (b *Bot) callbackFilePage(c telebot.Context, data string) error {
 	torrentID, page, err := parseTwoInts(data, "fp:")
 	if err != nil {
-		return c.Respond(&telebot.CallbackResponse{Text: "Invalid data", ShowAlert: true})
+		return c.Respond(&telebot.CallbackResponse{Text: msgInvalidData, ShowAlert: true})
 	}
 
 	state := b.getFileSelectState(torrentID)
 	if state == nil {
-		return c.Respond(&telebot.CallbackResponse{Text: "Session expired", ShowAlert: true})
+		return c.Respond(&telebot.CallbackResponse{Text: msgSessionExpired, ShowAlert: true})
 	}
 
 	state.Page = int(page)
@@ -91,12 +91,12 @@ func (b *Bot) callbackFilePage(c telebot.Context, data string) error {
 func (b *Bot) callbackFileConfirm(c telebot.Context, data string) error {
 	torrentID, err := parseID(data, "fc:")
 	if err != nil {
-		return c.Respond(&telebot.CallbackResponse{Text: "Invalid data", ShowAlert: true})
+		return c.Respond(&telebot.CallbackResponse{Text: msgInvalidData, ShowAlert: true})
 	}
 
 	state := b.getFileSelectState(torrentID)
 	if state == nil {
-		return c.Respond(&telebot.CallbackResponse{Text: "Session expired", ShowAlert: true})
+		return c.Respond(&telebot.CallbackResponse{Text: msgSessionExpired, ShowAlert: true})
 	}
 
 	selCount, _ := selectedCount(state)
@@ -119,13 +119,13 @@ func (b *Bot) callbackFileConfirm(c telebot.Context, data string) error {
 	if len(unwanted) > 0 {
 		if err := b.client.SetFilesWanted(ctx, torrentID, wanted, unwanted); err != nil {
 			b.logger.Warn("file select: set files wanted failed", "err", err)
-			return c.Respond(&telebot.CallbackResponse{Text: "Error: " + err.Error(), ShowAlert: true})
+			return c.Respond(&telebot.CallbackResponse{Text: errPrefix + err.Error(), ShowAlert: true})
 		}
 	}
 
 	if err := b.client.StartTorrents(ctx, []int64{torrentID}); err != nil {
 		b.logger.Warn("file select: start torrent failed", "err", err)
-		return c.Respond(&telebot.CallbackResponse{Text: "Error: " + err.Error(), ShowAlert: true})
+		return c.Respond(&telebot.CallbackResponse{Text: errPrefix + err.Error(), ShowAlert: true})
 	}
 
 	b.deleteFileSelectState(torrentID)
@@ -139,12 +139,12 @@ func (b *Bot) callbackFileConfirm(c telebot.Context, data string) error {
 func (b *Bot) callbackFileSkip(c telebot.Context, data string) error {
 	torrentID, err := parseID(data, "fk:")
 	if err != nil {
-		return c.Respond(&telebot.CallbackResponse{Text: "Invalid data", ShowAlert: true})
+		return c.Respond(&telebot.CallbackResponse{Text: msgInvalidData, ShowAlert: true})
 	}
 
 	state := b.getFileSelectState(torrentID)
 	if state == nil {
-		return c.Respond(&telebot.CallbackResponse{Text: "Session expired", ShowAlert: true})
+		return c.Respond(&telebot.CallbackResponse{Text: msgSessionExpired, ShowAlert: true})
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -152,7 +152,7 @@ func (b *Bot) callbackFileSkip(c telebot.Context, data string) error {
 
 	if err := b.client.StartTorrents(ctx, []int64{torrentID}); err != nil {
 		b.logger.Warn("file select: start torrent failed", "err", err)
-		return c.Respond(&telebot.CallbackResponse{Text: "Error: " + err.Error(), ShowAlert: true})
+		return c.Respond(&telebot.CallbackResponse{Text: errPrefix + err.Error(), ShowAlert: true})
 	}
 
 	b.applyAutoPriority(ctx, torrentID)

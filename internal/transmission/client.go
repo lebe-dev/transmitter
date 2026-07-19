@@ -15,7 +15,11 @@ import (
 	"golang.org/x/sync/singleflight"
 )
 
-const sessionIDHeader = "X-Transmission-Session-Id"
+const (
+	sessionIDHeader  = "X-Transmission-Session-Id"
+	methodTorrentGet = "torrent-get"
+	methodTorrentSet = "torrent-set"
+)
 
 // Client is an HTTP client for the Transmission RPC API.
 type Client struct {
@@ -165,7 +169,7 @@ func (c *Client) GetTorrents(ctx context.Context) ([]Torrent, error) {
 		return nil, err
 	}
 
-	resp, err := c.Do(ctx, RPCRequest{Method: "torrent-get", Arguments: args})
+	resp, err := c.Do(ctx, RPCRequest{Method: methodTorrentGet, Arguments: args})
 	if err != nil {
 		return nil, err
 	}
@@ -230,7 +234,7 @@ func (c *Client) GetTorrent(ctx context.Context, id int64) (Torrent, error) {
 		return Torrent{}, err
 	}
 
-	resp, err := c.Do(ctx, RPCRequest{Method: "torrent-get", Arguments: args})
+	resp, err := c.Do(ctx, RPCRequest{Method: methodTorrentGet, Arguments: args})
 	if err != nil {
 		return Torrent{}, err
 	}
@@ -289,6 +293,22 @@ func (c *Client) torrentAction(ctx context.Context, method string, ids []int64) 
 	return nil
 }
 
+// torrentSet marshals and sends a torrent-set request with the given arguments.
+func (c *Client) torrentSet(ctx context.Context, args TorrentSetArgs) error {
+	raw, err := json.Marshal(args)
+	if err != nil {
+		return fmt.Errorf("marshal %s: %w", methodTorrentSet, err)
+	}
+	resp, err := c.Do(ctx, RPCRequest{Method: methodTorrentSet, Arguments: raw})
+	if err != nil {
+		return fmt.Errorf("%s: %w", methodTorrentSet, err)
+	}
+	if resp.Result != "success" {
+		return fmt.Errorf("%s failed: %s", methodTorrentSet, resp.Result)
+	}
+	return nil
+}
+
 // GetTorrentFiles returns the file list for a torrent.
 func (c *Client) GetTorrentFiles(ctx context.Context, torrentID int64) ([]TorrentFile, error) {
 	getArgs, err := json.Marshal(TorrentGetArgs{
@@ -299,7 +319,7 @@ func (c *Client) GetTorrentFiles(ctx context.Context, torrentID int64) ([]Torren
 		return nil, fmt.Errorf("marshal torrent-get: %w", err)
 	}
 
-	resp, err := c.Do(ctx, RPCRequest{Method: "torrent-get", Arguments: getArgs})
+	resp, err := c.Do(ctx, RPCRequest{Method: methodTorrentGet, Arguments: getArgs})
 	if err != nil {
 		return nil, fmt.Errorf("torrent-get files: %w", err)
 	}
@@ -320,23 +340,11 @@ func (c *Client) GetTorrentFiles(ctx context.Context, torrentID int64) ([]Torren
 
 // SetFilesWanted sets which files should be downloaded for a torrent.
 func (c *Client) SetFilesWanted(ctx context.Context, torrentID int64, wanted, unwanted []int) error {
-	setArgs, err := json.Marshal(TorrentSetArgs{
+	return c.torrentSet(ctx, TorrentSetArgs{
 		IDs:           []int64{torrentID},
 		FilesWanted:   wanted,
 		FilesUnwanted: unwanted,
 	})
-	if err != nil {
-		return fmt.Errorf("marshal torrent-set: %w", err)
-	}
-
-	resp, err := c.Do(ctx, RPCRequest{Method: "torrent-set", Arguments: setArgs})
-	if err != nil {
-		return fmt.Errorf("torrent-set: %w", err)
-	}
-	if resp.Result != "success" {
-		return fmt.Errorf("torrent-set failed: %s", resp.Result)
-	}
-	return nil
 }
 
 // SetLabels replaces the labels of the given torrents.
@@ -345,18 +353,7 @@ func (c *Client) SetLabels(ctx context.Context, ids []int64, labels []string) er
 	if labels == nil {
 		labels = []string{}
 	}
-	setArgs, err := json.Marshal(TorrentSetArgs{IDs: ids, Labels: &labels})
-	if err != nil {
-		return fmt.Errorf("marshal torrent-set: %w", err)
-	}
-	resp, err := c.Do(ctx, RPCRequest{Method: "torrent-set", Arguments: setArgs})
-	if err != nil {
-		return fmt.Errorf("torrent-set: %w", err)
-	}
-	if resp.Result != "success" {
-		return fmt.Errorf("torrent-set failed: %s", resp.Result)
-	}
-	return nil
+	return c.torrentSet(ctx, TorrentSetArgs{IDs: ids, Labels: &labels})
 }
 
 // SetHighPriorityFiles sets the first `count` files of a torrent to high priority
@@ -387,21 +384,13 @@ func (c *Client) SetHighPriorityFiles(ctx context.Context, torrentID int64, coun
 		}
 	}
 
-	setArgs, err := json.Marshal(TorrentSetArgs{
+	err = c.torrentSet(ctx, TorrentSetArgs{
 		IDs:          []int64{torrentID},
 		PriorityHigh: highIndices,
 		PriorityLow:  lowIndices,
 	})
 	if err != nil {
-		return fmt.Errorf("marshal torrent-set: %w", err)
-	}
-
-	setResp, err := c.Do(ctx, RPCRequest{Method: "torrent-set", Arguments: setArgs})
-	if err != nil {
-		return fmt.Errorf("torrent-set: %w", err)
-	}
-	if setResp.Result != "success" {
-		return fmt.Errorf("torrent-set failed: %s", setResp.Result)
+		return err
 	}
 
 	slog.Debug("file priorities set", "torrent_id", torrentID, "high", highCount, "low", fileCount-highCount)

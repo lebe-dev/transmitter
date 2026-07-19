@@ -74,23 +74,7 @@ func (s *Scheduler) reconcile(ctx context.Context) {
 	now := s.now()
 	inWindow := InWindow(now, s.start, s.end)
 
-	var tagged []int64
-	var toStart, toStop []int64
-	for _, t := range torrents {
-		if !slices.Contains(t.Labels, Label) {
-			continue
-		}
-		tagged = append(tagged, t.ID)
-		// Apply the same window to both downloading and seeding torrents:
-		// completed (100%) torrents resume seeding inside the window and are
-		// paused outside of it, just like in-progress downloads.
-		switch {
-		case inWindow && t.Status == 0:
-			toStart = append(toStart, t.ID)
-		case !inWindow && t.Status != 0:
-			toStop = append(toStop, t.ID)
-		}
-	}
+	tagged, toStart, toStop := classify(torrents, inWindow)
 
 	s.logger.Info("night-shift: reconcile",
 		"now", now.Format("15:04 MST"),
@@ -117,6 +101,27 @@ func (s *Scheduler) reconcile(ctx context.Context) {
 			s.logger.Info("night-shift: stopped torrents", "count", len(toStop), "ids", toStop)
 		}
 	}
+}
+
+// classify splits torrents into those tagged for the night shift and the subsets
+// that need starting or stopping given whether the current time is inside the window.
+func classify(torrents []transmission.Torrent, inWindow bool) (tagged, toStart, toStop []int64) {
+	for _, t := range torrents {
+		if !slices.Contains(t.Labels, Label) {
+			continue
+		}
+		tagged = append(tagged, t.ID)
+		// Apply the same window to both downloading and seeding torrents:
+		// completed (100%) torrents resume seeding inside the window and are
+		// paused outside of it, just like in-progress downloads.
+		switch {
+		case inWindow && t.Status == 0:
+			toStart = append(toStart, t.ID)
+		case !inWindow && t.Status != 0:
+			toStop = append(toStop, t.ID)
+		}
+	}
+	return tagged, toStart, toStop
 }
 
 // InWindow reports whether the given moment falls inside the [start, end) window.

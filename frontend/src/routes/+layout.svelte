@@ -1,4 +1,5 @@
 <script lang="ts">
+	import './fonts.css';
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
 	import { ModeWatcher } from 'mode-watcher';

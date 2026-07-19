@@ -1,9 +1,9 @@
 package server
 
 import (
+	"errors"
 	"io/fs"
 	"net/http"
-	"strings"
 )
 
 // spaFileSystem wraps an http.FileSystem to serve index.html for unknown routes (SPA fallback).
@@ -13,7 +13,7 @@ type spaFileSystem struct {
 
 func (s spaFileSystem) Open(name string) (http.File, error) {
 	f, err := s.fs.Open(name)
-	if err != nil && strings.Contains(err.Error(), "no such file") {
+	if errors.Is(err, fs.ErrNotExist) {
 		return s.fs.Open("index.html")
 	}
 	return f, err

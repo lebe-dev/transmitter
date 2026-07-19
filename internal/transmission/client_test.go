@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 )
@@ -33,6 +34,33 @@ func rpcHandler(t *testing.T, wantMethod string, result any) http.HandlerFunc {
 		args, _ := json.Marshal(result)
 		resp := RPCResponse{Result: "success", Arguments: args}
 		json.NewEncoder(w).Encode(resp)
+	}
+}
+
+// assertPriorityIndices checks a torrent-set request assigns wantHigh contiguous
+// high-priority indices [0..wantHigh) and wantLow low-priority indices following them.
+func assertPriorityIndices(t *testing.T, args json.RawMessage, wantHigh, wantLow int) {
+	t.Helper()
+	var setArgs TorrentSetArgs
+	if err := json.Unmarshal(args, &setArgs); err != nil {
+		t.Fatalf("unmarshal torrent-set args: %v", err)
+	}
+
+	if len(setArgs.PriorityHigh) != wantHigh {
+		t.Errorf("expected %d high-priority files, got %d", wantHigh, len(setArgs.PriorityHigh))
+	}
+	if len(setArgs.PriorityLow) != wantLow {
+		t.Errorf("expected %d low-priority files, got %d", wantLow, len(setArgs.PriorityLow))
+	}
+	for i, idx := range setArgs.PriorityHigh {
+		if idx != i {
+			t.Errorf("PriorityHigh[%d] = %d, want %d", i, idx, i)
+		}
+	}
+	for i, idx := range setArgs.PriorityLow {
+		if idx != i+wantHigh {
+			t.Errorf("PriorityLow[%d] = %d, want %d", i, idx, i+wantHigh)
+		}
 	}
 }
 
@@ -152,27 +180,7 @@ func TestSetHighPriorityFiles(t *testing.T) {
 			args, _ := json.Marshal(result)
 			json.NewEncoder(w).Encode(RPCResponse{Result: "success", Arguments: args})
 		case "torrent-set":
-			var setArgs TorrentSetArgs
-			json.Unmarshal(req.Arguments, &setArgs)
-
-			if len(setArgs.PriorityHigh) != 2 {
-				t.Errorf("expected 2 high-priority files, got %d", len(setArgs.PriorityHigh))
-			}
-			if len(setArgs.PriorityLow) != 3 {
-				t.Errorf("expected 3 low-priority files, got %d", len(setArgs.PriorityLow))
-			}
-			// Verify indices
-			for i, idx := range setArgs.PriorityHigh {
-				if idx != i {
-					t.Errorf("PriorityHigh[%d] = %d, want %d", i, idx, i)
-				}
-			}
-			for i, idx := range setArgs.PriorityLow {
-				if idx != i+2 {
-					t.Errorf("PriorityLow[%d] = %d, want %d", i, idx, i+2)
-				}
-			}
-
+			assertPriorityIndices(t, req.Arguments, 2, 3)
 			json.NewEncoder(w).Encode(RPCResponse{Result: "success"})
 		}
 	}
@@ -205,16 +213,7 @@ func TestSetHighPriorityFilesAllHigh(t *testing.T) {
 			args, _ := json.Marshal(result)
 			json.NewEncoder(w).Encode(RPCResponse{Result: "success", Arguments: args})
 		case "torrent-set":
-			var setArgs TorrentSetArgs
-			json.Unmarshal(req.Arguments, &setArgs)
-
-			if len(setArgs.PriorityHigh) != 1 {
-				t.Errorf("expected 1 high-priority file, got %d", len(setArgs.PriorityHigh))
-			}
-			if len(setArgs.PriorityLow) != 0 {
-				t.Errorf("expected 0 low-priority files, got %d", len(setArgs.PriorityLow))
-			}
-
+			assertPriorityIndices(t, req.Arguments, 1, 0)
 			json.NewEncoder(w).Encode(RPCResponse{Result: "success"})
 		}
 	}
@@ -223,6 +222,245 @@ func TestSetHighPriorityFilesAllHigh(t *testing.T) {
 	err := c.SetHighPriorityFiles(context.Background(), 1, 5)
 	if err != nil {
 		t.Fatalf("SetHighPriorityFiles: %v", err)
+	}
+}
+
+func TestGetTorrents(t *testing.T) {
+	result := TorrentGetResult{Torrents: []Torrent{{ID: 1, Name: "a"}, {ID: 2, Name: "b"}}}
+	_, c := newTestServer(t, rpcHandler(t, "torrent-get", result))
+
+	torrents, err := c.GetTorrents(context.Background())
+	if err != nil {
+		t.Fatalf("GetTorrents: %v", err)
+	}
+	if len(torrents) != 2 {
+		t.Fatalf("expected 2 torrents, got %d", len(torrents))
+	}
+}
+
+func TestAddMagnet(t *testing.T) {
+	result := TorrentAddResult{TorrentAdded: &TorrentAdded{ID: 5, Name: "magnet-torrent"}}
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set(sessionIDHeader, "test-session")
+		var req RPCRequest
+		json.NewDecoder(r.Body).Decode(&req) //nolint:errcheck
+		if req.Method != "torrent-add" {
+			t.Fatalf("method = %q, want torrent-add", req.Method)
+		}
+		var args TorrentAddArgs
+		json.Unmarshal(req.Arguments, &args) //nolint:errcheck
+		if args.Filename != "magnet:?xt=urn:btih:abc" {
+			t.Errorf("Filename = %q", args.Filename)
+		}
+		out, _ := json.Marshal(result)
+		json.NewEncoder(w).Encode(RPCResponse{Result: "success", Arguments: out}) //nolint:errcheck
+	}
+
+	_, c := newTestServer(t, handler)
+	added, err := c.AddMagnet(context.Background(), "magnet:?xt=urn:btih:abc")
+	if err != nil {
+		t.Fatalf("AddMagnet: %v", err)
+	}
+	if added.ID != 5 || added.Name != "magnet-torrent" {
+		t.Errorf("added = %+v", added)
+	}
+}
+
+func TestAddTorrentFilePaused(t *testing.T) {
+	result := TorrentAddResult{TorrentAdded: &TorrentAdded{ID: 9}}
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set(sessionIDHeader, "test-session")
+		var req RPCRequest
+		json.NewDecoder(r.Body).Decode(&req) //nolint:errcheck
+		var args TorrentAddArgs
+		json.Unmarshal(req.Arguments, &args) //nolint:errcheck
+		if !args.Paused {
+			t.Error("expected Paused to be true")
+		}
+		if args.Metainfo != "base64data" {
+			t.Errorf("Metainfo = %q", args.Metainfo)
+		}
+		out, _ := json.Marshal(result)
+		json.NewEncoder(w).Encode(RPCResponse{Result: "success", Arguments: out}) //nolint:errcheck
+	}
+
+	_, c := newTestServer(t, handler)
+	if _, err := c.AddTorrentFilePaused(context.Background(), "base64data"); err != nil {
+		t.Fatalf("AddTorrentFilePaused: %v", err)
+	}
+}
+
+func TestAddTorrentDuplicate(t *testing.T) {
+	result := TorrentAddResult{TorrentDuplicate: &TorrentAdded{ID: 3, Name: "dup"}}
+	_, c := newTestServer(t, rpcHandler(t, "torrent-add", result))
+
+	_, err := c.AddTorrentFile(context.Background(), "meta")
+	if err == nil {
+		t.Fatal("expected duplicate error")
+	}
+	if !strings.Contains(err.Error(), "duplicate") {
+		t.Errorf("error = %v, want duplicate", err)
+	}
+}
+
+func TestAddTorrentEmptyResult(t *testing.T) {
+	_, c := newTestServer(t, rpcHandler(t, "torrent-add", TorrentAddResult{}))
+
+	if _, err := c.AddTorrentFile(context.Background(), "meta"); err == nil {
+		t.Fatal("expected error for empty torrent-add result")
+	}
+}
+
+func TestSetFilesWanted(t *testing.T) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set(sessionIDHeader, "test-session")
+		var req RPCRequest
+		json.NewDecoder(r.Body).Decode(&req) //nolint:errcheck
+		if req.Method != "torrent-set" {
+			t.Fatalf("method = %q, want torrent-set", req.Method)
+		}
+		var args TorrentSetArgs
+		json.Unmarshal(req.Arguments, &args) //nolint:errcheck
+		if len(args.FilesWanted) != 2 || len(args.FilesUnwanted) != 1 {
+			t.Errorf("wanted/unwanted = %v/%v", args.FilesWanted, args.FilesUnwanted)
+		}
+		json.NewEncoder(w).Encode(RPCResponse{Result: "success"}) //nolint:errcheck
+	}
+
+	_, c := newTestServer(t, handler)
+	if err := c.SetFilesWanted(context.Background(), 1, []int{0, 1}, []int{2}); err != nil {
+		t.Fatalf("SetFilesWanted: %v", err)
+	}
+}
+
+func TestSetLabels(t *testing.T) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set(sessionIDHeader, "test-session")
+		var req RPCRequest
+		json.NewDecoder(r.Body).Decode(&req) //nolint:errcheck
+		var args TorrentSetArgs
+		json.Unmarshal(req.Arguments, &args) //nolint:errcheck
+		if args.Labels == nil || len(*args.Labels) != 1 || (*args.Labels)[0] != "movies" {
+			t.Errorf("labels = %v", args.Labels)
+		}
+		json.NewEncoder(w).Encode(RPCResponse{Result: "success"}) //nolint:errcheck
+	}
+
+	_, c := newTestServer(t, handler)
+	if err := c.SetLabels(context.Background(), []int64{1}, []string{"movies"}); err != nil {
+		t.Fatalf("SetLabels: %v", err)
+	}
+}
+
+func TestSetLabelsClearsWithNil(t *testing.T) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set(sessionIDHeader, "test-session")
+		var req RPCRequest
+		json.NewDecoder(r.Body).Decode(&req) //nolint:errcheck
+		var args TorrentSetArgs
+		json.Unmarshal(req.Arguments, &args) //nolint:errcheck
+		if args.Labels == nil || len(*args.Labels) != 0 {
+			t.Errorf("expected empty non-nil labels, got %v", args.Labels)
+		}
+		json.NewEncoder(w).Encode(RPCResponse{Result: "success"}) //nolint:errcheck
+	}
+
+	_, c := newTestServer(t, handler)
+	if err := c.SetLabels(context.Background(), []int64{1}, nil); err != nil {
+		t.Fatalf("SetLabels: %v", err)
+	}
+}
+
+func TestGetTorrentFiles(t *testing.T) {
+	result := TorrentWithFilesResult{
+		Torrents: []TorrentWithFiles{{ID: 1, Files: []TorrentFile{{Name: "a"}, {Name: "b"}}}},
+	}
+	_, c := newTestServer(t, rpcHandler(t, "torrent-get", result))
+
+	files, err := c.GetTorrentFiles(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("GetTorrentFiles: %v", err)
+	}
+	if len(files) != 2 {
+		t.Fatalf("expected 2 files, got %d", len(files))
+	}
+}
+
+func TestGetTorrentFilesNotFound(t *testing.T) {
+	_, c := newTestServer(t, rpcHandler(t, "torrent-get", TorrentWithFilesResult{}))
+
+	if _, err := c.GetTorrentFiles(context.Background(), 99); err == nil {
+		t.Fatal("expected error for missing torrent")
+	}
+}
+
+func TestSessionGet(t *testing.T) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set(sessionIDHeader, "test-session")
+		var req RPCRequest
+		json.NewDecoder(r.Body).Decode(&req) //nolint:errcheck
+		if req.Method != "session-get" {
+			t.Fatalf("method = %q, want session-get", req.Method)
+		}
+		json.NewEncoder(w).Encode(RPCResponse{Result: "success", Arguments: json.RawMessage(`{"version":"4.0"}`)}) //nolint:errcheck
+	}
+
+	_, c := newTestServer(t, handler)
+	args, err := c.SessionGet(context.Background())
+	if err != nil {
+		t.Fatalf("SessionGet: %v", err)
+	}
+	if !strings.Contains(string(args), "4.0") {
+		t.Errorf("args = %s", args)
+	}
+}
+
+func TestSessionGetFailure(t *testing.T) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set(sessionIDHeader, "test-session")
+		json.NewEncoder(w).Encode(RPCResponse{Result: "failure"}) //nolint:errcheck
+	}
+
+	_, c := newTestServer(t, handler)
+	if _, err := c.SessionGet(context.Background()); err == nil {
+		t.Fatal("expected error on failure result")
+	}
+}
+
+func TestDoRaw(t *testing.T) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set(sessionIDHeader, "test-session")
+		w.Write([]byte(`{"result":"success","arguments":{"echo":true}}`)) //nolint:errcheck
+	}
+
+	_, c := newTestServer(t, handler)
+	out, err := c.DoRaw(context.Background(), []byte(`{"method":"torrent-get"}`))
+	if err != nil {
+		t.Fatalf("DoRaw: %v", err)
+	}
+	if !strings.Contains(string(out), "echo") {
+		t.Errorf("out = %s", out)
+	}
+}
+
+func TestDoRawSessionRefresh(t *testing.T) {
+	var calls atomic.Int32
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set(sessionIDHeader, "fresh")
+		if calls.Add(1) == 1 {
+			w.WriteHeader(http.StatusConflict)
+			return
+		}
+		w.Write([]byte(`{"result":"success"}`)) //nolint:errcheck
+	}
+
+	_, c := newTestServer(t, handler)
+	if _, err := c.DoRaw(context.Background(), []byte(`{"method":"torrent-get"}`)); err != nil {
+		t.Fatalf("DoRaw: %v", err)
+	}
+	// 3 requests: initial POST (409), GET to refresh the session id, then the retry POST.
+	if calls.Load() != 3 {
+		t.Fatalf("expected 3 requests (409, refresh, retry), got %d", calls.Load())
 	}
 }
 

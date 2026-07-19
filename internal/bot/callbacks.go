@@ -10,6 +10,14 @@ import (
 	"gopkg.in/telebot.v4"
 )
 
+// Shared callback response messages (reused across bot callback handlers).
+const (
+	msgInvalidID      = "Invalid ID"
+	msgInvalidData    = "Invalid data"
+	msgSessionExpired = "Session expired"
+	errPrefix         = "Error: "
+)
+
 func (b *Bot) handleCallback(c telebot.Context) error {
 	data := c.Data()
 
@@ -87,14 +95,14 @@ func (b *Bot) callbackDetail(c telebot.Context, data, prefix string, showAll boo
 func (b *Bot) callbackPause(c telebot.Context, data string) error {
 	id, err := parseID(data, "p:")
 	if err != nil {
-		return c.Respond(&telebot.CallbackResponse{Text: "Invalid ID", ShowAlert: true})
+		return c.Respond(&telebot.CallbackResponse{Text: msgInvalidID, ShowAlert: true})
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := b.client.StopTorrents(ctx, []int64{id}); err != nil {
-		return c.Respond(&telebot.CallbackResponse{Text: "Error: " + err.Error(), ShowAlert: true})
+		return c.Respond(&telebot.CallbackResponse{Text: errPrefix + err.Error(), ShowAlert: true})
 	}
 
 	_ = c.Respond(&telebot.CallbackResponse{Text: "⏸ Paused"})
@@ -111,14 +119,14 @@ func (b *Bot) callbackPause(c telebot.Context, data string) error {
 func (b *Bot) callbackResume(c telebot.Context, data string) error {
 	id, err := parseID(data, "r:")
 	if err != nil {
-		return c.Respond(&telebot.CallbackResponse{Text: "Invalid ID", ShowAlert: true})
+		return c.Respond(&telebot.CallbackResponse{Text: msgInvalidID, ShowAlert: true})
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := b.client.StartTorrents(ctx, []int64{id}); err != nil {
-		return c.Respond(&telebot.CallbackResponse{Text: "Error: " + err.Error(), ShowAlert: true})
+		return c.Respond(&telebot.CallbackResponse{Text: errPrefix + err.Error(), ShowAlert: true})
 	}
 
 	_ = c.Respond(&telebot.CallbackResponse{Text: "▶ Resumed"})
@@ -135,7 +143,7 @@ func (b *Bot) callbackResume(c telebot.Context, data string) error {
 func (b *Bot) callbackDeletePrompt(c telebot.Context, data string) error {
 	id, err := parseID(data, "x:")
 	if err != nil {
-		return c.Respond(&telebot.CallbackResponse{Text: "Invalid ID", ShowAlert: true})
+		return c.Respond(&telebot.CallbackResponse{Text: msgInvalidID, ShowAlert: true})
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -161,7 +169,7 @@ func (b *Bot) callbackDelete(c telebot.Context, data string, deleteFiles bool) e
 	}
 	id, err := parseID(data, prefix)
 	if err != nil {
-		return c.Respond(&telebot.CallbackResponse{Text: "Invalid ID", ShowAlert: true})
+		return c.Respond(&telebot.CallbackResponse{Text: msgInvalidID, ShowAlert: true})
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -174,7 +182,7 @@ func (b *Bot) callbackDelete(c telebot.Context, data string, deleteFiles bool) e
 	}
 
 	if err := b.client.RemoveTorrents(ctx, []int64{id}, deleteFiles); err != nil {
-		return c.Respond(&telebot.CallbackResponse{Text: "Error: " + err.Error(), ShowAlert: true})
+		return c.Respond(&telebot.CallbackResponse{Text: errPrefix + err.Error(), ShowAlert: true})
 	}
 
 	_ = c.Respond(&telebot.CallbackResponse{Text: "🗑 Deleted"})
@@ -197,7 +205,7 @@ func (b *Bot) callbackStatusPage(c telebot.Context, data, prefix string, showAll
 
 	torrents, err := b.client.GetTorrents(ctx)
 	if err != nil {
-		return c.Respond(&telebot.CallbackResponse{Text: "Error: " + err.Error(), ShowAlert: true})
+		return c.Respond(&telebot.CallbackResponse{Text: errPrefix + err.Error(), ShowAlert: true})
 	}
 
 	if !showAll {
@@ -222,7 +230,7 @@ func (b *Bot) callbackBackToList(c telebot.Context, data, prefix string, showAll
 
 	torrents, err := b.client.GetTorrents(ctx)
 	if err != nil {
-		return c.Respond(&telebot.CallbackResponse{Text: "Error: " + err.Error(), ShowAlert: true})
+		return c.Respond(&telebot.CallbackResponse{Text: errPrefix + err.Error(), ShowAlert: true})
 	}
 
 	if !showAll {

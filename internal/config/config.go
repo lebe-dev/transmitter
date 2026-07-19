@@ -56,12 +56,8 @@ func (d DayTime) String() string {
 
 // Load reads configuration from environment variables, optionally loading a .env file first.
 func Load() (*Config, error) {
-	if err := godotenv.Load(); err != nil && !errors.Is(err, os.ErrNotExist) {
-		// godotenv returns a plain error for missing file, not os.ErrNotExist
-		// Only fail if the file exists but can't be parsed
-		if !strings.Contains(err.Error(), "no such file") {
-			return nil, fmt.Errorf("load .env: %w", err)
-		}
+	if err := loadDotenv(); err != nil {
+		return nil, err
 	}
 
 	cfg := &Config{
@@ -80,17 +76,7 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("TRANSMISSION_PASS is required")
 	}
 
-	if usersStr := os.Getenv("TELEGRAM_USERS"); usersStr != "" {
-		for _, part := range strings.Split(usersStr, ",") {
-			part = strings.TrimSpace(part)
-			part = strings.TrimPrefix(part, "@")
-			if part == "" {
-				continue
-			}
-			cfg.TelegramUsers = append(cfg.TelegramUsers, part)
-		}
-	}
-
+	cfg.TelegramUsers = parseTelegramUsers(os.Getenv("TELEGRAM_USERS"))
 	cfg.LogLevel = parseLogLevel(os.Getenv("LOG_LEVEL"))
 	cfg.MonitorInterval = parseDuration(os.Getenv("MONITOR_INTERVAL"), 30*time.Second)
 	cfg.FilePriorityEnabled = strings.EqualFold(os.Getenv("FILE_PRIORITY_ENABLED"), "true")
@@ -100,7 +86,6 @@ func Load() (*Config, error) {
 	cfg.MaxRequestBodyBytes = parsePositiveInt64(os.Getenv("MAX_REQUEST_BODY_BYTES"), 10<<20)
 	cfg.FileSelectTimeout = parseDuration(os.Getenv("FILE_SELECT_TIMEOUT"), 5*time.Minute)
 	cfg.DeleteWithData = strings.EqualFold(os.Getenv("DELETE_WITH_DATA"), "true")
-
 	cfg.NightShiftInterval = parseDuration(os.Getenv("NIGHT_SHIFT_INTERVAL"), time.Minute)
 
 	cfg.SentryDSN = strings.TrimSpace(os.Getenv("SENTRY_DSN"))
@@ -109,26 +94,67 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("SENTRY_ENVIRONMENT is required when SENTRY_DSN is set")
 	}
 
-	startRaw := strings.TrimSpace(os.Getenv("NIGHT_SHIFT_START"))
-	endRaw := strings.TrimSpace(os.Getenv("NIGHT_SHIFT_END"))
-	if startRaw != "" && endRaw != "" {
-		start, err := parseDayTime(startRaw)
-		if err != nil {
-			return nil, fmt.Errorf("NIGHT_SHIFT_START: %w", err)
-		}
-		end, err := parseDayTime(endRaw)
-		if err != nil {
-			return nil, fmt.Errorf("NIGHT_SHIFT_END: %w", err)
-		}
-		if start == end {
-			return nil, fmt.Errorf("NIGHT_SHIFT_START and NIGHT_SHIFT_END must differ")
-		}
-		cfg.NightShiftEnabled = true
-		cfg.NightShiftStart = start
-		cfg.NightShiftEnd = end
+	if err := parseNightShift(cfg); err != nil {
+		return nil, err
 	}
 
 	return cfg, nil
+}
+
+// loadDotenv loads a .env file if present, ignoring a missing file but failing on parse errors.
+func loadDotenv() error {
+	err := godotenv.Load()
+	if err == nil || errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	// godotenv returns a plain error for a missing file, not os.ErrNotExist.
+	if strings.Contains(err.Error(), "no such file") {
+		return nil
+	}
+	return fmt.Errorf("load .env: %w", err)
+}
+
+// parseTelegramUsers splits a comma-separated user list, trimming whitespace and a leading '@'.
+func parseTelegramUsers(usersStr string) []string {
+	if usersStr == "" {
+		return nil
+	}
+	var users []string
+	for _, part := range strings.Split(usersStr, ",") {
+		part = strings.TrimSpace(part)
+		part = strings.TrimPrefix(part, "@")
+		if part == "" {
+			continue
+		}
+		users = append(users, part)
+	}
+	return users
+}
+
+// parseNightShift reads the NIGHT_SHIFT_START/END window into cfg, enabling it when both are set.
+func parseNightShift(cfg *Config) error {
+	startRaw := strings.TrimSpace(os.Getenv("NIGHT_SHIFT_START"))
+	endRaw := strings.TrimSpace(os.Getenv("NIGHT_SHIFT_END"))
+	if startRaw == "" || endRaw == "" {
+		return nil
+	}
+
+	start, err := parseDayTime(startRaw)
+	if err != nil {
+		return fmt.Errorf("NIGHT_SHIFT_START: %w", err)
+	}
+	end, err := parseDayTime(endRaw)
+	if err != nil {
+		return fmt.Errorf("NIGHT_SHIFT_END: %w", err)
+	}
+	if start == end {
+		return fmt.Errorf("NIGHT_SHIFT_START and NIGHT_SHIFT_END must differ")
+	}
+
+	cfg.NightShiftEnabled = true
+	cfg.NightShiftStart = start
+	cfg.NightShiftEnd = end
+	return nil
 }
 
 func parseDayTime(s string) (DayTime, error) {
