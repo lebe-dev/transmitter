@@ -10,7 +10,9 @@
 		"add": "Añadir",
 		"toggleTheme": "Cambiar tema",
 		"settings": "Ajustes",
-		"freeSpace": "Espacio libre en disco"
+		"freeSpace": "Espacio libre en disco",
+		"nightShiftActive": "Turno nocturno activo",
+		"dayShiftActive": "Turno diurno activo"
 	},
 	"search": {
 		"placeholder": "Buscar torrents…"

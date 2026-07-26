@@ -15,6 +15,25 @@ export type ShiftState = {
 	end?: string;
 };
 
+/** Зеркалит internal/shift.InWindow: HH:MM границы, окно может переходить через полночь. */
+function inWindow(nowMinutes: number, start: string, end: string): boolean {
+	const [startH, startM] = start.split(':').map(Number);
+	const [endH, endM] = end.split(':').map(Number);
+	const a = startH * 60 + startM;
+	const b = endH * 60 + endM;
+	if (a === b) return false;
+	if (a < b) return nowMinutes >= a && nowMinutes < b;
+	return nowMinutes >= a || nowMinutes < b;
+}
+
+/** Смена активна прямо сейчас: настроена, включена и текущее время попадает в её окно. */
+function isShiftActive(shift: ShiftState, nowMinutes: number): boolean {
+	if (!shift.configured || !shift.enabled || !shift.start || !shift.end) return false;
+	return inWindow(nowMinutes, shift.start, shift.end);
+}
+
+const ACTIVE_SHIFT_CHECK_INTERVAL = 30_000;
+
 /**
  * Настройки приложения: локальные (localStorage) и серверные (/api/settings,
  * /api/config). Живут в сторе, потому что нужны и списку торрентов, и странице
@@ -32,6 +51,15 @@ class SettingsStore {
 	day = $state<ShiftState>({ configured: false, enabled: false });
 	night = $state<ShiftState>({ configured: false, enabled: false });
 
+	/** Минуты с начала суток по местному времени; тикает, чтобы обновлять индикатор активной смены. */
+	#nowMinutes = $state(new Date().getHours() * 60 + new Date().getMinutes());
+
+	get activeShift(): ShiftName | null {
+		if (isShiftActive(this.night, this.#nowMinutes)) return 'night';
+		if (isShiftActive(this.day, this.#nowMinutes)) return 'day';
+		return null;
+	}
+
 	serverConfig = $state<ServerConfig | null>(null);
 	serverConfigLoading = $state(false);
 	serverConfigError = $state(false);
@@ -48,6 +76,10 @@ class SettingsStore {
 	constructor() {
 		this.compactView = localStorage.getItem(COMPACT_STORAGE_KEY) === '1';
 		this.showFreeSpace = localStorage.getItem(FREE_SPACE_STORAGE_KEY) !== '0';
+		setInterval(() => {
+			const now = new Date();
+			this.#nowMinutes = now.getHours() * 60 + now.getMinutes();
+		}, ACTIVE_SHIFT_CHECK_INTERVAL);
 	}
 
 	setCompactView(enabled: boolean) {

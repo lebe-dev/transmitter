@@ -10,7 +10,9 @@
 		"add": "Добавить",
 		"toggleTheme": "Сменить тему",
 		"settings": "Настройки",
-		"freeSpace": "Свободно на диске"
+		"freeSpace": "Свободно на диске",
+		"nightShiftActive": "Ночная смена активна",
+		"dayShiftActive": "Дневная смена активна"
 	},
 	"search": {
 		"placeholder": "Поиск торрентов…"

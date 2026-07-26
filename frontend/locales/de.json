@@ -10,7 +10,9 @@
 		"add": "Hinzufügen",
 		"toggleTheme": "Design wechseln",
 		"settings": "Einstellungen",
-		"freeSpace": "Freier Speicherplatz"
+		"freeSpace": "Freier Speicherplatz",
+		"nightShiftActive": "Nachtschicht aktiv",
+		"dayShiftActive": "Tagschicht aktiv"
 	},
 	"search": {
 		"placeholder": "Torrents suchen…"

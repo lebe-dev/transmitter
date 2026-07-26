@@ -8,6 +8,7 @@
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import SettingsIcon from '@lucide/svelte/icons/settings';
 	import HardDriveIcon from '@lucide/svelte/icons/hard-drive';
+	import SunriseIcon from '@lucide/svelte/icons/sunrise';
 
 	import { Button } from '$lib/components/ui/button/index.js';
 	import Hint from '$lib/components/Hint.svelte';
@@ -52,6 +53,21 @@
 				>
 					<HardDriveIcon class="size-3.5 flex-shrink-0" />
 					<span class="truncate">{formatSize(downloadDirStore.defaultFreeSpace, $tt)}</span>
+				</Hint>
+			{/if}
+
+			{#if settingsStore.activeShift}
+				<Hint
+					text={$tt(
+						settingsStore.activeShift === 'night' ? 'header.nightShiftActive' : 'header.dayShiftActive'
+					)}
+					class="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary flex-shrink-0"
+				>
+					{#if settingsStore.activeShift === 'night'}
+						<MoonIcon class="size-3.5" />
+					{:else}
+						<SunriseIcon class="size-3.5" />
+					{/if}
 				</Hint>
 			{/if}
 		</div>

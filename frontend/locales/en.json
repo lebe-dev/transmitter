@@ -10,7 +10,9 @@
 		"add": "Add",
 		"toggleTheme": "Toggle theme",
 		"settings": "Settings",
-		"freeSpace": "Free space on disk"
+		"freeSpace": "Free space on disk",
+		"nightShiftActive": "Night shift active",
+		"dayShiftActive": "Day shift active"
 	},
 	"search": {
 		"placeholder": "Search torrents…"
