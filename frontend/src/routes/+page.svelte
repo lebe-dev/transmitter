@@ -618,7 +618,7 @@
 
 			<div class="ml-auto flex items-center gap-1 flex-shrink-0">
 				<BulkActionsMenu />
-				<span class="w-px h-4 bg-border/70"></span>
+				<span class="w-px h-4 bg-border/70 mx-1.5"></span>
 				<span class="text-xs text-muted-foreground">{$tt('sort.label')}</span>
 				<button
 					class="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors px-1.5 py-1 rounded"
