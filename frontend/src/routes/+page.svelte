@@ -21,13 +21,14 @@
 	import SettingsIcon from '@lucide/svelte/icons/settings';
 	import PinIcon from '@lucide/svelte/icons/pin';
 	import MoonStarIcon from '@lucide/svelte/icons/moon-star';
+	import NotebookPenIcon from '@lucide/svelte/icons/notebook-pen';
 	import HardDriveIcon from '@lucide/svelte/icons/hard-drive';
 
 	import XIcon from '@lucide/svelte/icons/x';
 	import FolderIcon from '@lucide/svelte/icons/folder';
 
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
-	import { torrentStore, pinStore, downloadDirStore } from '$lib/stores.svelte.js';
+	import { torrentStore, pinStore, downloadDirStore, noteStore } from '$lib/stores.svelte.js';
 	import { addTorrentMagnet, addTorrentFile, startTorrents, stopTorrents, removeTorrents, getTorrentFiles, setFilesWanted, setTorrentLabels, getSettings, getServerConfig, getFreeSpace } from '$lib/api.js';
 	import { formatSize, formatSpeed, formatEta, formatDate } from '$lib/format.js';
 	import { parseTorrentSize } from '$lib/bencode.js';
@@ -469,6 +470,9 @@
 		{ envVar: 'MONITOR_INTERVAL',         key: 'monitorInterval' },
 		{ envVar: 'FILE_SELECT_TIMEOUT',      key: 'fileSelectTimeout' },
 		{ envVar: 'MAX_REQUEST_BODY_BYTES',   key: 'maxRequestBodyBytes' },
+		{ envVar: 'DB_PATH',                  key: 'dbPath' },
+		{ envVar: 'TORRENT_NOTE_MAX_LENGTH',  key: 'noteMaxLength' },
+		{ envVar: 'TORRENT_NOTE_CLEANUP_INTERVAL', key: 'noteCleanupInterval' },
 	];
 
 	const NIGHT_SHIFT_CONFIG_ROWS: { envVar: string; key: keyof ServerConfig }[] = [
@@ -601,6 +605,7 @@
 				nightShiftEnabled = s.nightShiftEnabled;
 				nightShiftStart = s.nightShiftStart;
 				nightShiftEnd = s.nightShiftEnd;
+				void noteStore.init(s.noteMaxLength);
 			})
 			.catch(() => {});
 		window.addEventListener('scroll', onScroll, { passive: true });
@@ -789,6 +794,7 @@
 				{#each sortedRows as row, i (row.id)}
 					{@const t = row.original}
 					{@const pinned = pinStore.isPinned(t.hashString)}
+				{@const note = noteStore.get(t.hashString)}
 					{#if compactView}
 						<!-- Compact card: same structure, reduced padding, no date -->
 						<div
@@ -834,7 +840,15 @@
 								</div>
 							</div>
 
-							<!-- Row 2: Status + Progress + Size -->
+							<!-- Note -->
+						{#if note}
+							<div class="flex items-start gap-1.5 mb-1.5 text-xs text-muted-foreground">
+								<NotebookPenIcon class="size-3 mt-0.5 flex-shrink-0" />
+								<span class="line-clamp-1 italic" title={note}>{note}</span>
+							</div>
+						{/if}
+
+						<!-- Row 2: Status + Progress + Size -->
 							<div class="flex items-center gap-2.5 mb-1.5">
 								<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium flex-shrink-0 {statusPillClass(t.status)}">
 									{$tt(STATUS_KEYS[t.status] ?? 'status.stopped')}
@@ -952,7 +966,15 @@
 								</div>
 							</div>
 
-							<!-- Row 2: Status + Progress + Size -->
+							<!-- Note -->
+						{#if note}
+							<div class="flex items-start gap-1.5 mb-1.5 text-xs text-muted-foreground">
+								<NotebookPenIcon class="size-3 mt-0.5 flex-shrink-0" />
+								<span class="line-clamp-1 italic" title={note}>{note}</span>
+							</div>
+						{/if}
+
+						<!-- Row 2: Status + Progress + Size -->
 							<div class="flex items-center gap-2.5 mb-2">
 								<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium flex-shrink-0 {statusPillClass(t.status)}">
 									{$tt(STATUS_KEYS[t.status] ?? 'status.stopped')}

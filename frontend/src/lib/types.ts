@@ -69,6 +69,7 @@ export interface UISettings {
 	nightShiftEnabled: boolean;
 	nightShiftStart?: string;
 	nightShiftEnd?: string;
+	noteMaxLength: number;
 }
 
 export interface ServerConfig {
@@ -88,4 +89,10 @@ export interface ServerConfig {
 	nightShiftEnabled: boolean;
 	nightShiftStart?: string;
 	nightShiftEnd?: string;
+	dbPath: string;
+	noteMaxLength: number;
+	noteCleanupInterval: string;
 }
+
+/** Torrent notes keyed by torrent hash. */
+export type TorrentNotes = Record<string, string>;

@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestParseDayTime(t *testing.T) {
 	cases := []struct {
@@ -121,6 +124,61 @@ func TestLoadSentry(t *testing.T) {
 		t.Setenv("SENTRY_ENVIRONMENT", "")
 		if _, err := Load(); err == nil {
 			t.Fatal("expected error")
+		}
+	})
+}
+
+func TestLoadNoteSettings(t *testing.T) {
+	t.Setenv("TRANSMISSION_USER", "u")
+	t.Setenv("TRANSMISSION_PASS", "p")
+
+	t.Run("defaults", func(t *testing.T) {
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if cfg.DBPath != "data/transmitter.db" {
+			t.Errorf("DBPath = %q, want %q", cfg.DBPath, "data/transmitter.db")
+		}
+		if cfg.NoteMaxLength != defaultNoteMaxLength {
+			t.Errorf("NoteMaxLength = %d, want %d", cfg.NoteMaxLength, defaultNoteMaxLength)
+		}
+		if cfg.NoteCleanupInterval != defaultNoteCleanupInterval {
+			t.Errorf("NoteCleanupInterval = %v, want %v", cfg.NoteCleanupInterval, defaultNoteCleanupInterval)
+		}
+	})
+
+	t.Run("overrides", func(t *testing.T) {
+		t.Setenv("DB_PATH", "/var/lib/transmitter/app.db")
+		t.Setenv("TORRENT_NOTE_MAX_LENGTH", "50")
+		t.Setenv("TORRENT_NOTE_CLEANUP_INTERVAL", "15m")
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if cfg.DBPath != "/var/lib/transmitter/app.db" {
+			t.Errorf("DBPath = %q", cfg.DBPath)
+		}
+		if cfg.NoteMaxLength != 50 {
+			t.Errorf("NoteMaxLength = %d, want 50", cfg.NoteMaxLength)
+		}
+		if cfg.NoteCleanupInterval != 15*time.Minute {
+			t.Errorf("NoteCleanupInterval = %v, want 15m", cfg.NoteCleanupInterval)
+		}
+	})
+
+	t.Run("invalid values fall back to defaults", func(t *testing.T) {
+		t.Setenv("TORRENT_NOTE_MAX_LENGTH", "-5")
+		t.Setenv("TORRENT_NOTE_CLEANUP_INTERVAL", "soon")
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if cfg.NoteMaxLength != defaultNoteMaxLength {
+			t.Errorf("NoteMaxLength = %d, want default", cfg.NoteMaxLength)
+		}
+		if cfg.NoteCleanupInterval != defaultNoteCleanupInterval {
+			t.Errorf("NoteCleanupInterval = %v, want default", cfg.NoteCleanupInterval)
 		}
 	})
 }

@@ -1,5 +1,5 @@
-import { getTorrents, getSession } from './api.js';
-import type { Torrent, FilterStatus } from './types.js';
+import { getTorrents, getSession, getNotes, setNote } from './api.js';
+import type { Torrent, FilterStatus, TorrentNotes } from './types.js';
 
 const POLL_ACTIVE = 5_000;
 const POLL_HIDDEN = 30_000;
@@ -201,6 +201,45 @@ class PinStore {
 }
 
 export const pinStore = new PinStore();
+
+// ── Torrent notes (backend SQLite, keyed by torrent hash) ────────────────
+
+class NoteStore {
+	/** Character limit reported by the server via /api/settings. */
+	maxLength = $state(0);
+
+	#notes = $state<TorrentNotes>({});
+
+	get(hashString: string): string {
+		return this.#notes[hashString] ?? '';
+	}
+
+	async init(maxLength: number) {
+		this.maxLength = maxLength;
+		await this.reload();
+	}
+
+	async reload() {
+		try {
+			this.#notes = await getNotes();
+		} catch {
+			// Notes are supplementary: keep the torrent list usable without them.
+		}
+	}
+
+	/** Persists a note. An empty text removes it. Throws if the server rejects it. */
+	async save(hashString: string, text: string) {
+		const trimmed = text.trim();
+		await setNote(hashString, trimmed);
+
+		const next = { ...this.#notes };
+		if (trimmed) next[hashString] = trimmed;
+		else delete next[hashString];
+		this.#notes = next;
+	}
+}
+
+export const noteStore = new NoteStore();
 
 // ── Download directory store (localStorage + session-get) ────────────────
 

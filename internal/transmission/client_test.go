@@ -490,3 +490,53 @@ func TestSessionIDRefresh(t *testing.T) {
 		t.Fatalf("expected 1 torrent, got %d", len(torrents))
 	}
 }
+
+func TestGetTorrentHashes(t *testing.T) {
+	var gotArgs json.RawMessage
+	_, c := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set(sessionIDHeader, "test-session")
+
+		var req RPCRequest
+		json.NewDecoder(r.Body).Decode(&req) //nolint:errcheck
+		gotArgs = req.Arguments
+
+		args, _ := json.Marshal(TorrentGetResult{Torrents: []Torrent{
+			{HashString: "aaa"}, {HashString: ""}, {HashString: "bbb"},
+		}})
+		json.NewEncoder(w).Encode(RPCResponse{Result: "success", Arguments: args}) //nolint:errcheck
+	})
+
+	hashes, err := c.GetTorrentHashes(context.Background(), json.RawMessage(`[7,9]`))
+	if err != nil {
+		t.Fatalf("GetTorrentHashes: %v", err)
+	}
+
+	if len(hashes) != 2 || hashes[0] != "aaa" || hashes[1] != "bbb" {
+		t.Errorf("hashes = %v, want [aaa bbb] with empty entries skipped", hashes)
+	}
+	if !strings.Contains(string(gotArgs), `"ids":[7,9]`) {
+		t.Errorf("request args = %s, want the ids selector forwarded verbatim", gotArgs)
+	}
+}
+
+func TestGetTorrentHashesWithoutIDsSelectsAll(t *testing.T) {
+	var gotArgs json.RawMessage
+	_, c := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set(sessionIDHeader, "test-session")
+
+		var req RPCRequest
+		json.NewDecoder(r.Body).Decode(&req) //nolint:errcheck
+		gotArgs = req.Arguments
+
+		args, _ := json.Marshal(TorrentGetResult{})
+		json.NewEncoder(w).Encode(RPCResponse{Result: "success", Arguments: args}) //nolint:errcheck
+	})
+
+	if _, err := c.GetTorrentHashes(context.Background(), nil); err != nil {
+		t.Fatalf("GetTorrentHashes: %v", err)
+	}
+
+	if strings.Contains(string(gotArgs), `"ids"`) {
+		t.Errorf("request args = %s, want no ids key so Transmission returns all torrents", gotArgs)
+	}
+}

@@ -15,6 +15,7 @@ const (
 	torrentsPerPage = 8
 	barWidth        = 8
 	maxTorrentName  = 40
+	maxNoteLength   = 60
 )
 
 // truncate shortens a string to maxLen runes, appending ellipsis if needed.
@@ -181,7 +182,8 @@ func nonEmptyGroups(g groupedTorrents) []statusGroupInfo {
 }
 
 // formatStatusPage formats the torrent list for a given page (0-indexed).
-func formatStatusPage(torrents []transmission.Torrent, page int) string {
+// notes maps a torrent hash to its user note and may be nil.
+func formatStatusPage(torrents []transmission.Torrent, page int, notes map[string]string) string {
 	if len(torrents) == 0 {
 		return "No active torrents."
 	}
@@ -218,7 +220,7 @@ func formatStatusPage(torrents []transmission.Torrent, page int) string {
 
 		sb.WriteString(fmt.Sprintf("\n%s <b>%s (%d)</b>\n", gi.emoji, gi.label, len(gi.items)))
 		for _, t := range pageGroupItems {
-			sb.WriteString(formatTorrentLine(t, num))
+			sb.WriteString(formatTorrentLine(t, num, notes[t.HashString]))
 			num++
 		}
 	}
@@ -230,12 +232,17 @@ func formatStatusPage(torrents []transmission.Torrent, page int) string {
 	return sb.String()
 }
 
-func formatTorrentLine(t transmission.Torrent, num int) string {
+// formatTorrentLine renders one torrent entry; note is the user note and may be empty.
+func formatTorrentLine(t transmission.Torrent, num int, note string) string {
 	name := html.EscapeString(truncate(t.Name, maxTorrentName))
 	group := statusGroup(t)
 
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("%d. <b>%s</b>\n", num, name))
+	if note != "" {
+		flat := strings.ReplaceAll(note, "\n", " ")
+		sb.WriteString(fmt.Sprintf("   📝 <i>%s</i>\n", html.EscapeString(truncate(flat, maxNoteLength))))
+	}
 
 	switch group {
 	case "downloading":

@@ -19,7 +19,7 @@ type Server struct {
 }
 
 // New creates and configures the HTTP server with all routes.
-func New(cfg *config.Config, client *transmission.Client, staticFS fs.FS, logger *slog.Logger) (*Server, error) {
+func New(cfg *config.Config, client *transmission.Client, noteStore NoteStore, staticFS fs.FS, logger *slog.Logger) (*Server, error) {
 	staticHandler, err := StaticHandler(staticFS)
 	if err != nil {
 		return nil, err
@@ -33,6 +33,7 @@ func New(cfg *config.Config, client *transmission.Client, staticFS fs.FS, logger
 	uiSettings := UISettings{
 		DeleteWithData:    cfg.DeleteWithData,
 		NightShiftEnabled: cfg.NightShiftEnabled,
+		NoteMaxLength:     noteStore.MaxLength(),
 	}
 	if cfg.NightShiftEnabled {
 		uiSettings.NightShiftStart = cfg.NightShiftStart.String()
@@ -58,6 +59,9 @@ func New(cfg *config.Config, client *transmission.Client, staticFS fs.FS, logger
 		MonitorInterval:       cfg.MonitorInterval.String(),
 		FileSelectTimeout:     cfg.FileSelectTimeout.String(),
 		NightShiftEnabled:     cfg.NightShiftEnabled,
+		DBPath:                cfg.DBPath,
+		NoteMaxLength:         cfg.NoteMaxLength,
+		NoteCleanupInterval:   cfg.NoteCleanupInterval.String(),
 	}
 	if cfg.NightShiftEnabled {
 		serverConfig.NightShiftStart = cfg.NightShiftStart.String()
@@ -65,10 +69,13 @@ func New(cfg *config.Config, client *transmission.Client, staticFS fs.FS, logger
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("POST /api/rpc", ProxyHandler(client, priorityCfg, cfg.MaxRequestBodyBytes))
+	mux.Handle("POST /api/rpc", ProxyHandler(client, priorityCfg, cfg.MaxRequestBodyBytes, noteStore))
 	mux.Handle("GET /api/health", HealthHandler(client))
 	mux.Handle("GET /api/settings", SettingsHandler(uiSettings))
 	mux.Handle("GET /api/config", ConfigHandler(serverConfig))
+	mux.Handle("GET /api/notes", NotesHandler(noteStore))
+	mux.Handle("PUT /api/notes/{hash}", NoteUpdateHandler(noteStore))
+	mux.Handle("DELETE /api/notes/{hash}", NoteDeleteHandler(noteStore))
 	mux.Handle("/", staticHandler)
 
 	handler := CORSMiddleware(cfg.CORSOrigin, mux)

@@ -81,7 +81,7 @@ func (b *Bot) handleStatus(c telebot.Context) error {
 		return c.Send("No active torrents.")
 	}
 
-	text := formatStatusPage(torrents, 0)
+	text := formatStatusPage(torrents, 0, b.notes(ctx))
 	kb := statusPageKeyboard(torrents, 0, false)
 
 	return c.Send(text, telebot.ModeHTML, kb)
@@ -101,7 +101,7 @@ func (b *Bot) handleStatusAll(c telebot.Context) error {
 		return c.Send("No torrents.")
 	}
 
-	text := formatStatusPage(torrents, 0)
+	text := formatStatusPage(torrents, 0, b.notes(ctx))
 	kb := statusPageKeyboard(torrents, 0, true)
 
 	return c.Send(text, telebot.ModeHTML, kb)

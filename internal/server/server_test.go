@@ -35,7 +35,7 @@ func TestProxyHandlerAllowedMethod(t *testing.T) {
 		return transmission.RPCResponse{Result: "success"}
 	})
 
-	h := ProxyHandler(client, AutoPriorityConfig{}, 1024)
+	h := ProxyHandler(client, AutoPriorityConfig{}, 1024, nil)
 	req := httptest.NewRequest(http.MethodPost, "/api/rpc", strings.NewReader(`{"method":"torrent-get"}`))
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
@@ -57,7 +57,7 @@ func TestProxyHandlerBlockedMethod(t *testing.T) {
 		return transmission.RPCResponse{}
 	})
 
-	h := ProxyHandler(client, AutoPriorityConfig{}, 1024)
+	h := ProxyHandler(client, AutoPriorityConfig{}, 1024, nil)
 	req := httptest.NewRequest(http.MethodPost, "/api/rpc", strings.NewReader(`{"method":"session-set"}`))
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
@@ -73,7 +73,7 @@ func TestProxyHandlerInvalidJSON(t *testing.T) {
 		return transmission.RPCResponse{}
 	})
 
-	h := ProxyHandler(client, AutoPriorityConfig{}, 1024)
+	h := ProxyHandler(client, AutoPriorityConfig{}, 1024, nil)
 	req := httptest.NewRequest(http.MethodPost, "/api/rpc", strings.NewReader(`{not json`))
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
@@ -88,7 +88,7 @@ func TestProxyHandlerBodyTooLarge(t *testing.T) {
 		return transmission.RPCResponse{Result: "success"}
 	})
 
-	h := ProxyHandler(client, AutoPriorityConfig{}, 8)
+	h := ProxyHandler(client, AutoPriorityConfig{}, 8, nil)
 	req := httptest.NewRequest(http.MethodPost, "/api/rpc", strings.NewReader(`{"method":"torrent-get","extra":"padding"}`))
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)

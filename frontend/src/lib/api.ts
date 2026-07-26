@@ -1,4 +1,11 @@
-import type { Torrent, TorrentDetail, TorrentFile, UISettings, ServerConfig } from './types.js';
+import type {
+	Torrent,
+	TorrentDetail,
+	TorrentFile,
+	TorrentNotes,
+	UISettings,
+	ServerConfig,
+} from './types.js';
 
 const TORRENT_FIELDS = [
 	'id',
@@ -121,6 +128,27 @@ export async function getServerConfig(): Promise<ServerConfig> {
 	const res = await fetch('/api/config');
 	if (!res.ok) throw new Error(`HTTP ${res.status}`);
 	return res.json();
+}
+
+export async function getNotes(): Promise<TorrentNotes> {
+	const res = await fetch('/api/notes');
+	if (!res.ok) throw new Error(`HTTP ${res.status}`);
+	return res.json();
+}
+
+/** Stores the note of a torrent; an empty text removes it. */
+export async function setNote(hashString: string, text: string): Promise<void> {
+	const res = await fetch(`/api/notes/${hashString}`, {
+		method: 'PUT',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ text }),
+	});
+	if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
+export async function deleteNote(hashString: string): Promise<void> {
+	const res = await fetch(`/api/notes/${hashString}`, { method: 'DELETE' });
+	if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 
 export async function setTorrentLabels(torrentId: number, labels: string[]): Promise<void> {

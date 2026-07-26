@@ -130,7 +130,10 @@
 			"maxRequestBodyBytes": "Tamaño máximo permitido del cuerpo de una solicitud HTTP entrante.",
 			"nightShiftEnabled": "Si el planificador del turno nocturno está activo (configura NIGHT_SHIFT_START y NIGHT_SHIFT_END para activarlo).",
 			"nightShiftStart": "Inicio de la ventana del turno nocturno (HH:MM, 24h). Los torrents marcados se descargan sólo en esta ventana.",
-			"nightShiftEnd": "Fin de la ventana del turno nocturno (HH:MM, 24h). La ventana puede cruzar la medianoche si el fin ≤ inicio."
+			"nightShiftEnd": "Fin de la ventana del turno nocturno (HH:MM, 24h). La ventana puede cruzar la medianoche si el fin ≤ inicio.",
+			"dbPath": "Ruta al archivo de base de datos SQLite donde se guardan las notas de los torrents.",
+			"noteMaxLength": "Longitud máxima de una nota de torrent, en caracteres.",
+			"noteCleanupInterval": "Con qué frecuencia se eliminan las notas de torrents que ya no existen."
 		}
 	},
 	"themes": {
@@ -162,6 +165,14 @@
 		"downloadSpeed": "Velocidad de descarga",
 		"uploadSpeed": "Velocidad de subida",
 		"uploadedTotal": "Subido total"
+	},
+	"note": {
+		"label": "Nota",
+		"placeholder": "Añade una nota para este torrent…",
+		"save": "Guardar",
+		"cancel": "Cancelar",
+		"saved": "Nota guardada",
+		"failSave": "No se pudo guardar la nota"
 	},
 	"detail": {
 		"files": "Archivos",

@@ -114,7 +114,7 @@ func TestGroupTorrents(t *testing.T) {
 }
 
 func TestFormatStatusPageEmpty(t *testing.T) {
-	got := formatStatusPage(nil, 0)
+	got := formatStatusPage(nil, 0, nil)
 	if got != "No active torrents." {
 		t.Errorf("unexpected output for empty: %q", got)
 	}
@@ -127,7 +127,7 @@ func TestFormatStatusPageContent(t *testing.T) {
 		{ID: 3, Name: "Old.Movie", Status: 0, PercentDone: 1.0},
 	}
 
-	got := formatStatusPage(torrents, 0)
+	got := formatStatusPage(torrents, 0, nil)
 
 	// Check header
 	if !strings.Contains(got, "<b>Torrents: 3</b>") {
@@ -167,12 +167,12 @@ func TestFormatStatusPagePagination(t *testing.T) {
 		})
 	}
 
-	page0 := formatStatusPage(torrents, 0)
+	page0 := formatStatusPage(torrents, 0, nil)
 	if !strings.Contains(page0, "Page 1/") {
 		t.Error("missing page indicator on page 0")
 	}
 
-	page2 := formatStatusPage(torrents, 2)
+	page2 := formatStatusPage(torrents, 2, nil)
 	if !strings.Contains(page2, "Page 3/") {
 		t.Error("missing page indicator on page 2")
 	}
@@ -257,5 +257,44 @@ func TestHTMLEscapeInName(t *testing.T) {
 	}
 	if !strings.Contains(got, "&lt;script&gt;") {
 		t.Error("expected escaped HTML in torrent name")
+	}
+}
+
+func TestFormatStatusPageShowsNote(t *testing.T) {
+	torrents := []transmission.Torrent{
+		{ID: 1, Name: "Ubuntu.22.04", Status: 4, PercentDone: 0.3, HashString: "abc"},
+		{ID: 2, Name: "Arch.Linux", Status: 4, PercentDone: 0.5, HashString: "def"},
+	}
+
+	got := formatStatusPage(torrents, 0, map[string]string{"abc": "смотреть\nпозже"})
+
+	if !strings.Contains(got, "📝 <i>смотреть позже</i>") {
+		t.Errorf("note missing or newline not flattened: %q", got)
+	}
+	if strings.Count(got, "📝") != 1 {
+		t.Errorf("note rendered for a torrent without one: %q", got)
+	}
+}
+
+func TestFormatTorrentLineEscapesNote(t *testing.T) {
+	torrent := transmission.Torrent{ID: 1, Name: "Movie", Status: 0}
+
+	got := formatTorrentLine(torrent, 1, "<script>alert('xss')</script>")
+
+	if strings.Contains(got, "<script>") {
+		t.Error("HTML not escaped in note")
+	}
+	if !strings.Contains(got, "&lt;script&gt;") {
+		t.Errorf("expected escaped HTML in note: %q", got)
+	}
+}
+
+func TestFormatTorrentLineTruncatesLongNote(t *testing.T) {
+	torrent := transmission.Torrent{ID: 1, Name: "Movie", Status: 0}
+
+	got := formatTorrentLine(torrent, 1, strings.Repeat("я", maxNoteLength+20))
+
+	if strings.Count(got, "я") != maxNoteLength-1 || !strings.Contains(got, "…") {
+		t.Errorf("long note was not truncated to %d runes: %q", maxNoteLength, got)
 	}
 }

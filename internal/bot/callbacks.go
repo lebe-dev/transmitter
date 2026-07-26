@@ -212,7 +212,7 @@ func (b *Bot) callbackStatusPage(c telebot.Context, data, prefix string, showAll
 		torrents = filterActive(torrents)
 	}
 
-	text := formatStatusPage(torrents, int(page))
+	text := formatStatusPage(torrents, int(page), b.notes(ctx))
 	kb := statusPageKeyboard(torrents, int(page), showAll)
 
 	_ = c.Respond()
@@ -237,7 +237,7 @@ func (b *Bot) callbackBackToList(c telebot.Context, data, prefix string, showAll
 		torrents = filterActive(torrents)
 	}
 
-	text := formatStatusPage(torrents, int(page))
+	text := formatStatusPage(torrents, int(page), b.notes(ctx))
 	kb := statusPageKeyboard(torrents, int(page), showAll)
 
 	_ = c.Respond()

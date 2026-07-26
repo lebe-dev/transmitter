@@ -11,6 +11,7 @@ import (
 	"github.com/lebe-dev/transmitter/internal/bot"
 	"github.com/lebe-dev/transmitter/internal/config"
 	"github.com/lebe-dev/transmitter/internal/nightshift"
+	"github.com/lebe-dev/transmitter/internal/notes"
 	"github.com/lebe-dev/transmitter/internal/sentrylog"
 	"github.com/lebe-dev/transmitter/internal/server"
 	"github.com/lebe-dev/transmitter/internal/transmission"
@@ -40,11 +41,21 @@ func main() {
 
 	client := transmission.NewClient(cfg.TransmissionURL, cfg.TransmissionUser, cfg.TransmissionPass)
 
+	noteStore, err := notes.Open(cfg.DBPath, cfg.NoteMaxLength)
+	if err != nil {
+		logger.Error("notes database init failed", "path", cfg.DBPath, "err", err)
+		os.Exit(1)
+	}
+	defer noteStore.Close() //nolint:errcheck
+	logger.Info("notes database ready", "path", cfg.DBPath, "max_length", cfg.NoteMaxLength)
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)
 	defer stop()
 
-	tgBot := startBot(ctx, cfg, client, logger)
-	srv := startServer(cfg, client, logger, stop)
+	tgBot := startBot(ctx, cfg, client, noteStore, logger)
+	srv := startServer(cfg, client, noteStore, logger, stop)
+
+	go notes.NewCleaner(noteStore, client, cfg.NoteCleanupInterval, logger).Run(ctx)
 
 	if cfg.NightShiftEnabled {
 		scheduler := nightshift.New(client, cfg, logger)
@@ -87,7 +98,7 @@ func setupLogger(cfg *config.Config) *slog.Logger {
 }
 
 // startBot initializes and starts the Telegram bot when enabled, returning nil when disabled.
-func startBot(ctx context.Context, cfg *config.Config, client *transmission.Client, logger *slog.Logger) *bot.Bot {
+func startBot(ctx context.Context, cfg *config.Config, client *transmission.Client, noteStore bot.NoteSource, logger *slog.Logger) *bot.Bot {
 	if !cfg.TelegramBotEnabled {
 		logger.Info("telegram bot disabled (TELEGRAM_BOT_ENABLED=false)")
 		return nil
@@ -97,7 +108,7 @@ func startBot(ctx context.Context, cfg *config.Config, client *transmission.Clie
 		os.Exit(1)
 	}
 
-	tgBot, err := bot.New(cfg.TelegramToken, cfg.TelegramUsers, client, logger, cfg.FilePriorityEnabled, cfg.FilePriorityHighCount, cfg.FileSelectTimeout)
+	tgBot, err := bot.New(cfg.TelegramToken, cfg.TelegramUsers, client, noteStore, logger, cfg.FilePriorityEnabled, cfg.FilePriorityHighCount, cfg.FileSelectTimeout)
 	if err != nil {
 		logger.Error("bot init failed", "err", err)
 		os.Exit(1)
@@ -108,13 +119,13 @@ func startBot(ctx context.Context, cfg *config.Config, client *transmission.Clie
 }
 
 // startServer initializes and starts the HTTP server when enabled, returning nil when disabled.
-func startServer(cfg *config.Config, client *transmission.Client, logger *slog.Logger, stop context.CancelFunc) *server.Server {
+func startServer(cfg *config.Config, client *transmission.Client, noteStore server.NoteStore, logger *slog.Logger, stop context.CancelFunc) *server.Server {
 	if !cfg.WebUIEnabled {
 		logger.Info("web UI disabled (WEBUI_ENABLED=false)")
 		return nil
 	}
 
-	srv, err := server.New(cfg, client, static.FS, logger)
+	srv, err := server.New(cfg, client, noteStore, static.FS, logger)
 	if err != nil {
 		logger.Error("server init failed", "err", err)
 		os.Exit(1)

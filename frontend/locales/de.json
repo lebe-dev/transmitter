@@ -130,7 +130,10 @@
 			"maxRequestBodyBytes": "Maximale Größe des eingehenden HTTP-Anfragetexts.",
 			"nightShiftEnabled": "Ob der Nachtschicht-Scheduler aktiv ist (NIGHT_SHIFT_START und NIGHT_SHIFT_END setzen, um zu aktivieren).",
 			"nightShiftStart": "Beginn des Nachtschicht-Fensters (HH:MM, 24h). Markierte Torrents werden nur in diesem Fenster heruntergeladen.",
-			"nightShiftEnd": "Ende des Nachtschicht-Fensters (HH:MM, 24h). Das Fenster darf Mitternacht überspannen, wenn Ende ≤ Beginn."
+			"nightShiftEnd": "Ende des Nachtschicht-Fensters (HH:MM, 24h). Das Fenster darf Mitternacht überspannen, wenn Ende ≤ Beginn.",
+			"dbPath": "Pfad zur SQLite-Datenbankdatei, in der die Torrent-Notizen gespeichert werden.",
+			"noteMaxLength": "Maximale Länge einer Torrent-Notiz in Zeichen.",
+			"noteCleanupInterval": "Wie oft Notizen nicht mehr vorhandener Torrents entfernt werden."
 		}
 	},
 	"themes": {
@@ -162,6 +165,14 @@
 		"downloadSpeed": "Download-Geschwindigkeit",
 		"uploadSpeed": "Upload-Geschwindigkeit",
 		"uploadedTotal": "Gesamt hochgeladen"
+	},
+	"note": {
+		"label": "Notiz",
+		"placeholder": "Notiz zu diesem Torrent hinzufügen…",
+		"save": "Speichern",
+		"cancel": "Abbrechen",
+		"saved": "Notiz gespeichert",
+		"failSave": "Notiz konnte nicht gespeichert werden"
 	},
 	"detail": {
 		"files": "Dateien",

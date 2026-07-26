@@ -1,7 +1,10 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { t as tt } from 'svelte-intl-precompile';
 	import { get } from 'svelte/store';
+	import { toast } from 'svelte-sonner';
 	import XIcon from '@lucide/svelte/icons/x';
+	import NotebookPenIcon from '@lucide/svelte/icons/notebook-pen';
 	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
 	import LockIcon from '@lucide/svelte/icons/lock';
 	import AlertCircleIcon from '@lucide/svelte/icons/alert-circle';
@@ -17,7 +20,7 @@
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { getTorrentDetails, setFilesWanted, setFilePriority } from '$lib/api.js';
 	import { formatSize, formatSpeed } from '$lib/format.js';
-	import { expandedDirsStore } from '$lib/stores.svelte.js';
+	import { expandedDirsStore, noteStore } from '$lib/stores.svelte.js';
 	import type { Torrent, TorrentDetail, TorrentFile, FilePriority } from '$lib/types.js';
 
 	let {
@@ -47,6 +50,29 @@
 
 	const isBusy = $derived(pendingKey !== null);
 
+	// ── Note ─────────────────────────────────────────────────────────────
+
+	let noteDraft = $state('');
+	let noteSaving = $state(false);
+
+	const savedNote = $derived(torrent ? noteStore.get(torrent.hashString) : '');
+	// Count code points, not UTF-16 units, so the counter matches the server limit.
+	const noteLength = $derived([...noteDraft].length);
+	const noteDirty = $derived(noteDraft.trim() !== savedNote);
+
+	async function saveNote() {
+		if (!torrent || noteSaving) return;
+		noteSaving = true;
+		try {
+			await noteStore.save(torrent.hashString, noteDraft);
+			toast.success(get(tt)('note.saved'));
+		} catch {
+			toast.error(get(tt)('note.failSave'));
+		} finally {
+			noteSaving = false;
+		}
+	}
+
 	async function fetchDetails() {
 		if (!torrent) return;
 		loading = true;
@@ -63,6 +89,8 @@
 
 	$effect(() => {
 		if (open && torrent) {
+			// untrack: the draft is seeded once per opening, not on every note change.
+			noteDraft = untrack(() => noteStore.get(torrent.hashString));
 			fetchDetails();
 		}
 		if (!open) {
@@ -70,6 +98,7 @@
 			error = null;
 			activeTab = 'files';
 			expanded = new Set();
+			noteDraft = '';
 		}
 	});
 
@@ -413,6 +442,46 @@
 				{$tt('detail.files')}, {$tt('detail.peers')}, {$tt('detail.trackers')}
 			</Sheet.Description>
 		</Sheet.Header>
+
+		<!-- Note editor -->
+		<div class="border-b border-border/60 px-4 py-3">
+			<div class="flex items-center gap-1.5 mb-1.5">
+				<NotebookPenIcon class="size-3.5 text-muted-foreground" />
+				<label for="torrent-note" class="text-xs font-medium text-muted-foreground">
+					{$tt('note.label')}
+				</label>
+			</div>
+			<textarea
+				id="torrent-note"
+				bind:value={noteDraft}
+				maxlength={noteStore.maxLength}
+				rows="2"
+				disabled={noteSaving}
+				placeholder={$tt('note.placeholder')}
+				class="w-full resize-y rounded-md border border-border/60 bg-transparent px-2.5 py-1.5 text-sm
+					placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none disabled:opacity-50"
+			></textarea>
+			<div class="flex items-center justify-between gap-2 mt-1.5">
+				<span class="text-[11px] text-muted-foreground tabular-nums">
+					{noteLength}/{noteStore.maxLength}
+				</span>
+				{#if noteDirty}
+					<div class="flex items-center gap-2">
+						<button
+							type="button"
+							class="text-xs text-muted-foreground hover:underline disabled:opacity-50 cursor-pointer"
+							disabled={noteSaving}
+							onclick={() => (noteDraft = savedNote)}
+						>
+							{$tt('note.cancel')}
+						</button>
+						<Button size="sm" disabled={noteSaving} onclick={saveNote}>
+							{$tt('note.save')}
+						</Button>
+					</div>
+				{/if}
+			</div>
+		</div>
 
 		<div class="flex-1 overflow-y-auto p-4">
 			{#if loading}

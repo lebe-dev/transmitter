@@ -3,12 +3,16 @@ services:
     image: tinyops/transmitter:1.1.1
     environment:
       - LISTEN_ADDR=0.0.0.0:8080
+      - DB_PATH=/app/data/transmitter.db
       - TZ=Europe/Moscow
     env_file: .env
     restart: unless-stopped
     network_mode: host
     ports:
       - "8080:8080"
+    volumes:
+      # SQLite database with per-torrent notes (uid/gid 10001 must be able to write here)
+      - ./data:/app/data
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/health"]
       interval: 30s
@@ -18,4 +22,4 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 64M
+          memory: 128M

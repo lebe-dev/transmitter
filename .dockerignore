@@ -5,6 +5,7 @@
 /frontend/coverage
 /static/dist
 /transmitter
+/data
 /helm-chart
 *.md
 Justfile

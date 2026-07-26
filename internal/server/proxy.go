@@ -11,6 +11,9 @@ import (
 	"github.com/lebe-dev/transmitter/internal/transmission"
 )
 
+// noteDeleteTimeout bounds the background cleanup of notes after a torrent removal.
+const noteDeleteTimeout = 5 * time.Second
+
 const (
 	headerContentType = "Content-Type"
 	mimeJSON          = "application/json"
@@ -34,7 +37,8 @@ type AutoPriorityConfig struct {
 }
 
 // ProxyHandler proxies JSON-RPC requests to Transmission, enforcing method whitelist.
-func ProxyHandler(client *transmission.Client, priorityCfg AutoPriorityConfig, maxBodyBytes int64) http.HandlerFunc {
+// A non-nil noteStore also has the notes of removed torrents cleaned up.
+func ProxyHandler(client *transmission.Client, priorityCfg AutoPriorityConfig, maxBodyBytes int64, noteStore NoteStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
 
@@ -45,7 +49,10 @@ func ProxyHandler(client *transmission.Client, priorityCfg AutoPriorityConfig, m
 		}
 
 		var parsed struct {
-			Method string `json:"method"`
+			Method    string `json:"method"`
+			Arguments struct {
+				IDs json.RawMessage `json:"ids"`
+			} `json:"arguments"`
 		}
 		if err := json.Unmarshal(body, &parsed); err != nil {
 			http.Error(w, `{"result":"invalid json"}`, http.StatusBadRequest)
@@ -58,6 +65,13 @@ func ProxyHandler(client *transmission.Client, priorityCfg AutoPriorityConfig, m
 			w.WriteHeader(http.StatusForbidden)
 			w.Write([]byte(`{"result":"method not allowed"}`)) //nolint:errcheck
 			return
+		}
+
+		// Resolve the hashes before forwarding: once the torrents are gone,
+		// Transmission can no longer map the IDs in the request to hashes.
+		var removedHashes []string
+		if noteStore != nil && parsed.Method == "torrent-remove" {
+			removedHashes = resolveHashes(r.Context(), client, parsed.Arguments.IDs)
 		}
 
 		respBody, err := client.DoRaw(r.Context(), body)
@@ -73,7 +87,45 @@ func ProxyHandler(client *transmission.Client, priorityCfg AutoPriorityConfig, m
 		if priorityCfg.Enabled && parsed.Method == "torrent-add" {
 			go applyAutoPriority(client, respBody, priorityCfg.HighCount)
 		}
+		if len(removedHashes) > 0 && rpcSucceeded(respBody) {
+			go deleteNotes(noteStore, removedHashes)
+		}
 	}
+}
+
+// resolveHashes maps a raw Transmission "ids" selector to torrent hashes.
+// Failures are logged and yield no hashes: the periodic notes cleanup is the
+// backstop, so a hiccup here only delays removal instead of losing data.
+func resolveHashes(ctx context.Context, client *transmission.Client, ids json.RawMessage) []string {
+	hashes, err := client.GetTorrentHashes(ctx, ids)
+	if err != nil {
+		slog.Warn("notes: failed to resolve hashes of torrents being removed", "err", err)
+		return nil
+	}
+	return hashes
+}
+
+// deleteNotes removes the notes of torrents that were just deleted.
+func deleteNotes(store NoteStore, hashes []string) {
+	ctx, cancel := context.WithTimeout(context.Background(), noteDeleteTimeout)
+	defer cancel()
+
+	if err := store.Delete(ctx, hashes...); err != nil {
+		slog.Warn("notes: failed to delete notes of removed torrents", "count", len(hashes), "err", err)
+		return
+	}
+	slog.Debug("notes: deleted notes of removed torrents", "count", len(hashes))
+}
+
+// rpcSucceeded reports whether a Transmission response carries result "success".
+func rpcSucceeded(respBody []byte) bool {
+	var resp struct {
+		Result string `json:"result"`
+	}
+	if err := json.Unmarshal(respBody, &resp); err != nil {
+		return false
+	}
+	return resp.Result == "success"
 }
 
 func applyAutoPriority(client *transmission.Client, respBody []byte, highCount int) {
@@ -107,6 +159,7 @@ type UISettings struct {
 	NightShiftEnabled bool   `json:"nightShiftEnabled"`
 	NightShiftStart   string `json:"nightShiftStart,omitempty"`
 	NightShiftEnd     string `json:"nightShiftEnd,omitempty"`
+	NoteMaxLength     int    `json:"noteMaxLength"`
 }
 
 // SettingsHandler returns UI-relevant server configuration as JSON.
@@ -135,6 +188,9 @@ type ServerConfig struct {
 	NightShiftEnabled     bool     `json:"nightShiftEnabled"`
 	NightShiftStart       string   `json:"nightShiftStart"`
 	NightShiftEnd         string   `json:"nightShiftEnd"`
+	DBPath                string   `json:"dbPath"`
+	NoteMaxLength         int      `json:"noteMaxLength"`
+	NoteCleanupInterval   string   `json:"noteCleanupInterval"`
 }
 
 // ConfigHandler returns non-sensitive server configuration as JSON.

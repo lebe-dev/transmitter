@@ -41,6 +41,7 @@ WORKDIR /app
 RUN apk --no-cache add ca-certificates tzdata && \
     addgroup -g 10001 transmitter && \
     adduser -h /app -D -u 10001 -G transmitter transmitter && \
+    mkdir -p /app/data && \
     chmod 700 /app && \
     chown -R transmitter: /app
 
@@ -50,7 +51,12 @@ RUN chown -R transmitter: /app && chmod +x /app/transmitter
 
 USER transmitter
 
+# Torrent notes live in a SQLite database — mount /app/data to keep them
+# across container recreations.
+VOLUME ["/app/data"]
+
 ENV LISTEN_ADDR=0.0.0.0:8080
+ENV DB_PATH=/app/data/transmitter.db
 ENV TZ=Europe/Moscow
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

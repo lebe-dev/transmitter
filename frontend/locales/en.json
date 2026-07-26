@@ -130,7 +130,10 @@
 			"maxRequestBodyBytes": "Maximum allowed size of an incoming HTTP request body.",
 			"nightShiftEnabled": "Whether the Night Shift scheduler is active (set NIGHT_SHIFT_START and NIGHT_SHIFT_END to enable).",
 			"nightShiftStart": "Start of the Night Shift window (HH:MM, 24h). Torrents tagged for night shift are downloaded only during this window.",
-			"nightShiftEnd": "End of the Night Shift window (HH:MM, 24h). The window may wrap over midnight when end ≤ start."
+			"nightShiftEnd": "End of the Night Shift window (HH:MM, 24h). The window may wrap over midnight when end ≤ start.",
+			"dbPath": "Path to the SQLite database file that stores torrent notes.",
+			"noteMaxLength": "Maximum length of a torrent note, in characters.",
+			"noteCleanupInterval": "How often notes of torrents that no longer exist are removed."
 		}
 	},
 	"themes": {
@@ -162,6 +165,14 @@
 		"downloadSpeed": "Download speed",
 		"uploadSpeed": "Upload speed",
 		"uploadedTotal": "Uploaded total"
+	},
+	"note": {
+		"label": "Note",
+		"placeholder": "Add a note for this torrent…",
+		"save": "Save",
+		"cancel": "Cancel",
+		"saved": "Note saved",
+		"failSave": "Failed to save note"
 	},
 	"detail": {
 		"files": "Files",

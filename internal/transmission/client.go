@@ -184,6 +184,42 @@ func (c *Client) GetTorrents(ctx context.Context) ([]Torrent, error) {
 	return result.Torrents, nil
 }
 
+// GetTorrentHashes returns the hashString of every torrent matching the raw
+// Transmission "ids" selector. The selector is forwarded verbatim, so numeric
+// IDs, hash strings and "recently-active" all work; a nil selector means all
+// torrents, matching Transmission's own semantics.
+func (c *Client) GetTorrentHashes(ctx context.Context, ids json.RawMessage) ([]string, error) {
+	payload := map[string]any{"fields": []string{"hashString"}}
+	if len(ids) > 0 {
+		payload["ids"] = ids
+	}
+	args, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.Do(ctx, RPCRequest{Method: methodTorrentGet, Arguments: args})
+	if err != nil {
+		return nil, err
+	}
+	if resp.Result != "success" {
+		return nil, fmt.Errorf("torrent-get failed: %s", resp.Result)
+	}
+
+	var result TorrentGetResult
+	if err := json.Unmarshal(resp.Arguments, &result); err != nil {
+		return nil, fmt.Errorf("unmarshal torrents: %w", err)
+	}
+
+	hashes := make([]string, 0, len(result.Torrents))
+	for _, t := range result.Torrents {
+		if t.HashString != "" {
+			hashes = append(hashes, t.HashString)
+		}
+	}
+	return hashes, nil
+}
+
 // AddMagnet adds a torrent by magnet link or URL.
 func (c *Client) AddMagnet(ctx context.Context, magnet string) (TorrentAdded, error) {
 	return c.addTorrent(ctx, TorrentAddArgs{Filename: magnet})

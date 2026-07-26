@@ -12,6 +12,13 @@ import (
 	"github.com/joho/godotenv"
 )
 
+const (
+	// defaultNoteMaxLength caps a per-torrent note at this many runes.
+	defaultNoteMaxLength = 200
+	// defaultNoteCleanupInterval is how often notes of deleted torrents are collected.
+	defaultNoteCleanupInterval = time.Hour
+)
+
 // Config holds all application configuration loaded from environment variables.
 type Config struct {
 	TransmissionURL       string
@@ -34,6 +41,9 @@ type Config struct {
 	NightShiftStart       DayTime
 	NightShiftEnd         DayTime
 	NightShiftInterval    time.Duration
+	DBPath                string
+	NoteMaxLength         int
+	NoteCleanupInterval   time.Duration
 	SentryDSN             string
 	SentryEnvironment     string
 }
@@ -87,6 +97,9 @@ func Load() (*Config, error) {
 	cfg.FileSelectTimeout = parseDuration(os.Getenv("FILE_SELECT_TIMEOUT"), 5*time.Minute)
 	cfg.DeleteWithData = strings.EqualFold(os.Getenv("DELETE_WITH_DATA"), "true")
 	cfg.NightShiftInterval = parseDuration(os.Getenv("NIGHT_SHIFT_INTERVAL"), time.Minute)
+	cfg.DBPath = envOrDefault("DB_PATH", "data/transmitter.db")
+	cfg.NoteMaxLength = parsePositiveInt(os.Getenv("TORRENT_NOTE_MAX_LENGTH"), defaultNoteMaxLength)
+	cfg.NoteCleanupInterval = parseDuration(os.Getenv("TORRENT_NOTE_CLEANUP_INTERVAL"), defaultNoteCleanupInterval)
 
 	cfg.SentryDSN = strings.TrimSpace(os.Getenv("SENTRY_DSN"))
 	cfg.SentryEnvironment = strings.TrimSpace(os.Getenv("SENTRY_ENVIRONMENT"))
