@@ -69,6 +69,7 @@ export interface TorrentDetail {
  * пользователь не выключил её в настройках.
  */
 export interface UISettings {
+	version: string;
 	deleteWithData: boolean;
 	nightShiftConfigured: boolean;
 	nightShiftEnabled: boolean;

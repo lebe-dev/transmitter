@@ -2,6 +2,8 @@
 set dotenv-load
 
 version := `cat VERSION`
+buildNumber := `git rev-parse --short HEAD`
+tag := version + "-" + buildNumber
 imageName := 'tinyops/transmitter'
 
 # --- Utility ---
@@ -30,7 +32,7 @@ build-frontend:
     cp -r frontend/build/* static/dist/
 
 build: build-frontend && format
-    go build -ldflags="-s -w -X main.Version={{ version }}" -o transmitter ./cmd/transmitter
+    go build -ldflags="-s -w -X main.Version={{ version }} -X main.BuildNumber={{ buildNumber }}" -o transmitter ./cmd/transmitter
 
 # --- Lints ---
 lint-backend: format
@@ -111,23 +113,23 @@ run-frontend:
 
 # --- Image ---
 build-image: test && lint
-    docker buildx build --platform linux/arm/v7,linux/amd64 --driver docker-container -t {{ imageName }}:{{ version }} .
-    # docker buildx build --platform linux/arm/v8 -t {{ imageName }}:{{ version }} .
-    # docker buildx build --platform linux/amd64 -t {{ imageName }}:{{ version }} .
+    docker buildx build --platform linux/arm/v7,linux/amd64 --driver docker-container -t {{ imageName }}:{{ tag }} .
+    # docker buildx build --platform linux/arm/v8 -t {{ imageName }}:{{ tag }} .
+    # docker buildx build --platform linux/amd64 -t {{ imageName }}:{{ tag }} .
 
 build-image-local:
     docker build -t {{ imageName }}:latest .
 
 push-image:
-    docker push {{ imageName }}:{{ version }}
+    docker push {{ imageName }}:{{ tag }}
 
 release-image:
     docker buildx inspect multibuilder > /dev/null 2>&1 || docker buildx create --name multibuilder --driver docker-container
     docker buildx use multibuilder
     docker buildx inspect --bootstrap
-    docker buildx build --platform linux/amd64,linux/arm/v7,linux/arm64/v8 -t {{ imageName }}:{{ version }} --push .
+    docker buildx build --platform linux/amd64,linux/arm/v7,linux/arm64/v8 -t {{ imageName }}:{{ tag }} --push .
 
 release: release-image
 
 deploy:
-    ssh -t rpi "cd /opt/transmitter && sudo sed -i -E 's#(image: {{ imageName }}:).*#\1{{ version }}#' docker-compose.yml && sudo docker compose pull && sudo docker compose down && sudo docker compose up -d"
+    ssh -t rpi "cd /opt/transmitter && sudo sed -i -E 's#(image: {{ imageName }}:).*#\1{{ tag }}#' docker-compose.yml && sudo docker compose pull && sudo docker compose down && sudo docker compose up -d"

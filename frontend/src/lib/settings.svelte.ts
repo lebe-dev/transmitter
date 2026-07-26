@@ -43,6 +43,8 @@ class SettingsStore {
 	compactView = $state(false);
 	showFreeSpace = $state(true);
 
+	/** Версия приложения (semver + короткий git-хэш билда), приходит с сервера. */
+	version = $state('');
 	/** Значение чекбокса «удалить вместе с данными» по умолчанию. */
 	deleteWithData = $state(false);
 	/** Лимит длины заметки в символах, приходит с сервера. */
@@ -100,6 +102,7 @@ class SettingsStore {
 	load(): Promise<UISettings> {
 		this.#settings ??= getSettings()
 			.then((s) => {
+				this.version = s.version;
 				this.deleteWithData = s.deleteWithData;
 				this.noteMaxLength = s.noteMaxLength;
 				this.day = {

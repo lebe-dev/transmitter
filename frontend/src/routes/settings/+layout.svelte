@@ -71,7 +71,7 @@
 			{@render children()}
 
 			<div class="mt-2 pt-4 border-t border-border/60 flex items-center gap-2 text-xs text-muted-foreground">
-				v{__APP_VERSION__}
+				v{settingsStore.version}
 				<span class="opacity-40">|</span>
 				<a
 					href="https://github.com/lebe-dev/transmitter/blob/main/{$locale === 'en'

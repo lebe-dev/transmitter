@@ -19,7 +19,7 @@ type Server struct {
 }
 
 // New creates and configures the HTTP server with all routes.
-func New(cfg *config.Config, client *transmission.Client, noteStore NoteStore, shiftStore ShiftStore, staticFS fs.FS, logger *slog.Logger) (*Server, error) {
+func New(cfg *config.Config, client *transmission.Client, noteStore NoteStore, shiftStore ShiftStore, version string, staticFS fs.FS, logger *slog.Logger) (*Server, error) {
 	staticHandler, err := StaticHandler(staticFS)
 	if err != nil {
 		return nil, err
@@ -36,6 +36,7 @@ func New(cfg *config.Config, client *transmission.Client, noteStore NoteStore, s
 	}
 
 	uiSettings := UISettings{
+		Version:              version,
 		DeleteWithData:       cfg.DeleteWithData,
 		NightShiftConfigured: cfg.NightShiftEnabled,
 		NightShiftEnabled:    cfg.NightShiftEnabled,

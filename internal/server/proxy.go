@@ -167,6 +167,7 @@ func applyAutoPriority(client *transmission.Client, respBody []byte, highCount i
 // "enabled" when the user has not switched it off in the UI. The UI shows the
 // shift buttons for a configured shift and greys them out while it is disabled.
 type UISettings struct {
+	Version              string `json:"version"`
 	DeleteWithData       bool   `json:"deleteWithData"`
 	NightShiftConfigured bool   `json:"nightShiftConfigured"`
 	NightShiftEnabled    bool   `json:"nightShiftEnabled"`

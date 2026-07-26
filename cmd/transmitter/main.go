@@ -19,7 +19,10 @@ import (
 	"github.com/lebe-dev/transmitter/static"
 )
 
-var Version = "dev"
+var (
+	Version     = "dev"
+	BuildNumber = "dev"
+)
 
 func main() {
 	cfg, err := config.Load()
@@ -28,8 +31,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	version := Version + "-" + BuildNumber
+
 	logger := setupLogger(cfg)
-	logger.Info("starting transmitter", "version", Version)
+	logger.Info("starting transmitter", "version", version)
 	if cfg.SentryDSN != "" {
 		defer sentrylog.Flush(2 * time.Second)
 		logger.Info("sentry enabled", "environment", cfg.SentryEnvironment)
@@ -63,7 +68,7 @@ func main() {
 	defer stop()
 
 	tgBot := startBot(ctx, cfg, client, noteStore, logger)
-	srv := startServer(cfg, client, noteStore, prefStore, logger, stop)
+	srv := startServer(cfg, client, noteStore, prefStore, version, logger, stop)
 
 	go notes.NewCleaner(noteStore, client, cfg.NoteCleanupInterval, logger).Run(ctx)
 
@@ -134,13 +139,13 @@ func startBot(ctx context.Context, cfg *config.Config, client *transmission.Clie
 }
 
 // startServer initializes and starts the HTTP server when enabled, returning nil when disabled.
-func startServer(cfg *config.Config, client *transmission.Client, noteStore server.NoteStore, shiftStore server.ShiftStore, logger *slog.Logger, stop context.CancelFunc) *server.Server {
+func startServer(cfg *config.Config, client *transmission.Client, noteStore server.NoteStore, shiftStore server.ShiftStore, version string, logger *slog.Logger, stop context.CancelFunc) *server.Server {
 	if !cfg.WebUIEnabled {
 		logger.Info("web UI disabled (WEBUI_ENABLED=false)")
 		return nil
 	}
 
-	srv, err := server.New(cfg, client, noteStore, shiftStore, static.FS, logger)
+	srv, err := server.New(cfg, client, noteStore, shiftStore, version, static.FS, logger)
 	if err != nil {
 		logger.Error("server init failed", "err", err)
 		os.Exit(1)
