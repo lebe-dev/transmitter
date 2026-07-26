@@ -34,7 +34,7 @@ func NotesHandler(store NoteStore) http.HandlerFunc {
 		all, err := store.All(r.Context())
 		if err != nil {
 			slog.Error("failed to list torrent notes", "err", err)
-			writeNoteError(w, http.StatusInternalServerError, "failed to load notes")
+			writeJSONError(w, http.StatusInternalServerError, "failed to load notes")
 			return
 		}
 
@@ -52,27 +52,27 @@ func NoteUpdateHandler(store NoteStore) http.HandlerFunc {
 
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
-			writeNoteError(w, http.StatusRequestEntityTooLarge, "note too long")
+			writeJSONError(w, http.StatusRequestEntityTooLarge, "note too long")
 			return
 		}
 
 		var req noteRequest
 		if err := json.Unmarshal(body, &req); err != nil {
-			writeNoteError(w, http.StatusBadRequest, "invalid json")
+			writeJSONError(w, http.StatusBadRequest, "invalid json")
 			return
 		}
 
 		err = store.Set(r.Context(), r.PathValue("hash"), req.Text)
 		switch {
 		case errors.Is(err, notes.ErrInvalidHash):
-			writeNoteError(w, http.StatusBadRequest, "invalid torrent hash")
+			writeJSONError(w, http.StatusBadRequest, "invalid torrent hash")
 			return
 		case errors.Is(err, notes.ErrTooLong):
-			writeNoteError(w, http.StatusUnprocessableEntity, "note too long")
+			writeJSONError(w, http.StatusUnprocessableEntity, "note too long")
 			return
 		case err != nil:
 			slog.Error("failed to store torrent note", "err", err)
-			writeNoteError(w, http.StatusInternalServerError, "failed to store note")
+			writeJSONError(w, http.StatusInternalServerError, "failed to store note")
 			return
 		}
 
@@ -86,20 +86,14 @@ func NoteDeleteHandler(store NoteStore) http.HandlerFunc {
 		err := store.Delete(r.Context(), r.PathValue("hash"))
 		switch {
 		case errors.Is(err, notes.ErrInvalidHash):
-			writeNoteError(w, http.StatusBadRequest, "invalid torrent hash")
+			writeJSONError(w, http.StatusBadRequest, "invalid torrent hash")
 			return
 		case err != nil:
 			slog.Error("failed to delete torrent note", "err", err)
-			writeNoteError(w, http.StatusInternalServerError, "failed to delete note")
+			writeJSONError(w, http.StatusInternalServerError, "failed to delete note")
 			return
 		}
 
 		w.WriteHeader(http.StatusNoContent)
 	}
-}
-
-func writeNoteError(w http.ResponseWriter, status int, message string) {
-	w.Header().Set(headerContentType, mimeJSON)
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]string{"error": message}) //nolint:errcheck
 }

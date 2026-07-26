@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/lebe-dev/transmitter/internal/shift"
 	"github.com/lebe-dev/transmitter/internal/transmission"
 )
 
@@ -18,6 +19,13 @@ const (
 	headerContentType = "Content-Type"
 	mimeJSON          = "application/json"
 )
+
+// writeJSONError replies with a JSON {"error": ...} body and the given status.
+func writeJSONError(w http.ResponseWriter, status int, message string) {
+	w.Header().Set(headerContentType, mimeJSON)
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(map[string]string{"error": message}) //nolint:errcheck
+}
 
 var allowedMethods = map[string]bool{
 	"torrent-get":    true,
@@ -154,22 +162,36 @@ func applyAutoPriority(client *transmission.Client, respBody []byte, highCount i
 }
 
 // UISettings holds UI-relevant configuration exposed via /api/settings.
+//
+// A shift is "configured" when its time window is set via the environment, and
+// "enabled" when the user has not switched it off in the UI. The UI shows the
+// shift buttons for a configured shift and greys them out while it is disabled.
 type UISettings struct {
-	DeleteWithData    bool   `json:"deleteWithData"`
-	NightShiftEnabled bool   `json:"nightShiftEnabled"`
-	NightShiftStart   string `json:"nightShiftStart,omitempty"`
-	NightShiftEnd     string `json:"nightShiftEnd,omitempty"`
-	DayShiftEnabled   bool   `json:"dayShiftEnabled"`
-	DayShiftStart     string `json:"dayShiftStart,omitempty"`
-	DayShiftEnd       string `json:"dayShiftEnd,omitempty"`
-	NoteMaxLength     int    `json:"noteMaxLength"`
+	DeleteWithData       bool   `json:"deleteWithData"`
+	NightShiftConfigured bool   `json:"nightShiftConfigured"`
+	NightShiftEnabled    bool   `json:"nightShiftEnabled"`
+	NightShiftStart      string `json:"nightShiftStart,omitempty"`
+	NightShiftEnd        string `json:"nightShiftEnd,omitempty"`
+	DayShiftConfigured   bool   `json:"dayShiftConfigured"`
+	DayShiftEnabled      bool   `json:"dayShiftEnabled"`
+	DayShiftStart        string `json:"dayShiftStart,omitempty"`
+	DayShiftEnd          string `json:"dayShiftEnd,omitempty"`
+	NoteMaxLength        int    `json:"noteMaxLength"`
 }
 
-// SettingsHandler returns UI-relevant server configuration as JSON.
-func SettingsHandler(settings UISettings) http.HandlerFunc {
-	return func(w http.ResponseWriter, _ *http.Request) {
+// SettingsHandler returns UI-relevant server configuration as JSON. The shift
+// toggles are read from shifts on every request, since they change at runtime;
+// a nil store leaves the values of settings untouched.
+func SettingsHandler(settings UISettings, shifts ShiftStore) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		resp := settings
+		if shifts != nil {
+			resp.NightShiftEnabled = settings.NightShiftConfigured && shiftEnabled(r.Context(), shifts, shift.NightLabel)
+			resp.DayShiftEnabled = settings.DayShiftConfigured && shiftEnabled(r.Context(), shifts, shift.DayLabel)
+		}
+
 		w.Header().Set(headerContentType, mimeJSON)
-		json.NewEncoder(w).Encode(settings) //nolint:errcheck
+		json.NewEncoder(w).Encode(resp) //nolint:errcheck
 	}
 }
 
@@ -188,10 +210,10 @@ type ServerConfig struct {
 	DeleteWithData        bool     `json:"deleteWithData"`
 	MonitorInterval       string   `json:"monitorInterval"`
 	FileSelectTimeout     string   `json:"fileSelectTimeout"`
-	NightShiftEnabled     bool     `json:"nightShiftEnabled"`
+	NightShiftConfigured  bool     `json:"nightShiftConfigured"`
 	NightShiftStart       string   `json:"nightShiftStart"`
 	NightShiftEnd         string   `json:"nightShiftEnd"`
-	DayShiftEnabled       bool     `json:"dayShiftEnabled"`
+	DayShiftConfigured    bool     `json:"dayShiftConfigured"`
 	DayShiftStart         string   `json:"dayShiftStart"`
 	DayShiftEnd           string   `json:"dayShiftEnd"`
 	DBPath                string   `json:"dbPath"`

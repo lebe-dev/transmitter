@@ -1,4 +1,5 @@
 import type {
+	ShiftName,
 	Torrent,
 	TorrentDetail,
 	TorrentFile,
@@ -128,6 +129,16 @@ export async function getServerConfig(): Promise<ServerConfig> {
 	const res = await fetch('/api/config');
 	if (!res.ok) throw new Error(`HTTP ${res.status}`);
 	return res.json();
+}
+
+/** Включает или выключает планировщик смены; состояние хранится на сервере. */
+export async function setShiftEnabled(shift: ShiftName, enabled: boolean): Promise<void> {
+	const res = await fetch(`/api/shifts/${shift}`, {
+		method: 'PUT',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ enabled }),
+	});
+	if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 
 export async function getNotes(): Promise<TorrentNotes> {

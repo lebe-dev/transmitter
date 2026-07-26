@@ -138,14 +138,16 @@ func TestApplyAutoPriorityNoTorrentAdded(t *testing.T) {
 
 func TestSettingsHandler(t *testing.T) {
 	h := SettingsHandler(UISettings{
-		DeleteWithData:    true,
-		NightShiftEnabled: true,
-		NightShiftStart:   "01:00",
-		NightShiftEnd:     "07:00",
-		DayShiftEnabled:   true,
-		DayShiftStart:     "08:00",
-		DayShiftEnd:       "22:00",
-	})
+		DeleteWithData:       true,
+		NightShiftConfigured: true,
+		NightShiftEnabled:    true,
+		NightShiftStart:      "01:00",
+		NightShiftEnd:        "07:00",
+		DayShiftConfigured:   true,
+		DayShiftEnabled:      true,
+		DayShiftStart:        "08:00",
+		DayShiftEnd:          "22:00",
+	}, nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/settings", nil))
 
@@ -165,7 +167,7 @@ func TestSettingsHandler(t *testing.T) {
 }
 
 func TestSettingsHandlerOmitsDisabledDayShift(t *testing.T) {
-	h := SettingsHandler(UISettings{DeleteWithData: true})
+	h := SettingsHandler(UISettings{DeleteWithData: true}, nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/settings", nil))
 
@@ -183,11 +185,11 @@ func TestSettingsHandlerOmitsDisabledDayShift(t *testing.T) {
 
 func TestConfigHandler(t *testing.T) {
 	h := ConfigHandler(ServerConfig{
-		ListenAddr:      ":8080",
-		LogLevel:        "info",
-		DayShiftEnabled: true,
-		DayShiftStart:   "08:00",
-		DayShiftEnd:     "22:00",
+		ListenAddr:         ":8080",
+		LogLevel:           "info",
+		DayShiftConfigured: true,
+		DayShiftStart:      "08:00",
+		DayShiftEnd:        "22:00",
 	})
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/config", nil))
@@ -202,7 +204,7 @@ func TestConfigHandler(t *testing.T) {
 	if got.ListenAddr != ":8080" || got.LogLevel != "info" {
 		t.Errorf("unexpected config: %+v", got)
 	}
-	if !got.DayShiftEnabled || got.DayShiftStart != "08:00" || got.DayShiftEnd != "22:00" {
+	if !got.DayShiftConfigured || got.DayShiftStart != "08:00" || got.DayShiftEnd != "22:00" {
 		t.Errorf("unexpected day shift config: %+v", got)
 	}
 }

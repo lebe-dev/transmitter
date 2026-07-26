@@ -19,7 +19,7 @@ type Server struct {
 }
 
 // New creates and configures the HTTP server with all routes.
-func New(cfg *config.Config, client *transmission.Client, noteStore NoteStore, staticFS fs.FS, logger *slog.Logger) (*Server, error) {
+func New(cfg *config.Config, client *transmission.Client, noteStore NoteStore, shiftStore ShiftStore, staticFS fs.FS, logger *slog.Logger) (*Server, error) {
 	staticHandler, err := StaticHandler(staticFS)
 	if err != nil {
 		return nil, err
@@ -30,11 +30,18 @@ func New(cfg *config.Config, client *transmission.Client, noteStore NoteStore, s
 		HighCount: cfg.FilePriorityHighCount,
 	}
 
+	configuredShifts := ConfiguredShifts{
+		Night: cfg.NightShiftEnabled,
+		Day:   cfg.DayShiftEnabled,
+	}
+
 	uiSettings := UISettings{
-		DeleteWithData:    cfg.DeleteWithData,
-		NightShiftEnabled: cfg.NightShiftEnabled,
-		DayShiftEnabled:   cfg.DayShiftEnabled,
-		NoteMaxLength:     noteStore.MaxLength(),
+		DeleteWithData:       cfg.DeleteWithData,
+		NightShiftConfigured: cfg.NightShiftEnabled,
+		NightShiftEnabled:    cfg.NightShiftEnabled,
+		DayShiftConfigured:   cfg.DayShiftEnabled,
+		DayShiftEnabled:      cfg.DayShiftEnabled,
+		NoteMaxLength:        noteStore.MaxLength(),
 	}
 	if cfg.NightShiftEnabled {
 		uiSettings.NightShiftStart = cfg.NightShiftStart.String()
@@ -63,8 +70,8 @@ func New(cfg *config.Config, client *transmission.Client, noteStore NoteStore, s
 		DeleteWithData:        cfg.DeleteWithData,
 		MonitorInterval:       cfg.MonitorInterval.String(),
 		FileSelectTimeout:     cfg.FileSelectTimeout.String(),
-		NightShiftEnabled:     cfg.NightShiftEnabled,
-		DayShiftEnabled:       cfg.DayShiftEnabled,
+		NightShiftConfigured:  cfg.NightShiftEnabled,
+		DayShiftConfigured:    cfg.DayShiftEnabled,
 		DBPath:                cfg.DBPath,
 		NoteMaxLength:         cfg.NoteMaxLength,
 		NoteCleanupInterval:   cfg.NoteCleanupInterval.String(),
@@ -81,8 +88,9 @@ func New(cfg *config.Config, client *transmission.Client, noteStore NoteStore, s
 	mux := http.NewServeMux()
 	mux.Handle("POST /api/rpc", ProxyHandler(client, priorityCfg, cfg.MaxRequestBodyBytes, noteStore))
 	mux.Handle("GET /api/health", HealthHandler(client))
-	mux.Handle("GET /api/settings", SettingsHandler(uiSettings))
+	mux.Handle("GET /api/settings", SettingsHandler(uiSettings, shiftStore))
 	mux.Handle("GET /api/config", ConfigHandler(serverConfig))
+	mux.Handle("PUT /api/shifts/{shift}", ShiftToggleHandler(shiftStore, configuredShifts))
 	mux.Handle("GET /api/notes", NotesHandler(noteStore))
 	mux.Handle("PUT /api/notes/{hash}", NoteUpdateHandler(noteStore))
 	mux.Handle("DELETE /api/notes/{hash}", NoteDeleteHandler(noteStore))

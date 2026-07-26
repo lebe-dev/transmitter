@@ -3,6 +3,7 @@ package shift
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -126,6 +127,11 @@ func (rs *recordingServer) handle(t *testing.T) http.HandlerFunc {
 
 func newScheduler(t *testing.T, rs *recordingServer, label string, now time.Time, start, end config.DayTime) *Scheduler {
 	t.Helper()
+	return newSchedulerWithToggle(t, rs, label, now, start, end, nil)
+}
+
+func newSchedulerWithToggle(t *testing.T, rs *recordingServer, label string, now time.Time, start, end config.DayTime, toggle Toggle) *Scheduler {
+	t.Helper()
 	srv := httptest.NewServer(rs.handle(t))
 	t.Cleanup(srv.Close)
 	client := transmission.NewClient(srv.URL, "u", "p")
@@ -137,9 +143,21 @@ func newScheduler(t *testing.T, rs *recordingServer, label string, now time.Time
 		End:      end,
 		Interval: time.Minute,
 	}
-	s := New(client, opts, slog.New(slog.NewTextHandler(testWriter{t}, nil)))
+	s := New(client, opts, toggle, slog.New(slog.NewTextHandler(testWriter{t}, nil)))
 	s.now = func() time.Time { return now }
 	return s
+}
+
+// stubToggle answers the enabled lookup with a fixed value or error.
+type stubToggle struct {
+	enabled bool
+	err     error
+	shift   string
+}
+
+func (s *stubToggle) ShiftEnabled(_ context.Context, shift string) (bool, error) {
+	s.shift = shift
+	return s.enabled, s.err
 }
 
 type testWriter struct{ t *testing.T }
@@ -224,6 +242,57 @@ func TestReconcileDayShiftIgnoresNightLabel(t *testing.T) {
 	}
 	if len(rs.stops) != 0 {
 		t.Errorf("stops = %v, want none", rs.stops)
+	}
+}
+
+// A shift switched off in the UI must not touch torrents at all: the ones it
+// paused earlier stay paused until the user resumes them.
+func TestReconcileSkippedWhenShiftDisabled(t *testing.T) {
+	rs := &recordingServer{torrents: []transmission.Torrent{
+		{ID: 1, Status: 0, PercentDone: 0.2, Labels: []string{NightLabel}},
+		{ID: 2, Status: 4, PercentDone: 0.2, Labels: []string{NightLabel}},
+	}}
+	toggle := &stubToggle{enabled: false}
+	s := newSchedulerWithToggle(t, rs, NightLabel, time.Date(2026, 1, 1, 23, 30, 0, 0, time.UTC),
+		config.DayTime{Hour: 23, Minute: 0}, config.DayTime{Hour: 7, Minute: 0}, toggle)
+
+	s.reconcile(context.Background())
+
+	if len(rs.starts) != 0 || len(rs.stops) != 0 {
+		t.Errorf("expected no calls while disabled, starts=%v stops=%v", rs.starts, rs.stops)
+	}
+	if toggle.shift != NightLabel {
+		t.Errorf("toggle queried with %q, want %q", toggle.shift, NightLabel)
+	}
+}
+
+func TestReconcileRunsWhenShiftEnabled(t *testing.T) {
+	rs := &recordingServer{torrents: []transmission.Torrent{
+		{ID: 1, Status: 0, PercentDone: 0.2, Labels: []string{NightLabel}},
+	}}
+	s := newSchedulerWithToggle(t, rs, NightLabel, time.Date(2026, 1, 1, 23, 30, 0, 0, time.UTC),
+		config.DayTime{Hour: 23, Minute: 0}, config.DayTime{Hour: 7, Minute: 0}, &stubToggle{enabled: true})
+
+	s.reconcile(context.Background())
+
+	if len(rs.starts) != 1 || len(rs.starts[0]) != 1 || rs.starts[0][0] != 1 {
+		t.Errorf("starts = %v, want [[1]]", rs.starts)
+	}
+}
+
+// A failing preference lookup must not leave tagged torrents unmanaged.
+func TestReconcileRunsWhenToggleLookupFails(t *testing.T) {
+	rs := &recordingServer{torrents: []transmission.Torrent{
+		{ID: 1, Status: 0, PercentDone: 0.2, Labels: []string{NightLabel}},
+	}}
+	s := newSchedulerWithToggle(t, rs, NightLabel, time.Date(2026, 1, 1, 23, 30, 0, 0, time.UTC),
+		config.DayTime{Hour: 23, Minute: 0}, config.DayTime{Hour: 7, Minute: 0},
+		&stubToggle{err: errors.New("db down")})
+
+	s.reconcile(context.Background())
+
+	if len(rs.starts) != 1 {
+		t.Errorf("starts = %v, want the shift to keep running on a lookup error", rs.starts)
 	}
 }
 

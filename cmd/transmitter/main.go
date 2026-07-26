@@ -11,6 +11,7 @@ import (
 	"github.com/lebe-dev/transmitter/internal/bot"
 	"github.com/lebe-dev/transmitter/internal/config"
 	"github.com/lebe-dev/transmitter/internal/notes"
+	"github.com/lebe-dev/transmitter/internal/prefs"
 	"github.com/lebe-dev/transmitter/internal/sentrylog"
 	"github.com/lebe-dev/transmitter/internal/server"
 	"github.com/lebe-dev/transmitter/internal/shift"
@@ -49,24 +50,33 @@ func main() {
 	defer noteStore.Close() //nolint:errcheck
 	logger.Info("notes database ready", "path", cfg.DBPath, "max_length", cfg.NoteMaxLength)
 
+	// Shares the database file with the notes store; holds the shift toggles set
+	// from the web UI.
+	prefStore, err := prefs.Open(cfg.DBPath)
+	if err != nil {
+		logger.Error("preferences database init failed", "path", cfg.DBPath, "err", err)
+		os.Exit(1)
+	}
+	defer prefStore.Close() //nolint:errcheck
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)
 	defer stop()
 
 	tgBot := startBot(ctx, cfg, client, noteStore, logger)
-	srv := startServer(cfg, client, noteStore, logger, stop)
+	srv := startServer(cfg, client, noteStore, prefStore, logger, stop)
 
 	go notes.NewCleaner(noteStore, client, cfg.NoteCleanupInterval, logger).Run(ctx)
 
 	if cfg.NightShiftEnabled {
-		go shift.New(client, shift.NightOptions(cfg), logger).Run(ctx)
+		go shift.New(client, shift.NightOptions(cfg), prefStore, logger).Run(ctx)
 	} else {
-		logger.Info("night-shift disabled (NIGHT_SHIFT_START/NIGHT_SHIFT_END not set)")
+		logger.Info("night-shift not configured (NIGHT_SHIFT_START/NIGHT_SHIFT_END not set)")
 	}
 
 	if cfg.DayShiftEnabled {
-		go shift.New(client, shift.DayOptions(cfg), logger).Run(ctx)
+		go shift.New(client, shift.DayOptions(cfg), prefStore, logger).Run(ctx)
 	} else {
-		logger.Info("day-shift disabled (DAY_SHIFT_START/DAY_SHIFT_END not set)")
+		logger.Info("day-shift not configured (DAY_SHIFT_START/DAY_SHIFT_END not set)")
 	}
 
 	<-ctx.Done()
@@ -124,13 +134,13 @@ func startBot(ctx context.Context, cfg *config.Config, client *transmission.Clie
 }
 
 // startServer initializes and starts the HTTP server when enabled, returning nil when disabled.
-func startServer(cfg *config.Config, client *transmission.Client, noteStore server.NoteStore, logger *slog.Logger, stop context.CancelFunc) *server.Server {
+func startServer(cfg *config.Config, client *transmission.Client, noteStore server.NoteStore, shiftStore server.ShiftStore, logger *slog.Logger, stop context.CancelFunc) *server.Server {
 	if !cfg.WebUIEnabled {
 		logger.Info("web UI disabled (WEBUI_ENABLED=false)")
 		return nil
 	}
 
-	srv, err := server.New(cfg, client, noteStore, static.FS, logger)
+	srv, err := server.New(cfg, client, noteStore, shiftStore, static.FS, logger)
 	if err != nil {
 		logger.Error("server init failed", "err", err)
 		os.Exit(1)

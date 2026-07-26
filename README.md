@@ -17,6 +17,7 @@ Transmitter is a modern, lightweight alternative to Transmission's stock UI. Run
 - **Notes** — attach a custom text to any torrent (stored server-side in SQLite, shown in the list, the detail panel and the Telegram bot)
 - **Night Shift** — mark torrents (moon-star button) to download and seed only inside a configured time window; outside the window they are paused
 - **Day Shift** — the same, with its own label, window and a sun button; the two shifts are independent, a torrent may be marked for both
+- **Shift switches** — each configured shift can be turned off in Settings → Shifts; the state is stored server-side in SQLite, so it applies to every browser and survives a restart. While a shift is off its scheduler touches nothing: torrents keep their current state and the shift button is greyed out
 - **Auto-refresh** — live updates every 3–5 seconds
 - **Support locales**: en, ru, es, de
 - **Docker images**: linux/amd64, linux/arm/v7, linux/arm64/v8

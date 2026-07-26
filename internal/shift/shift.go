@@ -9,6 +9,10 @@
 // ([DayLabel]). They run as independent schedulers and are not coordinated: a
 // torrent carrying both labels is claimed by both, so with non-overlapping
 // windows the schedulers will start and stop it in turn.
+//
+// A scheduler can be switched off from the UI (see [Toggle]). While it is off
+// the scheduler touches nothing at all: torrents keep whatever state they are
+// in, including the ones it paused before.
 package shift
 
 import (
@@ -59,19 +63,33 @@ func DayOptions(cfg *config.Config) Options {
 	}
 }
 
+// Toggle reports whether a shift is currently switched on by the user.
+// The state is persisted outside the scheduler (see internal/prefs) so it
+// survives a restart.
+type Toggle interface {
+	ShiftEnabled(ctx context.Context, shift string) (bool, error)
+}
+
 // Scheduler periodically reconciles shift torrent state with the configured time window.
 type Scheduler struct {
 	client *transmission.Client
 	opts   Options
+	// toggle gates every reconcile; a nil toggle keeps the shift always on.
+	toggle Toggle
 	now    func() time.Time
 	logger *slog.Logger
+	// lastEnabled remembers the previous toggle state so switching a shift on or
+	// off is logged once instead of on every tick. Only touched from Run's goroutine.
+	lastEnabled *bool
 }
 
-// New creates a Scheduler that reconciles the given shift's torrents on its interval.
-func New(client *transmission.Client, opts Options, logger *slog.Logger) *Scheduler {
+// New creates a Scheduler that reconciles the given shift's torrents on its
+// interval, as long as toggle reports the shift as enabled.
+func New(client *transmission.Client, opts Options, toggle Toggle, logger *slog.Logger) *Scheduler {
 	return &Scheduler{
 		client: client,
 		opts:   opts,
+		toggle: toggle,
 		now:    time.Now,
 		logger: logger,
 	}
@@ -101,6 +119,10 @@ func (s *Scheduler) Run(ctx context.Context) {
 }
 
 func (s *Scheduler) reconcile(ctx context.Context) {
+	if !s.enabled(ctx) {
+		return
+	}
+
 	torrents, err := s.client.GetTorrents(ctx)
 	if err != nil {
 		s.logger.Warn(s.opts.Name+": failed to fetch torrents", "err", err)
@@ -137,6 +159,31 @@ func (s *Scheduler) reconcile(ctx context.Context) {
 			s.logger.Info(s.opts.Name+": stopped torrents", "count", len(toStop), "ids", toStop)
 		}
 	}
+}
+
+// enabled reports whether the user has the shift switched on, logging each
+// change of state. A failed lookup is treated as enabled: a broken preference
+// must not silently leave tagged torrents unmanaged.
+func (s *Scheduler) enabled(ctx context.Context) bool {
+	if s.toggle == nil {
+		return true
+	}
+
+	enabled, err := s.toggle.ShiftEnabled(ctx, s.opts.Name)
+	if err != nil {
+		s.logger.Warn(s.opts.Name+": failed to read enabled state, assuming enabled", "err", err)
+		return true
+	}
+
+	switch {
+	case s.lastEnabled == nil:
+		s.logger.Info(s.opts.Name+": enabled state read", "enabled", enabled)
+	case *s.lastEnabled != enabled:
+		s.logger.Info(s.opts.Name+": switched by user", "enabled", enabled)
+	}
+	s.lastEnabled = &enabled
+
+	return enabled
 }
 
 // classify splits torrents into those tagged with the given label and the subsets

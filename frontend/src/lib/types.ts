@@ -64,16 +64,24 @@ export interface TorrentDetail {
 	trackerStats: TorrentTrackerStat[];
 }
 
+/**
+ * Смена «configured» — её окно задано переменными окружения; «enabled» —
+ * пользователь не выключил её в настройках.
+ */
 export interface UISettings {
 	deleteWithData: boolean;
+	nightShiftConfigured: boolean;
 	nightShiftEnabled: boolean;
 	nightShiftStart?: string;
 	nightShiftEnd?: string;
+	dayShiftConfigured: boolean;
 	dayShiftEnabled: boolean;
 	dayShiftStart?: string;
 	dayShiftEnd?: string;
 	noteMaxLength: number;
 }
+
+export type ShiftName = 'night' | 'day';
 
 export interface ServerConfig {
 	transmissionUrl: string;
@@ -89,10 +97,10 @@ export interface ServerConfig {
 	deleteWithData: boolean;
 	monitorInterval: string;
 	fileSelectTimeout: string;
-	nightShiftEnabled: boolean;
+	nightShiftConfigured: boolean;
 	nightShiftStart?: string;
 	nightShiftEnd?: string;
-	dayShiftEnabled: boolean;
+	dayShiftConfigured: boolean;
 	dayShiftStart?: string;
 	dayShiftEnd?: string;
 	dbPath: string;

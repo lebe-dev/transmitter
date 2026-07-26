@@ -29,11 +29,13 @@
 	import FolderIcon from '@lucide/svelte/icons/folder';
 
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
+	import { Switch } from '$lib/components/ui/switch/index.js';
+	import { Separator } from '$lib/components/ui/separator/index.js';
 	import { torrentStore, pinStore, downloadDirStore, noteStore } from '$lib/stores.svelte.js';
-	import { addTorrentMagnet, addTorrentFile, startTorrents, stopTorrents, removeTorrents, getTorrentFiles, setFilesWanted, setTorrentLabels, getSettings, getServerConfig, getFreeSpace } from '$lib/api.js';
+	import { addTorrentMagnet, addTorrentFile, startTorrents, stopTorrents, removeTorrents, getTorrentFiles, setFilesWanted, setTorrentLabels, setShiftEnabled, getSettings, getServerConfig, getFreeSpace } from '$lib/api.js';
 	import { formatSize, formatSpeed, formatEta, formatDate } from '$lib/format.js';
 	import { parseTorrentSize } from '$lib/bencode.js';
-	import type { Torrent, FilterStatus, ServerConfig } from '$lib/types.js';
+	import type { Torrent, FilterStatus, ServerConfig, ShiftName } from '$lib/types.js';
 	import { createSvelteTable } from '$lib/components/ui/data-table/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
@@ -412,16 +414,35 @@
 
 	// ── Shifts (night / day) ─────────────────────────────────────────────────
 
+	// configured — окно смены задано переменными окружения (смена вообще есть);
+	// enabled — планировщик включён в настройках (состояние живёт на сервере).
+	let nightShiftConfigured = $state(false);
 	let nightShiftEnabled = $state(false);
 	let nightShiftStart = $state<string | undefined>(undefined);
 	let nightShiftEnd = $state<string | undefined>(undefined);
 
+	let dayShiftConfigured = $state(false);
 	let dayShiftEnabled = $state(false);
 	let dayShiftStart = $state<string | undefined>(undefined);
 	let dayShiftEnd = $state<string | undefined>(undefined);
 
 	function hasShiftLabel(t: Torrent, label: string): boolean {
 		return Array.isArray(t.labels) && t.labels.includes(label);
+	}
+
+	/** Включает/выключает планировщик смены, откатывая переключатель при ошибке. */
+	async function onShiftEnabledChange(shift: ShiftName, enabled: boolean) {
+		const previous = shift === 'night' ? nightShiftEnabled : dayShiftEnabled;
+		if (shift === 'night') nightShiftEnabled = enabled;
+		else dayShiftEnabled = enabled;
+
+		try {
+			await setShiftEnabled(shift, enabled);
+		} catch {
+			if (shift === 'night') nightShiftEnabled = previous;
+			else dayShiftEnabled = previous;
+			toast.error(get(tt)('toast.failShiftToggle'));
+		}
 	}
 
 	/** Toggles a shift label on the torrent, leaving its other labels untouched. */
@@ -505,8 +526,8 @@
 
 	const configRows = $derived([
 		...CONFIG_ROWS_BASE,
-		...(serverConfig?.nightShiftEnabled ? NIGHT_SHIFT_CONFIG_ROWS : []),
-		...(serverConfig?.dayShiftEnabled ? DAY_SHIFT_CONFIG_ROWS : []),
+		...(serverConfig?.nightShiftConfigured ? NIGHT_SHIFT_CONFIG_ROWS : []),
+		...(serverConfig?.dayShiftConfigured ? DAY_SHIFT_CONFIG_ROWS : []),
 	]);
 
 	function formatConfigValue(v: unknown): string {
@@ -625,9 +646,11 @@
 		getSettings()
 			.then((s) => {
 				defaultDeleteWithData = s.deleteWithData;
+				nightShiftConfigured = s.nightShiftConfigured;
 				nightShiftEnabled = s.nightShiftEnabled;
 				nightShiftStart = s.nightShiftStart;
 				nightShiftEnd = s.nightShiftEnd;
+				dayShiftConfigured = s.dayShiftConfigured;
 				dayShiftEnabled = s.dayShiftEnabled;
 				dayShiftStart = s.dayShiftStart;
 				dayShiftEnd = s.dayShiftEnd;
@@ -646,6 +669,80 @@
 		if (freeSpaceInterval) clearInterval(freeSpaceInterval);
 	});
 </script>
+
+<!--
+	Кнопки смен в шапке карточки торрента (обычный и компактный вид).
+	Смена без окна в переменных окружения не показывается вовсе; выключенная
+	смена показывается серой, отжатой и не реагирует на клик.
+-->
+{#snippet shiftToggles(t: Torrent)}
+	{#if dayShiftConfigured}
+		{@const onDS = dayShiftEnabled && hasShiftLabel(t, DAY_SHIFT_LABEL)}
+		<Hint
+			text={!dayShiftEnabled
+				? $tt('actions.dayShiftDisabled')
+				: dayShiftStart && dayShiftEnd
+					? $tt('actions.dayShiftWindow', { values: { start: dayShiftStart, end: dayShiftEnd } })
+					: onDS ? $tt('actions.dayShiftOff') : $tt('actions.dayShiftOn')}
+		>
+			{#snippet trigger({ props })}
+				<button
+					{...mergeProps(props, {
+						onclick: (e: MouseEvent) => {
+							e.stopPropagation();
+							if (dayShiftEnabled) toggleShiftLabel(t, DAY_SHIFT_LABEL, DAY_SHIFT_TOASTS);
+						}
+					})}
+					aria-disabled={!dayShiftEnabled}
+					aria-pressed={onDS}
+					aria-label={!dayShiftEnabled
+						? $tt('actions.dayShiftDisabled')
+						: onDS ? $tt('actions.dayShiftOff') : $tt('actions.dayShiftOn')}
+					class="size-7 rounded-md flex items-center justify-center transition-colors {!dayShiftEnabled
+						? 'text-muted-foreground/25 cursor-not-allowed'
+						: onDS
+							? 'bg-amber-500/10 text-amber-600 dark:text-amber-300'
+							: 'text-muted-foreground/40 hover:text-muted-foreground'}"
+				>
+					<SunIcon class="size-3.5" />
+				</button>
+			{/snippet}
+		</Hint>
+	{/if}
+	{#if nightShiftConfigured}
+		{@const onNS = nightShiftEnabled && hasShiftLabel(t, NIGHT_SHIFT_LABEL)}
+		<Hint
+			text={!nightShiftEnabled
+				? $tt('actions.nightShiftDisabled')
+				: nightShiftStart && nightShiftEnd
+					? $tt('actions.nightShiftWindow', { values: { start: nightShiftStart, end: nightShiftEnd } })
+					: onNS ? $tt('actions.nightShiftOff') : $tt('actions.nightShiftOn')}
+		>
+			{#snippet trigger({ props })}
+				<button
+					{...mergeProps(props, {
+						onclick: (e: MouseEvent) => {
+							e.stopPropagation();
+							if (nightShiftEnabled) toggleShiftLabel(t, NIGHT_SHIFT_LABEL, NIGHT_SHIFT_TOASTS);
+						}
+					})}
+					aria-disabled={!nightShiftEnabled}
+					aria-pressed={onNS}
+					aria-label={!nightShiftEnabled
+						? $tt('actions.nightShiftDisabled')
+						: onNS ? $tt('actions.nightShiftOff') : $tt('actions.nightShiftOn')}
+					class="size-7 rounded-md flex items-center justify-center transition-colors {!nightShiftEnabled
+						? 'text-muted-foreground/25 cursor-not-allowed'
+						: onNS
+							? 'bg-indigo-600/10 text-indigo-600 dark:text-indigo-300'
+							: 'text-muted-foreground/40 hover:text-muted-foreground'}"
+				>
+					<MoonStarIcon class="size-3.5" />
+				</button>
+			{/snippet}
+		</Hint>
+	{/if}
+{/snippet}
 
 <!-- ── Layout ──────────────────────────────────────────────────────────────── -->
 <div class="min-h-screen bg-background text-foreground">
@@ -839,50 +936,7 @@
 									{t.name}
 								</h3>
 								<div class="flex items-center gap-0.5 flex-shrink-0">
-									{#if dayShiftEnabled}
-										{@const onDS = hasShiftLabel(t, DAY_SHIFT_LABEL)}
-										<Hint
-											text={dayShiftStart && dayShiftEnd
-												? $tt('actions.dayShiftWindow', { values: { start: dayShiftStart, end: dayShiftEnd } })
-												: onDS ? $tt('actions.dayShiftOff') : $tt('actions.dayShiftOn')}
-										>
-											{#snippet trigger({ props })}
-												<button
-													{...mergeProps(props, {
-														onclick: (e: MouseEvent) => { e.stopPropagation(); toggleShiftLabel(t, DAY_SHIFT_LABEL, DAY_SHIFT_TOASTS); }
-													})}
-													aria-label={onDS ? $tt('actions.dayShiftOff') : $tt('actions.dayShiftOn')}
-													class="size-7 rounded-md flex items-center justify-center transition-colors {onDS
-														? 'bg-amber-500/10 text-amber-600 dark:text-amber-300'
-														: 'text-muted-foreground/40 hover:text-muted-foreground'}"
-												>
-													<SunIcon class="size-3.5" />
-												</button>
-											{/snippet}
-										</Hint>
-									{/if}
-									{#if nightShiftEnabled}
-										{@const onNS = hasShiftLabel(t, NIGHT_SHIFT_LABEL)}
-										<Hint
-											text={nightShiftStart && nightShiftEnd
-												? $tt('actions.nightShiftWindow', { values: { start: nightShiftStart, end: nightShiftEnd } })
-												: onNS ? $tt('actions.nightShiftOff') : $tt('actions.nightShiftOn')}
-										>
-											{#snippet trigger({ props })}
-												<button
-													{...mergeProps(props, {
-														onclick: (e: MouseEvent) => { e.stopPropagation(); toggleShiftLabel(t, NIGHT_SHIFT_LABEL, NIGHT_SHIFT_TOASTS); }
-													})}
-													aria-label={onNS ? $tt('actions.nightShiftOff') : $tt('actions.nightShiftOn')}
-													class="size-7 rounded-md flex items-center justify-center transition-colors {onNS
-														? 'bg-indigo-600/10 text-indigo-600 dark:text-indigo-300'
-														: 'text-muted-foreground/40 hover:text-muted-foreground'}"
-												>
-													<MoonStarIcon class="size-3.5" />
-												</button>
-											{/snippet}
-										</Hint>
-									{/if}
+									{@render shiftToggles(t)}
 									<button
 										onclick={(e) => { e.stopPropagation(); pinStore.toggle(t.hashString); }}
 										aria-label={pinned ? $tt('actions.unpin') : $tt('actions.pin')}
@@ -994,50 +1048,7 @@
 									{t.name}
 								</h3>
 								<div class="flex items-center gap-0.5 flex-shrink-0">
-									{#if dayShiftEnabled}
-										{@const onDS = hasShiftLabel(t, DAY_SHIFT_LABEL)}
-										<Hint
-											text={dayShiftStart && dayShiftEnd
-												? $tt('actions.dayShiftWindow', { values: { start: dayShiftStart, end: dayShiftEnd } })
-												: onDS ? $tt('actions.dayShiftOff') : $tt('actions.dayShiftOn')}
-										>
-											{#snippet trigger({ props })}
-												<button
-													{...mergeProps(props, {
-														onclick: (e: MouseEvent) => { e.stopPropagation(); toggleShiftLabel(t, DAY_SHIFT_LABEL, DAY_SHIFT_TOASTS); }
-													})}
-													aria-label={onDS ? $tt('actions.dayShiftOff') : $tt('actions.dayShiftOn')}
-													class="size-7 rounded-md flex items-center justify-center transition-colors {onDS
-														? 'bg-amber-500/10 text-amber-600 dark:text-amber-300'
-														: 'text-muted-foreground/40 hover:text-muted-foreground'}"
-												>
-													<SunIcon class="size-3.5" />
-												</button>
-											{/snippet}
-										</Hint>
-									{/if}
-									{#if nightShiftEnabled}
-										{@const onNS = hasShiftLabel(t, NIGHT_SHIFT_LABEL)}
-										<Hint
-											text={nightShiftStart && nightShiftEnd
-												? $tt('actions.nightShiftWindow', { values: { start: nightShiftStart, end: nightShiftEnd } })
-												: onNS ? $tt('actions.nightShiftOff') : $tt('actions.nightShiftOn')}
-										>
-											{#snippet trigger({ props })}
-												<button
-													{...mergeProps(props, {
-														onclick: (e: MouseEvent) => { e.stopPropagation(); toggleShiftLabel(t, NIGHT_SHIFT_LABEL, NIGHT_SHIFT_TOASTS); }
-													})}
-													aria-label={onNS ? $tt('actions.nightShiftOff') : $tt('actions.nightShiftOn')}
-													class="size-7 rounded-md flex items-center justify-center transition-colors {onNS
-														? 'bg-indigo-600/10 text-indigo-600 dark:text-indigo-300'
-														: 'text-muted-foreground/40 hover:text-muted-foreground'}"
-												>
-													<MoonStarIcon class="size-3.5" />
-												</button>
-											{/snippet}
-										</Hint>
-									{/if}
+									{@render shiftToggles(t)}
 									<button
 										onclick={(e) => { e.stopPropagation(); pinStore.toggle(t.hashString); }}
 										aria-label={pinned ? $tt('actions.unpin') : $tt('actions.pin')}
@@ -1160,7 +1171,7 @@
 			<Tabs.List class="mb-3">
 				<Tabs.Trigger value="general">{$tt('settings.tabGeneral')}</Tabs.Trigger>
 				<Tabs.Trigger value="server">{$tt('settings.tabServer')}</Tabs.Trigger>
-				{#if nightShiftEnabled || dayShiftEnabled}
+				{#if nightShiftConfigured || dayShiftConfigured}
 					<Tabs.Trigger value="shifts">{$tt('settings.tabShifts')}</Tabs.Trigger>
 				{/if}
 			</Tabs.List>
@@ -1267,34 +1278,66 @@
 				{/if}
 			</Tabs.Content>
 
-			{#if nightShiftEnabled || dayShiftEnabled}
+			{#if nightShiftConfigured || dayShiftConfigured}
 				<Tabs.Content value="shifts">
 					<div class="flex flex-col gap-4">
-						{#if nightShiftEnabled}
-							<div class="rounded-lg border border-border/60 bg-accent/30 p-4">
-								<p class="text-sm text-muted-foreground leading-relaxed">{$tt('settings.nightShiftDescription')}</p>
-							</div>
+						{#if dayShiftConfigured}
+							<div class="flex flex-col gap-3">
+								<div class="flex items-center justify-between gap-3">
+									<label for="day-shift-enabled" class="text-sm font-medium cursor-pointer select-none">
+										{$tt('settings.dayShiftLabel')}
+									</label>
+									<Switch
+										id="day-shift-enabled"
+										checked={dayShiftEnabled}
+										onCheckedChange={(v) => onShiftEnabledChange('day', v)}
+									/>
+								</div>
 
-							<div class="flex flex-col gap-2 rounded-lg border border-border/60 p-4">
-								<span class="text-xs uppercase tracking-wide text-muted-foreground">{$tt('settings.nightShiftWindowLabel')}</span>
-								<span class="font-mono text-base tabular-nums">{nightShiftStart ?? '—'} – {nightShiftEnd ?? '—'}</span>
-								<span class="text-xs text-muted-foreground">{$tt('settings.nightShiftWindowHint')}</span>
+								<div class="rounded-lg border border-border/60 bg-accent/30 p-4 {dayShiftEnabled ? '' : 'opacity-50'}">
+									<p class="text-sm text-muted-foreground leading-relaxed">{$tt('settings.dayShiftDescription')}</p>
+								</div>
+
+								<div class="flex flex-col gap-2 rounded-lg border border-border/60 p-4 {dayShiftEnabled ? '' : 'opacity-50'}">
+									<span class="text-xs uppercase tracking-wide text-muted-foreground">{$tt('settings.dayShiftWindowLabel')}</span>
+									<span class="font-mono text-base tabular-nums">{dayShiftStart ?? '—'} – {dayShiftEnd ?? '—'}</span>
+									<span class="text-xs text-muted-foreground">{$tt('settings.dayShiftWindowHint')}</span>
+								</div>
 							</div>
 						{/if}
 
-						{#if dayShiftEnabled}
-							<div class="rounded-lg border border-border/60 bg-accent/30 p-4">
-								<p class="text-sm text-muted-foreground leading-relaxed">{$tt('settings.dayShiftDescription')}</p>
-							</div>
+						{#if nightShiftConfigured && dayShiftConfigured}
+							<Separator />
+						{/if}
 
-							<div class="flex flex-col gap-2 rounded-lg border border-border/60 p-4">
-								<span class="text-xs uppercase tracking-wide text-muted-foreground">{$tt('settings.dayShiftWindowLabel')}</span>
-								<span class="font-mono text-base tabular-nums">{dayShiftStart ?? '—'} – {dayShiftEnd ?? '—'}</span>
-								<span class="text-xs text-muted-foreground">{$tt('settings.dayShiftWindowHint')}</span>
+						{#if nightShiftConfigured}
+							<div class="flex flex-col gap-3">
+								<div class="flex items-center justify-between gap-3">
+									<label for="night-shift-enabled" class="text-sm font-medium cursor-pointer select-none">
+										{$tt('settings.nightShiftLabel')}
+									</label>
+									<Switch
+										id="night-shift-enabled"
+										checked={nightShiftEnabled}
+										onCheckedChange={(v) => onShiftEnabledChange('night', v)}
+									/>
+								</div>
+
+								<div class="rounded-lg border border-border/60 bg-accent/30 p-4 {nightShiftEnabled ? '' : 'opacity-50'}">
+									<p class="text-sm text-muted-foreground leading-relaxed">{$tt('settings.nightShiftDescription')}</p>
+								</div>
+
+								<div class="flex flex-col gap-2 rounded-lg border border-border/60 p-4 {nightShiftEnabled ? '' : 'opacity-50'}">
+									<span class="text-xs uppercase tracking-wide text-muted-foreground">{$tt('settings.nightShiftWindowLabel')}</span>
+									<span class="font-mono text-base tabular-nums">{nightShiftStart ?? '—'} – {nightShiftEnd ?? '—'}</span>
+									<span class="text-xs text-muted-foreground">{$tt('settings.nightShiftWindowHint')}</span>
+								</div>
 							</div>
 						{/if}
 
-						{#if nightShiftEnabled && dayShiftEnabled}
+						<p class="text-xs text-muted-foreground leading-relaxed">{$tt('settings.shiftToggleHint')}</p>
+
+						{#if nightShiftConfigured && dayShiftConfigured}
 							<p class="text-xs text-muted-foreground leading-relaxed">{$tt('settings.shiftConflictWarning')}</p>
 						{/if}
 					</div>

@@ -15,6 +15,7 @@ Transmitter ist eine moderne, schlanke Alternative zur Standard-Weboberfläche v
 - **Notizen** — beliebiger Text zu jedem Torrent (serverseitig in SQLite gespeichert, sichtbar in der Liste, im Detailbereich und im Telegram-Bot)
 - **Nachtschicht** — markierte Torrents werden nur im konfigurierten Zeitfenster heruntergeladen und geseedet; außerhalb werden sie pausiert
 - **Tagschicht** — dasselbe mit eigener Markierung, eigenem Fenster und einem Sonnen-Button; die Schichten sind unabhängig, ein Torrent darf beide Markierungen tragen
+- **Schicht-Schalter** — jede konfigurierte Schicht lässt sich unter „Einstellungen → Schichten“ ausschalten; der Zustand liegt serverseitig in SQLite, gilt daher in jedem Browser und bleibt nach einem Neustart erhalten. Solange eine Schicht aus ist, rührt ihr Scheduler nichts an: Torrents behalten ihren Zustand und der Schicht-Button wird ausgegraut
 - **Auto-Aktualisierung** — Live-Updates alle 3–5 Sekunden
 - **Unterstützte Sprachen**: en, ru, es, de
 - **Docker images**: linux/amd64, linux/arm/v7, linux/arm64/v8

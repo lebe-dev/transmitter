@@ -60,9 +60,11 @@
 		"nightShiftOn": "Programar para turno nocturno",
 		"nightShiftOff": "Quitar del turno nocturno",
 		"nightShiftWindow": "Turno nocturno: {start}–{end}",
+		"nightShiftDisabled": "El turno nocturno está desactivado",
 		"dayShiftOn": "Programar para turno diurno",
 		"dayShiftOff": "Quitar del turno diurno",
-		"dayShiftWindow": "Turno diurno: {start}–{end}"
+		"dayShiftWindow": "Turno diurno: {start}–{end}",
+		"dayShiftDisabled": "El turno diurno está desactivado"
 	},
 	"addDialog": {
 		"title": "Añadir torrent",
@@ -110,12 +112,15 @@
 		"tabGeneral": "General",
 		"tabServer": "Servidor",
 		"tabShifts": "Turnos",
+		"nightShiftLabel": "Turno nocturno",
 		"nightShiftDescription": "Los torrents marcados con la luna se descargan y comparten sólo durante la ventana nocturna configurada. Fuera de la ventana se pausan.",
 		"nightShiftWindowLabel": "Ventana del turno nocturno",
 		"nightShiftWindowHint": "Se establece con las variables de entorno NIGHT_SHIFT_START y NIGHT_SHIFT_END.",
+		"dayShiftLabel": "Turno diurno",
 		"dayShiftDescription": "Los torrents marcados con el sol se descargan y comparten sólo durante la ventana diurna configurada. Fuera de la ventana se pausan.",
 		"dayShiftWindowLabel": "Ventana del turno diurno",
 		"dayShiftWindowHint": "Se establece con las variables de entorno DAY_SHIFT_START y DAY_SHIFT_END.",
+		"shiftToggleHint": "Los interruptores se guardan en el servidor: se aplican en todos los navegadores y se mantienen tras reiniciar. Un turno desactivado no inicia ni detiene torrents: se quedan como están.",
 		"shiftConflictWarning": "Un torrent puede llevar ambas marcas. Los planificadores son independientes, así que con ventanas que no se solapan lo iniciarán y detendrán por turnos.",
 		"configEnvVar": "Variable",
 		"configValue": "Valor",
@@ -135,10 +140,10 @@
 			"monitorInterval": "Con qué frecuencia el bot de Telegram comprueba el estado de los torrents.",
 			"fileSelectTimeout": "Tiempo de espera para la selección de archivos en el bot de Telegram.",
 			"maxRequestBodyBytes": "Tamaño máximo permitido del cuerpo de una solicitud HTTP entrante.",
-			"nightShiftEnabled": "Si el planificador del turno nocturno está activo (configura NIGHT_SHIFT_START y NIGHT_SHIFT_END para activarlo).",
+			"nightShiftConfigured": "Si la ventana del turno nocturno está definida (NIGHT_SHIFT_START y NIGHT_SHIFT_END). El planificador se activa y desactiva en la pestaña «Turnos».",
 			"nightShiftStart": "Inicio de la ventana del turno nocturno (HH:MM, 24h). Los torrents marcados se descargan sólo en esta ventana.",
 			"nightShiftEnd": "Fin de la ventana del turno nocturno (HH:MM, 24h). La ventana puede cruzar la medianoche si el fin ≤ inicio.",
-			"dayShiftEnabled": "Si el planificador del turno diurno está activo (configura DAY_SHIFT_START y DAY_SHIFT_END para activarlo).",
+			"dayShiftConfigured": "Si la ventana del turno diurno está definida (DAY_SHIFT_START y DAY_SHIFT_END). El planificador se activa y desactiva en la pestaña «Turnos».",
 			"dayShiftStart": "Inicio de la ventana del turno diurno (HH:MM, 24h). Los torrents marcados se descargan sólo en esta ventana.",
 			"dayShiftEnd": "Fin de la ventana del turno diurno (HH:MM, 24h). La ventana puede cruzar la medianoche si el fin ≤ inicio.",
 			"dbPath": "Ruta al archivo de base de datos SQLite donde se guardan las notas de los torrents.",
@@ -223,6 +228,7 @@
 		"failNightShift": "No se pudo actualizar el turno nocturno",
 		"dayShiftOn": "Programado para turno diurno: {name}",
 		"dayShiftOff": "Quitado del turno diurno: {name}",
-		"failDayShift": "No se pudo actualizar el turno diurno"
+		"failDayShift": "No se pudo actualizar el turno diurno",
+		"failShiftToggle": "No se pudo cambiar el turno"
 	}
 }

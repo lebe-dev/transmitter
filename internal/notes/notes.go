@@ -11,13 +11,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 	"unicode/utf8"
 
-	_ "modernc.org/sqlite" // pure-Go SQLite driver, keeps CGO_ENABLED=0 builds working
+	"github.com/lebe-dev/transmitter/internal/sqlitedb"
 )
 
 // DefaultMaxLength is used when TORRENT_NOTE_MAX_LENGTH is not configured.
@@ -52,24 +50,9 @@ func Open(path string, maxLen int) (*Store, error) {
 		maxLen = DefaultMaxLength
 	}
 
-	if dir := filepath.Dir(path); dir != "" && dir != "." {
-		if err := os.MkdirAll(dir, 0o750); err != nil {
-			return nil, fmt.Errorf("create database directory %q: %w", dir, err)
-		}
-	}
-
-	// WAL keeps the single writer from blocking readers; busy_timeout avoids
-	// spurious "database is locked" errors on slow storage (e.g. an SD card).
-	dsn := path + "?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)"
-	db, err := sql.Open("sqlite", dsn)
+	db, err := sqlitedb.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("open database %q: %w", path, err)
-	}
-	db.SetMaxOpenConns(1)
-
-	if err := db.Ping(); err != nil {
-		db.Close() //nolint:errcheck
-		return nil, fmt.Errorf("ping database %q: %w", path, err)
+		return nil, err
 	}
 	if _, err := db.Exec(schema); err != nil {
 		db.Close() //nolint:errcheck
