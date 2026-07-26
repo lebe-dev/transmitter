@@ -267,7 +267,12 @@ class DownloadDirStore {
 		}
 	}
 
+	#inited = false;
+
+	/** Идемпотентно: и главная, и шапка настроек вызывают init() при монтировании. */
 	async init() {
+		if (this.#inited) return;
+		this.#inited = true;
 		try {
 			const session = await getSession();
 			this.defaultDir = session['download-dir'] ?? '';

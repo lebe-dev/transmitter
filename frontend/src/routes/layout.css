@@ -137,6 +137,21 @@
     }
 }
 
+/*
+ * Оболочка страницы: колонка контента (page-surface) лежит на чуть более
+ * тусклом фоне (page-shell), чтобы поля по краям не сливались с карточками.
+ * Оба цвета выводятся из живых переменных темы, поэтому работают во всех
+ * цветовых схемах и в тёмном режиме.
+ */
+body,
+.page-shell {
+    background-color: color-mix(in oklab, var(--muted) 85%, var(--background));
+}
+
+.page-surface {
+    background-color: var(--background);
+}
+
 .font-display {
     font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
 }

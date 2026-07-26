@@ -2,12 +2,11 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { get } from 'svelte/store';
 	import { toast } from 'svelte-sonner';
-	import { mode, toggleMode, setTheme, theme } from 'mode-watcher';
+	import { setTheme, theme } from 'mode-watcher';
 	import { getCoreRowModel, getSortedRowModel, type ColumnDef, type SortingState } from '@tanstack/table-core';
 	import { mergeProps } from 'bits-ui';
-	import { t as tt, locale, locales } from 'svelte-intl-precompile';
+	import { t as tt, locale } from 'svelte-intl-precompile';
 	import SunIcon from '@lucide/svelte/icons/sun';
-	import MoonIcon from '@lucide/svelte/icons/moon';
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import PlayIcon from '@lucide/svelte/icons/play';
 	import PauseIcon from '@lucide/svelte/icons/pause';
@@ -19,36 +18,29 @@
 	import AlertCircleIcon from '@lucide/svelte/icons/alert-circle';
 	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 	import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
-	import SettingsIcon from '@lucide/svelte/icons/settings';
 	import PinIcon from '@lucide/svelte/icons/pin';
 	import MoonStarIcon from '@lucide/svelte/icons/moon-star';
 	import NotebookPenIcon from '@lucide/svelte/icons/notebook-pen';
-	import HardDriveIcon from '@lucide/svelte/icons/hard-drive';
 
 	import XIcon from '@lucide/svelte/icons/x';
 	import FolderIcon from '@lucide/svelte/icons/folder';
 
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
-	import { Switch } from '$lib/components/ui/switch/index.js';
-	import { Separator } from '$lib/components/ui/separator/index.js';
 	import { torrentStore, pinStore, downloadDirStore, noteStore } from '$lib/stores.svelte.js';
-	import { addTorrentMagnet, addTorrentFile, startTorrents, stopTorrents, removeTorrents, getTorrentFiles, setFilesWanted, setTorrentLabels, setShiftEnabled, getSettings, getServerConfig, getFreeSpace } from '$lib/api.js';
+	import { settingsStore } from '$lib/settings.svelte.js';
+	import { addTorrentMagnet, addTorrentFile, startTorrents, stopTorrents, removeTorrents, getTorrentFiles, setFilesWanted, setTorrentLabels, getFreeSpace } from '$lib/api.js';
 	import { formatSize, formatSpeed, formatEta, formatDate } from '$lib/format.js';
 	import { parseTorrentSize } from '$lib/bencode.js';
-	import type { Torrent, FilterStatus, ServerConfig, ShiftName } from '$lib/types.js';
+	import type { Torrent, FilterStatus } from '$lib/types.js';
 	import { createSvelteTable } from '$lib/components/ui/data-table/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import * as Tabs from '$lib/components/ui/tabs/index.js';
-	import * as Table from '$lib/components/ui/table/index.js';
-	import * as HoverCard from '$lib/components/ui/hover-card/index.js';
-	import InfoIcon from '@lucide/svelte/icons/info';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import AppHeader from '$lib/components/AppHeader.svelte';
 	import Hint from '$lib/components/Hint.svelte';
 	import TorrentDetailPanel from '$lib/components/TorrentDetailPanel.svelte';
 	import FileSelectDialog from '$lib/components/FileSelectDialog.svelte';
 
-	const LOCALE_STORAGE_KEY = 'transmitter-locale';
 	const NIGHT_SHIFT_LABEL = 'night-shift';
 	const DAY_SHIFT_LABEL = 'day-shift';
 
@@ -363,13 +355,12 @@
 
 	let deleteOpen = $state(false);
 	let deleteTarget = $state<Torrent | null>(null);
-	let defaultDeleteWithData = $state(false);
 	let deleteWithData = $state(false);
 	let isDeleting = $state(false);
 
 	function openDeleteDialog(t: Torrent) {
 		deleteTarget = t;
-		deleteWithData = defaultDeleteWithData;
+		deleteWithData = settingsStore.deleteWithData;
 		deleteOpen = true;
 	}
 
@@ -414,35 +405,11 @@
 
 	// ── Shifts (night / day) ─────────────────────────────────────────────────
 
-	// configured — окно смены задано переменными окружения (смена вообще есть);
-	// enabled — планировщик включён в настройках (состояние живёт на сервере).
-	let nightShiftConfigured = $state(false);
-	let nightShiftEnabled = $state(false);
-	let nightShiftStart = $state<string | undefined>(undefined);
-	let nightShiftEnd = $state<string | undefined>(undefined);
-
-	let dayShiftConfigured = $state(false);
-	let dayShiftEnabled = $state(false);
-	let dayShiftStart = $state<string | undefined>(undefined);
-	let dayShiftEnd = $state<string | undefined>(undefined);
+	const nightShift = $derived(settingsStore.night);
+	const dayShift = $derived(settingsStore.day);
 
 	function hasShiftLabel(t: Torrent, label: string): boolean {
 		return Array.isArray(t.labels) && t.labels.includes(label);
-	}
-
-	/** Включает/выключает планировщик смены, откатывая переключатель при ошибке. */
-	async function onShiftEnabledChange(shift: ShiftName, enabled: boolean) {
-		const previous = shift === 'night' ? nightShiftEnabled : dayShiftEnabled;
-		if (shift === 'night') nightShiftEnabled = enabled;
-		else dayShiftEnabled = enabled;
-
-		try {
-			await setShiftEnabled(shift, enabled);
-		} catch {
-			if (shift === 'night') nightShiftEnabled = previous;
-			else dayShiftEnabled = previous;
-			toast.error(get(tt)('toast.failShiftToggle'));
-		}
 	}
 
 	/** Toggles a shift label on the torrent, leaving its other labels untouched. */
@@ -474,96 +441,9 @@
 		fail: 'toast.failDayShift',
 	};
 
-	// ── Settings dialog ──────────────────────────────────────────────────────
-
-	let settingsOpen = $state(false);
-	let settingsTab = $state('general');
-	let serverConfig = $state<ServerConfig | null>(null);
-	let serverConfigLoading = $state(false);
-	let serverConfigError = $state(false);
-
-	async function loadServerConfig() {
-		if (serverConfig !== null) return;
-		serverConfigLoading = true;
-		serverConfigError = false;
-		try {
-			serverConfig = await getServerConfig();
-		} catch {
-			serverConfigError = true;
-		} finally {
-			serverConfigLoading = false;
-		}
-	}
-
-	const CONFIG_ROWS_BASE: { envVar: string; key: keyof ServerConfig }[] = [
-		{ envVar: 'TRANSMISSION_URL',         key: 'transmissionUrl' },
-		{ envVar: 'LISTEN_ADDR',              key: 'listenAddr' },
-		{ envVar: 'CORS_ORIGIN',              key: 'corsOrigin' },
-		{ envVar: 'LOG_LEVEL',                key: 'logLevel' },
-		{ envVar: 'WEBUI_ENABLED',            key: 'webUiEnabled' },
-		{ envVar: 'TELEGRAM_BOT_ENABLED',     key: 'telegramBotEnabled' },
-		{ envVar: 'TELEGRAM_USERS',           key: 'telegramUsers' },
-		{ envVar: 'FILE_PRIORITY_ENABLED',    key: 'filePriorityEnabled' },
-		{ envVar: 'FILE_PRIORITY_HIGH_COUNT', key: 'filePriorityHighCount' },
-		{ envVar: 'DELETE_WITH_DATA',         key: 'deleteWithData' },
-		{ envVar: 'MONITOR_INTERVAL',         key: 'monitorInterval' },
-		{ envVar: 'FILE_SELECT_TIMEOUT',      key: 'fileSelectTimeout' },
-		{ envVar: 'MAX_REQUEST_BODY_BYTES',   key: 'maxRequestBodyBytes' },
-		{ envVar: 'DB_PATH',                  key: 'dbPath' },
-		{ envVar: 'TORRENT_NOTE_MAX_LENGTH',  key: 'noteMaxLength' },
-		{ envVar: 'TORRENT_NOTE_CLEANUP_INTERVAL', key: 'noteCleanupInterval' },
-	];
-
-	const NIGHT_SHIFT_CONFIG_ROWS: { envVar: string; key: keyof ServerConfig }[] = [
-		{ envVar: 'NIGHT_SHIFT_START',        key: 'nightShiftStart' },
-		{ envVar: 'NIGHT_SHIFT_END',          key: 'nightShiftEnd' },
-	];
-
-	const DAY_SHIFT_CONFIG_ROWS: { envVar: string; key: keyof ServerConfig }[] = [
-		{ envVar: 'DAY_SHIFT_START',          key: 'dayShiftStart' },
-		{ envVar: 'DAY_SHIFT_END',            key: 'dayShiftEnd' },
-	];
-
-	const configRows = $derived([
-		...CONFIG_ROWS_BASE,
-		...(serverConfig?.nightShiftConfigured ? NIGHT_SHIFT_CONFIG_ROWS : []),
-		...(serverConfig?.dayShiftConfigured ? DAY_SHIFT_CONFIG_ROWS : []),
-	]);
-
-	function formatConfigValue(v: unknown): string {
-		if (Array.isArray(v)) return v.length === 0 ? '—' : v.join(', ');
-		if (typeof v === 'boolean') return v ? 'true' : 'false';
-		return String(v ?? '—');
-	}
-
-	$effect(() => {
-		if (!settingsOpen) settingsTab = 'general';
-	});
-
-	$effect(() => {
-		if (settingsTab === 'server') loadServerConfig();
-	});
-
 	// ── Compact view ─────────────────────────────────────────────────────────
 
-	const COMPACT_STORAGE_KEY = 'transmitter-compact';
-	let compactView = $state(false);
-
-	function onCompactViewChange(checked: boolean) {
-		compactView = checked;
-		localStorage.setItem(COMPACT_STORAGE_KEY, checked ? '1' : '0');
-	}
-
-	// ── Free space in header ───────────────────────────────────────────────────
-
-	const FREE_SPACE_STORAGE_KEY = 'transmitter-show-free-space';
-	let showFreeSpace = $state(true);
-	let freeSpaceInterval: ReturnType<typeof setInterval> | null = null;
-
-	function onShowFreeSpaceChange(checked: boolean) {
-		showFreeSpace = checked;
-		localStorage.setItem(FREE_SPACE_STORAGE_KEY, checked ? '1' : '0');
-	}
+	const compactView = $derived(settingsStore.compactView);
 
 	// ── Detail panel ─────────────────────────────────────────────────────────
 
@@ -577,34 +457,9 @@
 
 	// ── Color theme ───────────────────────────────────────────────────────────
 
-	const COLOR_THEME_KEYS = [
-		{ value: 'green', tKey: 'themes.green' },
-		{ value: 'blue', tKey: 'themes.blue' },
-		{ value: 'yellow', tKey: 'themes.yellow' },
-		{ value: 'default', tKey: 'themes.default' },
-		{ value: 'orange', tKey: 'themes.orange' },
-		{ value: 'red', tKey: 'themes.red' },
-		{ value: 'rose', tKey: 'themes.rose' },
-		{ value: 'violet', tKey: 'themes.violet' },
-	] as const;
-
 	// mode-watcher manages data-theme attr & localStorage ('mode-watcher-theme')
 	// green = "" (default, no data-theme attr), others = theme name
-	const toMwTheme = (t: string) => (t === 'green' ? '' : t);
-	const fromMwTheme = (t: string) => (t || 'green');
-
-	let colorTheme = $derived(fromMwTheme(theme.current ?? ''));
-
-	function onColorThemeChange(value: string) {
-		if (value) setTheme(toMwTheme(value));
-	}
-
-	// ── Language ──────────────────────────────────────────────────────────────
-
-	function onLocaleChange(loc: string) {
-		locale.set(loc);
-		localStorage.setItem(LOCALE_STORAGE_KEY, loc);
-	}
+	const colorTheme = $derived(theme.current || 'green');
 
 	// ── Scroll to top ─────────────────────────────────────────────────────────
 
@@ -621,52 +476,25 @@
 	// ── Lifecycle ─────────────────────────────────────────────────────────────
 
 	onMount(() => {
-		// migrate: old code stored 'yellow' literally, mode-watcher uses '' for no theme (now green)
-		const stored = localStorage.getItem('transmitter-color-theme');
-		if (stored === 'yellow') {
-			localStorage.removeItem('transmitter-color-theme');
-			setTheme('yellow');
-		}
-
-		compactView = localStorage.getItem(COMPACT_STORAGE_KEY) === '1';
-		showFreeSpace = localStorage.getItem(FREE_SPACE_STORAGE_KEY) !== '0';
-
-		// Restore saved locale, or detect from browser language
-		const supported = get(locales);
-		const saved = localStorage.getItem(LOCALE_STORAGE_KEY);
-		if (saved && supported.includes(saved)) {
-			locale.set(saved);
-		} else {
-			const browserLang = navigator.language.split('-')[0];
-			locale.set(supported.includes(browserLang) ? browserLang : 'en');
-		}
-
 		torrentStore.init();
-		downloadDirStore.init();
-		getSettings()
-			.then((s) => {
-				defaultDeleteWithData = s.deleteWithData;
-				nightShiftConfigured = s.nightShiftConfigured;
-				nightShiftEnabled = s.nightShiftEnabled;
-				nightShiftStart = s.nightShiftStart;
-				nightShiftEnd = s.nightShiftEnd;
-				dayShiftConfigured = s.dayShiftConfigured;
-				dayShiftEnabled = s.dayShiftEnabled;
-				dayShiftStart = s.dayShiftStart;
-				dayShiftEnd = s.dayShiftEnd;
-				void noteStore.init(s.noteMaxLength);
-			})
+		void downloadDirStore.init();
+		settingsStore
+			.load()
+			.then((s) => noteStore.init(s.noteMaxLength))
 			.catch(() => {});
 		window.addEventListener('scroll', onScroll, { passive: true });
-
-		freeSpaceInterval = setInterval(() => {
-			if (!document.hidden) void downloadDirStore.refreshFreeSpace();
-		}, 20_000);
 	});
 	onDestroy(() => {
 		torrentStore.destroy();
 		window.removeEventListener('scroll', onScroll);
-		if (freeSpaceInterval) clearInterval(freeSpaceInterval);
+	});
+
+	// Кнопка «Добавить» в шапке страницы настроек уводит сюда с этим флагом.
+	$effect(() => {
+		if (!settingsStore.addRequested) return;
+		settingsStore.addRequested = false;
+		resetAddDialog();
+		addOpen = true;
 	});
 </script>
 
@@ -676,13 +504,13 @@
 	смена показывается серой, отжатой и не реагирует на клик.
 -->
 {#snippet shiftToggles(t: Torrent)}
-	{#if dayShiftConfigured}
-		{@const onDS = dayShiftEnabled && hasShiftLabel(t, DAY_SHIFT_LABEL)}
+	{#if dayShift.configured}
+		{@const onDS = dayShift.enabled && hasShiftLabel(t, DAY_SHIFT_LABEL)}
 		<Hint
-			text={!dayShiftEnabled
+			text={!dayShift.enabled
 				? $tt('actions.dayShiftDisabled')
-				: dayShiftStart && dayShiftEnd
-					? $tt('actions.dayShiftWindow', { values: { start: dayShiftStart, end: dayShiftEnd } })
+				: dayShift.start && dayShift.end
+					? $tt('actions.dayShiftWindow', { values: { start: dayShift.start, end: dayShift.end } })
 					: onDS ? $tt('actions.dayShiftOff') : $tt('actions.dayShiftOn')}
 		>
 			{#snippet trigger({ props })}
@@ -690,15 +518,15 @@
 					{...mergeProps(props, {
 						onclick: (e: MouseEvent) => {
 							e.stopPropagation();
-							if (dayShiftEnabled) toggleShiftLabel(t, DAY_SHIFT_LABEL, DAY_SHIFT_TOASTS);
+							if (dayShift.enabled) toggleShiftLabel(t, DAY_SHIFT_LABEL, DAY_SHIFT_TOASTS);
 						}
 					})}
-					aria-disabled={!dayShiftEnabled}
+					aria-disabled={!dayShift.enabled}
 					aria-pressed={onDS}
-					aria-label={!dayShiftEnabled
+					aria-label={!dayShift.enabled
 						? $tt('actions.dayShiftDisabled')
 						: onDS ? $tt('actions.dayShiftOff') : $tt('actions.dayShiftOn')}
-					class="size-7 rounded-md flex items-center justify-center transition-colors {!dayShiftEnabled
+					class="size-7 rounded-md flex items-center justify-center transition-colors {!dayShift.enabled
 						? 'text-muted-foreground/25 cursor-not-allowed'
 						: onDS
 							? 'bg-amber-500/10 text-amber-600 dark:text-amber-300'
@@ -709,13 +537,13 @@
 			{/snippet}
 		</Hint>
 	{/if}
-	{#if nightShiftConfigured}
-		{@const onNS = nightShiftEnabled && hasShiftLabel(t, NIGHT_SHIFT_LABEL)}
+	{#if nightShift.configured}
+		{@const onNS = nightShift.enabled && hasShiftLabel(t, NIGHT_SHIFT_LABEL)}
 		<Hint
-			text={!nightShiftEnabled
+			text={!nightShift.enabled
 				? $tt('actions.nightShiftDisabled')
-				: nightShiftStart && nightShiftEnd
-					? $tt('actions.nightShiftWindow', { values: { start: nightShiftStart, end: nightShiftEnd } })
+				: nightShift.start && nightShift.end
+					? $tt('actions.nightShiftWindow', { values: { start: nightShift.start, end: nightShift.end } })
 					: onNS ? $tt('actions.nightShiftOff') : $tt('actions.nightShiftOn')}
 		>
 			{#snippet trigger({ props })}
@@ -723,15 +551,15 @@
 					{...mergeProps(props, {
 						onclick: (e: MouseEvent) => {
 							e.stopPropagation();
-							if (nightShiftEnabled) toggleShiftLabel(t, NIGHT_SHIFT_LABEL, NIGHT_SHIFT_TOASTS);
+							if (nightShift.enabled) toggleShiftLabel(t, NIGHT_SHIFT_LABEL, NIGHT_SHIFT_TOASTS);
 						}
 					})}
-					aria-disabled={!nightShiftEnabled}
+					aria-disabled={!nightShift.enabled}
 					aria-pressed={onNS}
-					aria-label={!nightShiftEnabled
+					aria-label={!nightShift.enabled
 						? $tt('actions.nightShiftDisabled')
 						: onNS ? $tt('actions.nightShiftOff') : $tt('actions.nightShiftOn')}
-					class="size-7 rounded-md flex items-center justify-center transition-colors {!nightShiftEnabled
+					class="size-7 rounded-md flex items-center justify-center transition-colors {!nightShift.enabled
 						? 'text-muted-foreground/25 cursor-not-allowed'
 						: onNS
 							? 'bg-indigo-600/10 text-indigo-600 dark:text-indigo-300'
@@ -744,64 +572,20 @@
 	{/if}
 {/snippet}
 
+<svelte:head><title>Transmitter</title></svelte:head>
+
 <!-- ── Layout ──────────────────────────────────────────────────────────────── -->
-<div class="min-h-screen bg-background text-foreground">
+<div class="min-h-screen page-shell text-foreground flex flex-col">
 
-	<!-- Header -->
-	<header class="border-b border-border/50">
-		<div class="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
-			<div class="flex items-center gap-2.5 mr-auto min-w-0">
-				<div class="size-7 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-					<span class="text-primary-foreground font-bold text-sm leading-none font-display">T</span>
-				</div>
-				<span class="font-display font-semibold text-[17px] tracking-tight">Transmitter</span>
-				{#if showFreeSpace && downloadDirStore.defaultFreeSpace !== null}
-					<Hint
-						text={$tt('header.freeSpace')}
-						class="inline-flex items-center gap-1.5 rounded-md bg-muted/60 px-2 py-1 text-xs font-medium text-muted-foreground tabular-nums"
-					>
-						<HardDriveIcon class="size-3.5 flex-shrink-0" />
-						<span class="truncate">{formatSize(downloadDirStore.defaultFreeSpace, $tt)}</span>
-					</Hint>
-				{/if}
-			</div>
-
-			<button
-				onclick={toggleMode}
-				aria-label={$tt('header.toggleTheme')}
-				class="size-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-			>
-				{#if mode.current === 'dark'}
-					<SunIcon class="size-4" />
-				{:else}
-					<MoonIcon class="size-4" />
-				{/if}
-			</button>
-
-			<button
-				onclick={() => (settingsOpen = true)}
-				aria-label={$tt('header.settings')}
-				class="size-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-			>
-				<SettingsIcon class="size-4" />
-			</button>
-
-			<Button
-				size="sm"
-				class="font-display font-semibold"
-				onclick={() => {
-					resetAddDialog();
-					addOpen = true;
-				}}
-			>
-				<PlusIcon class="size-4" />
-				{$tt('header.add')}
-			</Button>
-		</div>
-	</header>
+	<AppHeader
+		onAdd={() => {
+			resetAddDialog();
+			addOpen = true;
+		}}
+	/>
 
 	<!-- Content -->
-	<div class="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex flex-col gap-4">
+	<div class="flex-1 w-full max-w-3xl mx-auto page-surface border-x border-border/50 px-4 sm:px-6 py-4 flex flex-col gap-4">
 
 		<!-- Search -->
 		<div class="relative">
@@ -1159,207 +943,6 @@
 >
 	<ArrowUpIcon class="size-4" />
 </button>
-
-<!-- ── Settings Dialog ────────────────────────────────────────────────────── -->
-<AlertDialog.Root bind:open={settingsOpen}>
-	<AlertDialog.Content class="sm:max-w-lg">
-		<AlertDialog.Header class="pb-3">
-			<AlertDialog.Title class="font-display text-lg font-semibold">{$tt('settings.title')}</AlertDialog.Title>
-		</AlertDialog.Header>
-
-		<Tabs.Root bind:value={settingsTab}>
-			<Tabs.List class="mb-3">
-				<Tabs.Trigger value="general">{$tt('settings.tabGeneral')}</Tabs.Trigger>
-				<Tabs.Trigger value="server">{$tt('settings.tabServer')}</Tabs.Trigger>
-				{#if nightShiftConfigured || dayShiftConfigured}
-					<Tabs.Trigger value="shifts">{$tt('settings.tabShifts')}</Tabs.Trigger>
-				{/if}
-			</Tabs.List>
-
-			<Tabs.Content value="general">
-				<div class="flex flex-col gap-4">
-					<div class="flex flex-col gap-3">
-						<span class="text-sm font-medium">{$tt('settings.colorTheme')}</span>
-						<div class="grid grid-cols-4 gap-2">
-							{#each COLOR_THEME_KEYS as ct}
-								<button
-									class="h-9 rounded-lg border text-xs font-medium transition-colors {colorTheme === ct.value
-										? 'border-primary bg-primary/10 text-foreground'
-										: 'border-border/60 text-muted-foreground hover:border-border hover:bg-accent/50'}"
-									onclick={() => onColorThemeChange(ct.value)}
-								>
-									{$tt(ct.tKey)}
-								</button>
-							{/each}
-						</div>
-					</div>
-
-					<div class="flex flex-col gap-3">
-						<span class="text-sm font-medium">{$tt('settings.language')}</span>
-						<div class="grid grid-cols-2 gap-2">
-							{#each [...$locales] as loc}
-								<button
-									class="h-9 rounded-lg border text-xs font-medium transition-colors {$locale === loc
-										? 'border-primary bg-primary/10 text-foreground'
-										: 'border-border/60 text-muted-foreground hover:border-border hover:bg-accent/50'}"
-									onclick={() => onLocaleChange(loc)}
-								>
-									{$tt(`languages.${loc}`)}
-								</button>
-							{/each}
-						</div>
-					</div>
-
-					<div class="flex items-center gap-3">
-						<Checkbox
-							id="compact-view"
-							checked={compactView}
-							onCheckedChange={onCompactViewChange}
-						/>
-						<label for="compact-view" class="text-sm font-medium cursor-pointer select-none">
-							{$tt('settings.compactView')}
-						</label>
-					</div>
-
-					<div class="flex items-center gap-3">
-						<Checkbox
-							id="show-free-space"
-							checked={showFreeSpace}
-							onCheckedChange={onShowFreeSpaceChange}
-						/>
-						<label for="show-free-space" class="text-sm font-medium cursor-pointer select-none">
-							{$tt('settings.showFreeSpace')}
-						</label>
-					</div>
-				</div>
-			</Tabs.Content>
-
-			<Tabs.Content value="server">
-				{#if serverConfigLoading}
-					<div class="flex justify-center py-6">
-						<Spinner class="size-5" />
-					</div>
-				{:else if serverConfigError}
-					<p class="text-sm text-destructive py-4 text-center">{$tt('settings.configError')}</p>
-				{:else if serverConfig}
-					<p class="text-xs text-muted-foreground mb-3">{$tt('settings.configNote')}</p>
-					<div class="max-h-64 overflow-hidden overflow-y-auto rounded-lg border border-border/60">
-						<Table.Root class="table-fixed w-full">
-							<Table.Header>
-								<Table.Row>
-									<Table.Head class="text-xs w-[45%]">{$tt('settings.configEnvVar')}</Table.Head>
-									<Table.Head class="text-xs">{$tt('settings.configValue')}</Table.Head>
-								</Table.Row>
-							</Table.Header>
-							<Table.Body>
-								{#each configRows as row}
-									<Table.Row>
-										<Table.Cell class="font-mono text-xs py-2 text-muted-foreground break-all">
-											<HoverCard.Root>
-												<HoverCard.Trigger class="flex items-center gap-1.5 cursor-default">
-													{row.envVar}
-													<InfoIcon class="size-3 shrink-0 text-muted-foreground/50" />
-												</HoverCard.Trigger>
-												<HoverCard.Portal>
-													<HoverCard.Content class="w-64 text-xs" side="right">
-														{$tt(`settings.configHint.${row.key}`)}
-													</HoverCard.Content>
-												</HoverCard.Portal>
-											</HoverCard.Root>
-										</Table.Cell>
-										<Table.Cell class="font-mono text-xs py-2 break-all">
-											{formatConfigValue(serverConfig[row.key])}
-										</Table.Cell>
-									</Table.Row>
-								{/each}
-							</Table.Body>
-						</Table.Root>
-					</div>
-				{/if}
-			</Tabs.Content>
-
-			{#if nightShiftConfigured || dayShiftConfigured}
-				<Tabs.Content value="shifts">
-					<div class="flex flex-col gap-4">
-						{#if dayShiftConfigured}
-							<div class="flex flex-col gap-3">
-								<div class="flex items-center justify-between gap-3">
-									<label for="day-shift-enabled" class="text-sm font-medium cursor-pointer select-none">
-										{$tt('settings.dayShiftLabel')}
-									</label>
-									<Switch
-										id="day-shift-enabled"
-										checked={dayShiftEnabled}
-										onCheckedChange={(v) => onShiftEnabledChange('day', v)}
-									/>
-								</div>
-
-								<div class="rounded-lg border border-border/60 bg-accent/30 p-4 {dayShiftEnabled ? '' : 'opacity-50'}">
-									<p class="text-sm text-muted-foreground leading-relaxed">{$tt('settings.dayShiftDescription')}</p>
-								</div>
-
-								<div class="flex flex-col gap-2 rounded-lg border border-border/60 p-4 {dayShiftEnabled ? '' : 'opacity-50'}">
-									<span class="text-xs uppercase tracking-wide text-muted-foreground">{$tt('settings.dayShiftWindowLabel')}</span>
-									<span class="font-mono text-base tabular-nums">{dayShiftStart ?? '—'} – {dayShiftEnd ?? '—'}</span>
-									<span class="text-xs text-muted-foreground">{$tt('settings.dayShiftWindowHint')}</span>
-								</div>
-							</div>
-						{/if}
-
-						{#if nightShiftConfigured && dayShiftConfigured}
-							<Separator />
-						{/if}
-
-						{#if nightShiftConfigured}
-							<div class="flex flex-col gap-3">
-								<div class="flex items-center justify-between gap-3">
-									<label for="night-shift-enabled" class="text-sm font-medium cursor-pointer select-none">
-										{$tt('settings.nightShiftLabel')}
-									</label>
-									<Switch
-										id="night-shift-enabled"
-										checked={nightShiftEnabled}
-										onCheckedChange={(v) => onShiftEnabledChange('night', v)}
-									/>
-								</div>
-
-								<div class="rounded-lg border border-border/60 bg-accent/30 p-4 {nightShiftEnabled ? '' : 'opacity-50'}">
-									<p class="text-sm text-muted-foreground leading-relaxed">{$tt('settings.nightShiftDescription')}</p>
-								</div>
-
-								<div class="flex flex-col gap-2 rounded-lg border border-border/60 p-4 {nightShiftEnabled ? '' : 'opacity-50'}">
-									<span class="text-xs uppercase tracking-wide text-muted-foreground">{$tt('settings.nightShiftWindowLabel')}</span>
-									<span class="font-mono text-base tabular-nums">{nightShiftStart ?? '—'} – {nightShiftEnd ?? '—'}</span>
-									<span class="text-xs text-muted-foreground">{$tt('settings.nightShiftWindowHint')}</span>
-								</div>
-							</div>
-						{/if}
-
-						<p class="text-xs text-muted-foreground leading-relaxed">{$tt('settings.shiftToggleHint')}</p>
-
-						{#if nightShiftConfigured && dayShiftConfigured}
-							<p class="text-xs text-muted-foreground leading-relaxed">{$tt('settings.shiftConflictWarning')}</p>
-						{/if}
-					</div>
-				</Tabs.Content>
-			{/if}
-		</Tabs.Root>
-
-		<AlertDialog.Footer class="pt-4 flex items-center">
-			<span class="text-xs text-muted-foreground mr-auto flex items-center gap-2">
-				v{__APP_VERSION__}
-				<span class="opacity-40">|</span>
-				<a
-					href="https://github.com/lebe-dev/transmitter/blob/main/{$locale === 'en' ? 'README.md' : `README.${$locale}.md`}"
-					target="_blank"
-					rel="noopener noreferrer"
-					class="hover:underline"
-				>{$tt('settings.docs')}</a>
-			</span>
-			<AlertDialog.Cancel>{$tt('settings.close')}</AlertDialog.Cancel>
-		</AlertDialog.Footer>
-	</AlertDialog.Content>
-</AlertDialog.Root>
 
 <!-- ── Add Torrent Dialog ──────────────────────────────────────────────────── -->
 <AlertDialog.Root bind:open={addOpen}>
