@@ -68,6 +68,28 @@
 		"dayShiftWindow": "Day shift: {start}–{end}",
 		"dayShiftDisabled": "Day shift is switched off"
 	},
+	"bulk": {
+		"trigger": "Actions",
+		"menu": "Bulk actions",
+		"filteredNotice": "Only the torrents currently shown",
+		"pause": "Pause all",
+		"dayShiftAdd": "Add all to day shift",
+		"dayShiftRemove": "Remove all from day shift",
+		"nightShiftAdd": "Add all to night shift",
+		"nightShiftRemove": "Remove all from night shift",
+		"confirmTitle": "Bulk action",
+		"confirmDescription": "Torrents affected: {count}",
+		"confirmButton": "Apply",
+		"cancel": "Cancel",
+		"fail": "Bulk action failed",
+		"done": {
+			"pause": "Paused: {count}",
+			"dayShiftAdd": "Added to day shift: {count}",
+			"dayShiftRemove": "Removed from day shift: {count}",
+			"nightShiftAdd": "Added to night shift: {count}",
+			"nightShiftRemove": "Removed from night shift: {count}"
+		}
+	},
 	"addDialog": {
 		"title": "Add Torrent",
 		"description": "Add by magnet link or upload a .torrent file.",

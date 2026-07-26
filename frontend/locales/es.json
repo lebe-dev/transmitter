@@ -68,6 +68,28 @@
 		"dayShiftWindow": "Turno diurno: {start}–{end}",
 		"dayShiftDisabled": "El turno diurno está desactivado"
 	},
+	"bulk": {
+		"trigger": "Acciones",
+		"menu": "Acciones masivas",
+		"filteredNotice": "Solo los torrents mostrados ahora",
+		"pause": "Pausar todos",
+		"dayShiftAdd": "Añadir todos al turno de día",
+		"dayShiftRemove": "Quitar todos del turno de día",
+		"nightShiftAdd": "Añadir todos al turno de noche",
+		"nightShiftRemove": "Quitar todos del turno de noche",
+		"confirmTitle": "Acción masiva",
+		"confirmDescription": "Torrents afectados: {count}",
+		"confirmButton": "Aplicar",
+		"cancel": "Cancelar",
+		"fail": "No se pudo ejecutar la acción masiva",
+		"done": {
+			"pause": "Pausados: {count}",
+			"dayShiftAdd": "Añadidos al turno de día: {count}",
+			"dayShiftRemove": "Quitados del turno de día: {count}",
+			"nightShiftAdd": "Añadidos al turno de noche: {count}",
+			"nightShiftRemove": "Quitados del turno de noche: {count}"
+		}
+	},
 	"addDialog": {
 		"title": "Añadir torrent",
 		"description": "Añade un enlace magnet o sube un archivo .torrent.",

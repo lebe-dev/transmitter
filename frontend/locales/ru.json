@@ -68,6 +68,28 @@
 		"dayShiftWindow": "Дневная смена: {start}–{end}",
 		"dayShiftDisabled": "Дневная смена выключена"
 	},
+	"bulk": {
+		"trigger": "Действия",
+		"menu": "Массовые действия",
+		"filteredNotice": "Только показанные сейчас раздачи",
+		"pause": "Приостановить все",
+		"dayShiftAdd": "Все в дневную смену",
+		"dayShiftRemove": "Все из дневной смены",
+		"nightShiftAdd": "Все в ночную смену",
+		"nightShiftRemove": "Все из ночной смены",
+		"confirmTitle": "Массовое действие",
+		"confirmDescription": "Затронет раздач: {count}",
+		"confirmButton": "Применить",
+		"cancel": "Отмена",
+		"fail": "Не удалось выполнить массовое действие",
+		"done": {
+			"pause": "Приостановлено раздач: {count}",
+			"dayShiftAdd": "Добавлено в дневную смену: {count}",
+			"dayShiftRemove": "Убрано из дневной смены: {count}",
+			"nightShiftAdd": "Добавлено в ночную смену: {count}",
+			"nightShiftRemove": "Убрано из ночной смены: {count}"
+		}
+	},
 	"addDialog": {
 		"title": "Добавить торрент",
 		"description": "Добавьте magnet-ссылку или загрузите .torrent файл.",

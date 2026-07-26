@@ -163,7 +163,13 @@ export async function deleteNote(hashString: string): Promise<void> {
 }
 
 export async function setTorrentLabels(torrentId: number, labels: string[]): Promise<void> {
-	await rpc('torrent-set', { ids: [torrentId], labels });
+	await setTorrentsLabels([torrentId], labels);
+}
+
+/** Назначает один и тот же набор меток всем перечисленным торрентам. */
+export async function setTorrentsLabels(ids: number[], labels: string[]): Promise<void> {
+	if (ids.length === 0) return;
+	await rpc('torrent-set', { ids, labels });
 }
 
 export async function setFilePriority(

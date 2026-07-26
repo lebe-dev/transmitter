@@ -31,18 +31,17 @@
 	import { addTorrentMagnet, addTorrentFile, startTorrents, stopTorrents, removeTorrents, getTorrentFiles, setFilesWanted, setTorrentLabels, getFreeSpace } from '$lib/api.js';
 	import { formatSize, formatSpeed, formatEta, formatDate } from '$lib/format.js';
 	import { parseTorrentSize } from '$lib/bencode.js';
+	import { DAY_SHIFT_LABEL, NIGHT_SHIFT_LABEL } from '$lib/bulk.js';
 	import type { Torrent, FilterStatus } from '$lib/types.js';
 	import { createSvelteTable } from '$lib/components/ui/data-table/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import AppHeader from '$lib/components/AppHeader.svelte';
+	import BulkActionsMenu from '$lib/components/BulkActionsMenu.svelte';
 	import Hint from '$lib/components/Hint.svelte';
 	import TorrentDetailPanel from '$lib/components/TorrentDetailPanel.svelte';
 	import FileSelectDialog from '$lib/components/FileSelectDialog.svelte';
-
-	const NIGHT_SHIFT_LABEL = 'night-shift';
-	const DAY_SHIFT_LABEL = 'day-shift';
 
 	// ── Status ────────────────────────────────────────────────────────────────
 
@@ -618,6 +617,8 @@
 			</div>
 
 			<div class="ml-auto flex items-center gap-1 flex-shrink-0">
+				<BulkActionsMenu />
+				<span class="w-px h-4 bg-border/70"></span>
 				<span class="text-xs text-muted-foreground">{$tt('sort.label')}</span>
 				<button
 					class="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors px-1.5 py-1 rounded"

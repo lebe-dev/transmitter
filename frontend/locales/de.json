@@ -68,6 +68,28 @@
 		"dayShiftWindow": "Tagschicht: {start}–{end}",
 		"dayShiftDisabled": "Tagschicht ist ausgeschaltet"
 	},
+	"bulk": {
+		"trigger": "Aktionen",
+		"menu": "Sammelaktionen",
+		"filteredNotice": "Nur die aktuell angezeigten Torrents",
+		"pause": "Alle pausieren",
+		"dayShiftAdd": "Alle zur Tagschicht hinzufügen",
+		"dayShiftRemove": "Alle aus der Tagschicht entfernen",
+		"nightShiftAdd": "Alle zur Nachtschicht hinzufügen",
+		"nightShiftRemove": "Alle aus der Nachtschicht entfernen",
+		"confirmTitle": "Sammelaktion",
+		"confirmDescription": "Betroffene Torrents: {count}",
+		"confirmButton": "Anwenden",
+		"cancel": "Abbrechen",
+		"fail": "Sammelaktion fehlgeschlagen",
+		"done": {
+			"pause": "Pausiert: {count}",
+			"dayShiftAdd": "Zur Tagschicht hinzugefügt: {count}",
+			"dayShiftRemove": "Aus der Tagschicht entfernt: {count}",
+			"nightShiftAdd": "Zur Nachtschicht hinzugefügt: {count}",
+			"nightShiftRemove": "Aus der Nachtschicht entfernt: {count}"
+		}
+	},
 	"addDialog": {
 		"title": "Torrent hinzufügen",
 		"description": "Magnet-Link hinzufügen oder .torrent-Datei hochladen.",
