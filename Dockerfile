@@ -29,8 +29,10 @@ COPY VERSION ./VERSION
 
 COPY --from=frontend-build /build/build/ /build/static/dist/
 
+ARG BUILD_NUMBER=dev
+
 RUN APP_VERSION=$(cat VERSION) && \
-    CGO_ENABLED=0 go build -ldflags="-w -s -X main.Version=$APP_VERSION" -o transmitter ./cmd/transmitter && \
+    CGO_ENABLED=0 go build -ldflags="-w -s -X main.Version=$APP_VERSION -X main.BuildNumber=$BUILD_NUMBER" -o transmitter ./cmd/transmitter && \
     upx -9 --lzma transmitter && \
     chmod +x transmitter
 
