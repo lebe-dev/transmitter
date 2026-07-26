@@ -113,12 +113,12 @@ run-frontend:
 
 # --- Image ---
 build-image: test && lint
-    docker buildx build --platform linux/arm/v7,linux/amd64 --driver docker-container -t {{ imageName }}:{{ tag }} .
-    # docker buildx build --platform linux/arm/v8 -t {{ imageName }}:{{ tag }} .
-    # docker buildx build --platform linux/amd64 -t {{ imageName }}:{{ tag }} .
+    docker buildx build --platform linux/arm/v7,linux/amd64 --driver docker-container --build-arg BUILD_NUMBER={{ buildNumber }} -t {{ imageName }}:{{ tag }} .
+    # docker buildx build --platform linux/arm/v8 --build-arg BUILD_NUMBER={{ buildNumber }} -t {{ imageName }}:{{ tag }} .
+    # docker buildx build --platform linux/amd64 --build-arg BUILD_NUMBER={{ buildNumber }} -t {{ imageName }}:{{ tag }} .
 
 build-image-local:
-    docker build -t {{ imageName }}:latest .
+    docker build --build-arg BUILD_NUMBER={{ buildNumber }} -t {{ imageName }}:latest .
 
 push-image:
     docker push {{ imageName }}:{{ tag }}
@@ -127,7 +127,7 @@ release-image:
     docker buildx inspect multibuilder > /dev/null 2>&1 || docker buildx create --name multibuilder --driver docker-container
     docker buildx use multibuilder
     docker buildx inspect --bootstrap
-    docker buildx build --platform linux/amd64,linux/arm/v7,linux/arm64/v8 -t {{ imageName }}:{{ tag }} --push .
+    docker buildx build --platform linux/amd64,linux/arm/v7,linux/arm64/v8 --build-arg BUILD_NUMBER={{ buildNumber }} -t {{ imageName }}:{{ tag }} --push .
 
 release: release-image
 
