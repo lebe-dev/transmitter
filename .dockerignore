@@ -16,3 +16,4 @@ docker-compose.yml
 *.crt
 *.pem
 *.key
+.DS_Store

@@ -22,3 +22,4 @@
 /dev/queue.json
 /dev/stats.json
 /dev/dht.dat
+.DS_Store
