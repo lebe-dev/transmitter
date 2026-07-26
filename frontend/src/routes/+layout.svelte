@@ -35,7 +35,7 @@
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
 
 <ModeWatcher defaultMode="system" themeStorageKey="transmitter-color-theme" />
-<Toaster richColors position="top-right" />
+<Toaster position="top-right" />
 <Tooltip.Provider delayDuration={200}>
 	{#await waitLocale() then}
 		{@render children()}
