@@ -14,6 +14,7 @@ Transmitter es una alternativa moderna y ligera a la interfaz web estándar de T
 - **Gestión** — pausar, reanudar, eliminar torrents
 - **Notas** — texto libre para cualquier torrent (guardado en el servidor en SQLite, visible en la lista, el panel de detalles y el bot de Telegram)
 - **Turno nocturno** — marca torrents para descargarlos y compartirlos sólo dentro de una ventana horaria configurada; fuera de la ventana se pausan
+- **Turno diurno** — lo mismo, con su propia etiqueta, su ventana y un botón con el sol; los turnos son independientes y un torrent puede llevar ambas marcas
 - **Auto-actualización** — actualizaciones en vivo cada 3–5 segundos
 - **Idiomas soportados**: en, ru, es, de
 - **Docker images**: linux/amd64, linux/arm/v7, linux/arm64/v8
@@ -51,6 +52,9 @@ Todos los ajustes se realizan mediante variables de entorno:
 | `NIGHT_SHIFT_START` | No | — (desactivado) |
 | `NIGHT_SHIFT_END` | No | — (desactivado) |
 | `NIGHT_SHIFT_INTERVAL` | No | `1m` |
+| `DAY_SHIFT_START` | No | — (desactivado) |
+| `DAY_SHIFT_END` | No | — (desactivado) |
+| `DAY_SHIFT_INTERVAL` | No | `1m` |
 | `DB_PATH` | No | `data/transmitter.db` (imagen Docker: `/app/data/transmitter.db`) |
 | `TORRENT_NOTE_MAX_LENGTH` | No | `200` |
 | `TORRENT_NOTE_CLEANUP_INTERVAL` | No | `1h` |

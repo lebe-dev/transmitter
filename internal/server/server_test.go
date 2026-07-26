@@ -142,6 +142,9 @@ func TestSettingsHandler(t *testing.T) {
 		NightShiftEnabled: true,
 		NightShiftStart:   "01:00",
 		NightShiftEnd:     "07:00",
+		DayShiftEnabled:   true,
+		DayShiftStart:     "08:00",
+		DayShiftEnd:       "22:00",
 	})
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/settings", nil))
@@ -156,10 +159,36 @@ func TestSettingsHandler(t *testing.T) {
 	if !got.DeleteWithData || got.NightShiftStart != "01:00" {
 		t.Errorf("unexpected settings: %+v", got)
 	}
+	if !got.DayShiftEnabled || got.DayShiftStart != "08:00" || got.DayShiftEnd != "22:00" {
+		t.Errorf("unexpected day shift settings: %+v", got)
+	}
+}
+
+func TestSettingsHandlerOmitsDisabledDayShift(t *testing.T) {
+	h := SettingsHandler(UISettings{DeleteWithData: true})
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/settings", nil))
+
+	var got map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if got["dayShiftEnabled"] != false {
+		t.Errorf("dayShiftEnabled = %v, want false", got["dayShiftEnabled"])
+	}
+	if _, ok := got["dayShiftStart"]; ok {
+		t.Errorf("dayShiftStart must be omitted when the shift is disabled: %v", got)
+	}
 }
 
 func TestConfigHandler(t *testing.T) {
-	h := ConfigHandler(ServerConfig{ListenAddr: ":8080", LogLevel: "info"})
+	h := ConfigHandler(ServerConfig{
+		ListenAddr:      ":8080",
+		LogLevel:        "info",
+		DayShiftEnabled: true,
+		DayShiftStart:   "08:00",
+		DayShiftEnd:     "22:00",
+	})
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/config", nil))
 
@@ -172,6 +201,9 @@ func TestConfigHandler(t *testing.T) {
 	}
 	if got.ListenAddr != ":8080" || got.LogLevel != "info" {
 		t.Errorf("unexpected config: %+v", got)
+	}
+	if !got.DayShiftEnabled || got.DayShiftStart != "08:00" || got.DayShiftEnd != "22:00" {
+		t.Errorf("unexpected day shift config: %+v", got)
 	}
 }
 

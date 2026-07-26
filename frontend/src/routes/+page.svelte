@@ -46,6 +46,7 @@
 
 	const LOCALE_STORAGE_KEY = 'transmitter-locale';
 	const NIGHT_SHIFT_LABEL = 'night-shift';
+	const DAY_SHIFT_LABEL = 'day-shift';
 
 	// ── Status ────────────────────────────────────────────────────────────────
 
@@ -407,33 +408,48 @@
 		}
 	}
 
-	// ── Night Shift ──────────────────────────────────────────────────────────
+	// ── Shifts (night / day) ─────────────────────────────────────────────────
 
 	let nightShiftEnabled = $state(false);
 	let nightShiftStart = $state<string | undefined>(undefined);
 	let nightShiftEnd = $state<string | undefined>(undefined);
 
-	function isNightShift(t: Torrent): boolean {
-		return Array.isArray(t.labels) && t.labels.includes(NIGHT_SHIFT_LABEL);
+	let dayShiftEnabled = $state(false);
+	let dayShiftStart = $state<string | undefined>(undefined);
+	let dayShiftEnd = $state<string | undefined>(undefined);
+
+	function hasShiftLabel(t: Torrent, label: string): boolean {
+		return Array.isArray(t.labels) && t.labels.includes(label);
 	}
 
-	async function handleNightShiftToggle(t: Torrent) {
+	/** Toggles a shift label on the torrent, leaving its other labels untouched. */
+	async function toggleShiftLabel(
+		t: Torrent,
+		label: string,
+		toastKeys: { on: string; off: string; fail: string },
+	) {
+		const enabled = hasShiftLabel(t, label);
 		const current = t.labels ?? [];
-		const next = isNightShift(t)
-			? current.filter((l) => l !== NIGHT_SHIFT_LABEL)
-			: [...current, NIGHT_SHIFT_LABEL];
+		const next = enabled ? current.filter((l) => l !== label) : [...current, label];
 		try {
 			await setTorrentLabels(t.id, next);
-			toast.success(
-				get(tt)(isNightShift(t) ? 'toast.nightShiftOff' : 'toast.nightShiftOn', {
-					values: { name: t.name },
-				}),
-			);
+			toast.success(get(tt)(enabled ? toastKeys.off : toastKeys.on, { values: { name: t.name } }));
 			await torrentStore.refresh();
 		} catch {
-			toast.error(get(tt)('toast.failNightShift'));
+			toast.error(get(tt)(toastKeys.fail));
 		}
 	}
+
+	const NIGHT_SHIFT_TOASTS = {
+		on: 'toast.nightShiftOn',
+		off: 'toast.nightShiftOff',
+		fail: 'toast.failNightShift',
+	};
+	const DAY_SHIFT_TOASTS = {
+		on: 'toast.dayShiftOn',
+		off: 'toast.dayShiftOff',
+		fail: 'toast.failDayShift',
+	};
 
 	// ── Settings dialog ──────────────────────────────────────────────────────
 
@@ -480,11 +496,16 @@
 		{ envVar: 'NIGHT_SHIFT_END',          key: 'nightShiftEnd' },
 	];
 
-	const configRows = $derived(
-		serverConfig?.nightShiftEnabled
-			? [...CONFIG_ROWS_BASE, ...NIGHT_SHIFT_CONFIG_ROWS]
-			: CONFIG_ROWS_BASE,
-	);
+	const DAY_SHIFT_CONFIG_ROWS: { envVar: string; key: keyof ServerConfig }[] = [
+		{ envVar: 'DAY_SHIFT_START',          key: 'dayShiftStart' },
+		{ envVar: 'DAY_SHIFT_END',            key: 'dayShiftEnd' },
+	];
+
+	const configRows = $derived([
+		...CONFIG_ROWS_BASE,
+		...(serverConfig?.nightShiftEnabled ? NIGHT_SHIFT_CONFIG_ROWS : []),
+		...(serverConfig?.dayShiftEnabled ? DAY_SHIFT_CONFIG_ROWS : []),
+	]);
 
 	function formatConfigValue(v: unknown): string {
 		if (Array.isArray(v)) return v.length === 0 ? '—' : v.join(', ');
@@ -605,6 +626,9 @@
 				nightShiftEnabled = s.nightShiftEnabled;
 				nightShiftStart = s.nightShiftStart;
 				nightShiftEnd = s.nightShiftEnd;
+				dayShiftEnabled = s.dayShiftEnabled;
+				dayShiftStart = s.dayShiftStart;
+				dayShiftEnd = s.dayShiftEnd;
 				void noteStore.init(s.noteMaxLength);
 			})
 			.catch(() => {});
@@ -807,16 +831,31 @@
 							role="button"
 							tabindex="0"
 						>
-							<!-- Row 1: Name + Night Shift + Pin -->
+							<!-- Row 1: Name + Shift toggles + Pin -->
 							<div class="flex items-start justify-between gap-3 mb-1.5">
 								<h3 class="font-display text-[15px] font-semibold leading-snug line-clamp-2 min-w-0">
 									{t.name}
 								</h3>
 								<div class="flex items-center gap-0.5 flex-shrink-0">
-									{#if nightShiftEnabled}
-										{@const onNS = isNightShift(t)}
+									{#if dayShiftEnabled}
+										{@const onDS = hasShiftLabel(t, DAY_SHIFT_LABEL)}
 										<button
-											onclick={(e) => { e.stopPropagation(); handleNightShiftToggle(t); }}
+											onclick={(e) => { e.stopPropagation(); toggleShiftLabel(t, DAY_SHIFT_LABEL, DAY_SHIFT_TOASTS); }}
+											aria-label={onDS ? $tt('actions.dayShiftOff') : $tt('actions.dayShiftOn')}
+											title={dayShiftStart && dayShiftEnd
+												? $tt('actions.dayShiftWindow', { values: { start: dayShiftStart, end: dayShiftEnd } })
+												: onDS ? $tt('actions.dayShiftOff') : $tt('actions.dayShiftOn')}
+											class="size-7 rounded-md flex items-center justify-center transition-colors {onDS
+												? 'bg-amber-500/10 text-amber-600 dark:text-amber-300'
+												: 'text-muted-foreground/40 hover:text-muted-foreground'}"
+										>
+											<SunIcon class="size-3.5" />
+										</button>
+									{/if}
+									{#if nightShiftEnabled}
+										{@const onNS = hasShiftLabel(t, NIGHT_SHIFT_LABEL)}
+										<button
+											onclick={(e) => { e.stopPropagation(); toggleShiftLabel(t, NIGHT_SHIFT_LABEL, NIGHT_SHIFT_TOASTS); }}
 											aria-label={onNS ? $tt('actions.nightShiftOff') : $tt('actions.nightShiftOn')}
 											title={nightShiftStart && nightShiftEnd
 												? $tt('actions.nightShiftWindow', { values: { start: nightShiftStart, end: nightShiftEnd } })
@@ -933,16 +972,31 @@
 							role="button"
 							tabindex="0"
 						>
-							<!-- Row 1: Name + Night Shift + Pin -->
+							<!-- Row 1: Name + Shift toggles + Pin -->
 							<div class="flex items-start justify-between gap-3 mb-2">
 								<h3 class="font-display text-[15px] font-semibold leading-snug line-clamp-2 min-w-0">
 									{t.name}
 								</h3>
 								<div class="flex items-center gap-0.5 flex-shrink-0">
-									{#if nightShiftEnabled}
-										{@const onNS = isNightShift(t)}
+									{#if dayShiftEnabled}
+										{@const onDS = hasShiftLabel(t, DAY_SHIFT_LABEL)}
 										<button
-											onclick={(e) => { e.stopPropagation(); handleNightShiftToggle(t); }}
+											onclick={(e) => { e.stopPropagation(); toggleShiftLabel(t, DAY_SHIFT_LABEL, DAY_SHIFT_TOASTS); }}
+											aria-label={onDS ? $tt('actions.dayShiftOff') : $tt('actions.dayShiftOn')}
+											title={dayShiftStart && dayShiftEnd
+												? $tt('actions.dayShiftWindow', { values: { start: dayShiftStart, end: dayShiftEnd } })
+												: onDS ? $tt('actions.dayShiftOff') : $tt('actions.dayShiftOn')}
+											class="size-7 rounded-md flex items-center justify-center transition-colors {onDS
+												? 'bg-amber-500/10 text-amber-600 dark:text-amber-300'
+												: 'text-muted-foreground/40 hover:text-muted-foreground'}"
+										>
+											<SunIcon class="size-3.5" />
+										</button>
+									{/if}
+									{#if nightShiftEnabled}
+										{@const onNS = hasShiftLabel(t, NIGHT_SHIFT_LABEL)}
+										<button
+											onclick={(e) => { e.stopPropagation(); toggleShiftLabel(t, NIGHT_SHIFT_LABEL, NIGHT_SHIFT_TOASTS); }}
 											aria-label={onNS ? $tt('actions.nightShiftOff') : $tt('actions.nightShiftOn')}
 											title={nightShiftStart && nightShiftEnd
 												? $tt('actions.nightShiftWindow', { values: { start: nightShiftStart, end: nightShiftEnd } })
@@ -1076,8 +1130,8 @@
 			<Tabs.List class="mb-3">
 				<Tabs.Trigger value="general">{$tt('settings.tabGeneral')}</Tabs.Trigger>
 				<Tabs.Trigger value="server">{$tt('settings.tabServer')}</Tabs.Trigger>
-				{#if nightShiftEnabled}
-					<Tabs.Trigger value="nightShift">{$tt('settings.tabNightShift')}</Tabs.Trigger>
+				{#if nightShiftEnabled || dayShiftEnabled}
+					<Tabs.Trigger value="shifts">{$tt('settings.tabShifts')}</Tabs.Trigger>
 				{/if}
 			</Tabs.List>
 
@@ -1183,18 +1237,36 @@
 				{/if}
 			</Tabs.Content>
 
-			{#if nightShiftEnabled}
-				<Tabs.Content value="nightShift">
+			{#if nightShiftEnabled || dayShiftEnabled}
+				<Tabs.Content value="shifts">
 					<div class="flex flex-col gap-4">
-						<div class="rounded-lg border border-border/60 bg-accent/30 p-4">
-							<p class="text-sm text-muted-foreground leading-relaxed">{$tt('settings.nightShiftDescription')}</p>
-						</div>
+						{#if nightShiftEnabled}
+							<div class="rounded-lg border border-border/60 bg-accent/30 p-4">
+								<p class="text-sm text-muted-foreground leading-relaxed">{$tt('settings.nightShiftDescription')}</p>
+							</div>
 
-						<div class="flex flex-col gap-2 rounded-lg border border-border/60 p-4">
-							<span class="text-xs uppercase tracking-wide text-muted-foreground">{$tt('settings.nightShiftWindowLabel')}</span>
-							<span class="font-mono text-base tabular-nums">{nightShiftStart ?? '—'} – {nightShiftEnd ?? '—'}</span>
-							<span class="text-xs text-muted-foreground">{$tt('settings.nightShiftWindowHint')}</span>
-						</div>
+							<div class="flex flex-col gap-2 rounded-lg border border-border/60 p-4">
+								<span class="text-xs uppercase tracking-wide text-muted-foreground">{$tt('settings.nightShiftWindowLabel')}</span>
+								<span class="font-mono text-base tabular-nums">{nightShiftStart ?? '—'} – {nightShiftEnd ?? '—'}</span>
+								<span class="text-xs text-muted-foreground">{$tt('settings.nightShiftWindowHint')}</span>
+							</div>
+						{/if}
+
+						{#if dayShiftEnabled}
+							<div class="rounded-lg border border-border/60 bg-accent/30 p-4">
+								<p class="text-sm text-muted-foreground leading-relaxed">{$tt('settings.dayShiftDescription')}</p>
+							</div>
+
+							<div class="flex flex-col gap-2 rounded-lg border border-border/60 p-4">
+								<span class="text-xs uppercase tracking-wide text-muted-foreground">{$tt('settings.dayShiftWindowLabel')}</span>
+								<span class="font-mono text-base tabular-nums">{dayShiftStart ?? '—'} – {dayShiftEnd ?? '—'}</span>
+								<span class="text-xs text-muted-foreground">{$tt('settings.dayShiftWindowHint')}</span>
+							</div>
+						{/if}
+
+						{#if nightShiftEnabled && dayShiftEnabled}
+							<p class="text-xs text-muted-foreground leading-relaxed">{$tt('settings.shiftConflictWarning')}</p>
+						{/if}
 					</div>
 				</Tabs.Content>
 			{/if}

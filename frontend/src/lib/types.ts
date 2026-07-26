@@ -69,6 +69,9 @@ export interface UISettings {
 	nightShiftEnabled: boolean;
 	nightShiftStart?: string;
 	nightShiftEnd?: string;
+	dayShiftEnabled: boolean;
+	dayShiftStart?: string;
+	dayShiftEnd?: string;
 	noteMaxLength: number;
 }
 
@@ -89,6 +92,9 @@ export interface ServerConfig {
 	nightShiftEnabled: boolean;
 	nightShiftStart?: string;
 	nightShiftEnd?: string;
+	dayShiftEnabled: boolean;
+	dayShiftStart?: string;
+	dayShiftEnd?: string;
 	dbPath: string;
 	noteMaxLength: number;
 	noteCleanupInterval: string;

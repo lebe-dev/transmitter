@@ -41,6 +41,10 @@ type Config struct {
 	NightShiftStart       DayTime
 	NightShiftEnd         DayTime
 	NightShiftInterval    time.Duration
+	DayShiftEnabled       bool
+	DayShiftStart         DayTime
+	DayShiftEnd           DayTime
+	DayShiftInterval      time.Duration
 	DBPath                string
 	NoteMaxLength         int
 	NoteCleanupInterval   time.Duration
@@ -97,6 +101,7 @@ func Load() (*Config, error) {
 	cfg.FileSelectTimeout = parseDuration(os.Getenv("FILE_SELECT_TIMEOUT"), 5*time.Minute)
 	cfg.DeleteWithData = strings.EqualFold(os.Getenv("DELETE_WITH_DATA"), "true")
 	cfg.NightShiftInterval = parseDuration(os.Getenv("NIGHT_SHIFT_INTERVAL"), time.Minute)
+	cfg.DayShiftInterval = parseDuration(os.Getenv("DAY_SHIFT_INTERVAL"), time.Minute)
 	cfg.DBPath = envOrDefault("DB_PATH", "data/transmitter.db")
 	cfg.NoteMaxLength = parsePositiveInt(os.Getenv("TORRENT_NOTE_MAX_LENGTH"), defaultNoteMaxLength)
 	cfg.NoteCleanupInterval = parseDuration(os.Getenv("TORRENT_NOTE_CLEANUP_INTERVAL"), defaultNoteCleanupInterval)
@@ -107,9 +112,17 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("SENTRY_ENVIRONMENT is required when SENTRY_DSN is set")
 	}
 
-	if err := parseNightShift(cfg); err != nil {
+	nightStart, nightEnd, nightEnabled, err := parseShiftWindow("NIGHT_SHIFT")
+	if err != nil {
 		return nil, err
 	}
+	cfg.NightShiftEnabled, cfg.NightShiftStart, cfg.NightShiftEnd = nightEnabled, nightStart, nightEnd
+
+	dayStart, dayEnd, dayEnabled, err := parseShiftWindow("DAY_SHIFT")
+	if err != nil {
+		return nil, err
+	}
+	cfg.DayShiftEnabled, cfg.DayShiftStart, cfg.DayShiftEnd = dayEnabled, dayStart, dayEnd
 
 	return cfg, nil
 }
@@ -144,30 +157,29 @@ func parseTelegramUsers(usersStr string) []string {
 	return users
 }
 
-// parseNightShift reads the NIGHT_SHIFT_START/END window into cfg, enabling it when both are set.
-func parseNightShift(cfg *Config) error {
-	startRaw := strings.TrimSpace(os.Getenv("NIGHT_SHIFT_START"))
-	endRaw := strings.TrimSpace(os.Getenv("NIGHT_SHIFT_END"))
+// parseShiftWindow reads the <prefix>_START/<prefix>_END window, e.g. NIGHT_SHIFT or DAY_SHIFT.
+// The shift is enabled only when both variables are set.
+func parseShiftWindow(prefix string) (start, end DayTime, enabled bool, err error) {
+	startVar, endVar := prefix+"_START", prefix+"_END"
+	startRaw := strings.TrimSpace(os.Getenv(startVar))
+	endRaw := strings.TrimSpace(os.Getenv(endVar))
 	if startRaw == "" || endRaw == "" {
-		return nil
+		return DayTime{}, DayTime{}, false, nil
 	}
 
-	start, err := parseDayTime(startRaw)
+	start, err = parseDayTime(startRaw)
 	if err != nil {
-		return fmt.Errorf("NIGHT_SHIFT_START: %w", err)
+		return DayTime{}, DayTime{}, false, fmt.Errorf("%s: %w", startVar, err)
 	}
-	end, err := parseDayTime(endRaw)
+	end, err = parseDayTime(endRaw)
 	if err != nil {
-		return fmt.Errorf("NIGHT_SHIFT_END: %w", err)
+		return DayTime{}, DayTime{}, false, fmt.Errorf("%s: %w", endVar, err)
 	}
 	if start == end {
-		return fmt.Errorf("NIGHT_SHIFT_START and NIGHT_SHIFT_END must differ")
+		return DayTime{}, DayTime{}, false, fmt.Errorf("%s and %s must differ", startVar, endVar)
 	}
 
-	cfg.NightShiftEnabled = true
-	cfg.NightShiftStart = start
-	cfg.NightShiftEnd = end
-	return nil
+	return start, end, true, nil
 }
 
 func parseDayTime(s string) (DayTime, error) {

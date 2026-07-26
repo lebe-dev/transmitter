@@ -159,6 +159,9 @@ type UISettings struct {
 	NightShiftEnabled bool   `json:"nightShiftEnabled"`
 	NightShiftStart   string `json:"nightShiftStart,omitempty"`
 	NightShiftEnd     string `json:"nightShiftEnd,omitempty"`
+	DayShiftEnabled   bool   `json:"dayShiftEnabled"`
+	DayShiftStart     string `json:"dayShiftStart,omitempty"`
+	DayShiftEnd       string `json:"dayShiftEnd,omitempty"`
 	NoteMaxLength     int    `json:"noteMaxLength"`
 }
 
@@ -188,6 +191,9 @@ type ServerConfig struct {
 	NightShiftEnabled     bool     `json:"nightShiftEnabled"`
 	NightShiftStart       string   `json:"nightShiftStart"`
 	NightShiftEnd         string   `json:"nightShiftEnd"`
+	DayShiftEnabled       bool     `json:"dayShiftEnabled"`
+	DayShiftStart         string   `json:"dayShiftStart"`
+	DayShiftEnd           string   `json:"dayShiftEnd"`
 	DBPath                string   `json:"dbPath"`
 	NoteMaxLength         int      `json:"noteMaxLength"`
 	NoteCleanupInterval   string   `json:"noteCleanupInterval"`

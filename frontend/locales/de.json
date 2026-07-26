@@ -59,7 +59,10 @@
 		"scrollToTop": "Nach oben",
 		"nightShiftOn": "Für Nachtschicht einplanen",
 		"nightShiftOff": "Aus Nachtschicht entfernen",
-		"nightShiftWindow": "Nachtschicht: {start}–{end}"
+		"nightShiftWindow": "Nachtschicht: {start}–{end}",
+		"dayShiftOn": "Für Tagschicht einplanen",
+		"dayShiftOff": "Aus Tagschicht entfernen",
+		"dayShiftWindow": "Tagschicht: {start}–{end}"
 	},
 	"addDialog": {
 		"title": "Torrent hinzufügen",
@@ -106,10 +109,14 @@
 		"close": "Schließen",
 		"tabGeneral": "Allgemein",
 		"tabServer": "Server",
-		"tabNightShift": "Nachtschicht",
-		"nightShiftDescription": "Markierte Torrents werden nur im konfigurierten Zeitfenster heruntergeladen und geseedet. Außerhalb des Fensters werden sie pausiert.",
-		"nightShiftWindowLabel": "Konfiguriertes Fenster",
+		"tabShifts": "Schichten",
+		"nightShiftDescription": "Mit dem Mond markierte Torrents werden nur im konfigurierten Nachtfenster heruntergeladen und geseedet. Außerhalb des Fensters werden sie pausiert.",
+		"nightShiftWindowLabel": "Fenster der Nachtschicht",
 		"nightShiftWindowHint": "Wird über die Umgebungsvariablen NIGHT_SHIFT_START und NIGHT_SHIFT_END gesetzt.",
+		"dayShiftDescription": "Mit der Sonne markierte Torrents werden nur im konfigurierten Tagfenster heruntergeladen und geseedet. Außerhalb des Fensters werden sie pausiert.",
+		"dayShiftWindowLabel": "Fenster der Tagschicht",
+		"dayShiftWindowHint": "Wird über die Umgebungsvariablen DAY_SHIFT_START und DAY_SHIFT_END gesetzt.",
+		"shiftConflictWarning": "Ein Torrent kann beide Markierungen tragen. Die Scheduler arbeiten unabhängig — bei nicht überlappenden Fenstern starten und stoppen sie ihn abwechselnd.",
 		"configEnvVar": "Variable",
 		"configValue": "Wert",
 		"configError": "Konfiguration konnte nicht geladen werden",
@@ -131,6 +138,9 @@
 			"nightShiftEnabled": "Ob der Nachtschicht-Scheduler aktiv ist (NIGHT_SHIFT_START und NIGHT_SHIFT_END setzen, um zu aktivieren).",
 			"nightShiftStart": "Beginn des Nachtschicht-Fensters (HH:MM, 24h). Markierte Torrents werden nur in diesem Fenster heruntergeladen.",
 			"nightShiftEnd": "Ende des Nachtschicht-Fensters (HH:MM, 24h). Das Fenster darf Mitternacht überspannen, wenn Ende ≤ Beginn.",
+			"dayShiftEnabled": "Ob der Tagschicht-Scheduler aktiv ist (DAY_SHIFT_START und DAY_SHIFT_END setzen, um zu aktivieren).",
+			"dayShiftStart": "Beginn des Tagschicht-Fensters (HH:MM, 24h). Markierte Torrents werden nur in diesem Fenster heruntergeladen.",
+			"dayShiftEnd": "Ende des Tagschicht-Fensters (HH:MM, 24h). Das Fenster darf Mitternacht überspannen, wenn Ende ≤ Beginn.",
 			"dbPath": "Pfad zur SQLite-Datenbankdatei, in der die Torrent-Notizen gespeichert werden.",
 			"noteMaxLength": "Maximale Länge einer Torrent-Notiz in Zeichen.",
 			"noteCleanupInterval": "Wie oft Notizen nicht mehr vorhandener Torrents entfernt werden."
@@ -210,6 +220,9 @@
 		"failDelete": "Torrent konnte nicht gelöscht werden",
 		"nightShiftOn": "Für Nachtschicht eingeplant: {name}",
 		"nightShiftOff": "Aus Nachtschicht entfernt: {name}",
-		"failNightShift": "Nachtschicht konnte nicht aktualisiert werden"
+		"failNightShift": "Nachtschicht konnte nicht aktualisiert werden",
+		"dayShiftOn": "Für Tagschicht eingeplant: {name}",
+		"dayShiftOff": "Aus Tagschicht entfernt: {name}",
+		"failDayShift": "Tagschicht konnte nicht aktualisiert werden"
 	}
 }

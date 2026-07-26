@@ -33,11 +33,16 @@ func New(cfg *config.Config, client *transmission.Client, noteStore NoteStore, s
 	uiSettings := UISettings{
 		DeleteWithData:    cfg.DeleteWithData,
 		NightShiftEnabled: cfg.NightShiftEnabled,
+		DayShiftEnabled:   cfg.DayShiftEnabled,
 		NoteMaxLength:     noteStore.MaxLength(),
 	}
 	if cfg.NightShiftEnabled {
 		uiSettings.NightShiftStart = cfg.NightShiftStart.String()
 		uiSettings.NightShiftEnd = cfg.NightShiftEnd.String()
+	}
+	if cfg.DayShiftEnabled {
+		uiSettings.DayShiftStart = cfg.DayShiftStart.String()
+		uiSettings.DayShiftEnd = cfg.DayShiftEnd.String()
 	}
 
 	telegramUsers := cfg.TelegramUsers
@@ -59,6 +64,7 @@ func New(cfg *config.Config, client *transmission.Client, noteStore NoteStore, s
 		MonitorInterval:       cfg.MonitorInterval.String(),
 		FileSelectTimeout:     cfg.FileSelectTimeout.String(),
 		NightShiftEnabled:     cfg.NightShiftEnabled,
+		DayShiftEnabled:       cfg.DayShiftEnabled,
 		DBPath:                cfg.DBPath,
 		NoteMaxLength:         cfg.NoteMaxLength,
 		NoteCleanupInterval:   cfg.NoteCleanupInterval.String(),
@@ -66,6 +72,10 @@ func New(cfg *config.Config, client *transmission.Client, noteStore NoteStore, s
 	if cfg.NightShiftEnabled {
 		serverConfig.NightShiftStart = cfg.NightShiftStart.String()
 		serverConfig.NightShiftEnd = cfg.NightShiftEnd.String()
+	}
+	if cfg.DayShiftEnabled {
+		serverConfig.DayShiftStart = cfg.DayShiftStart.String()
+		serverConfig.DayShiftEnd = cfg.DayShiftEnd.String()
 	}
 
 	mux := http.NewServeMux()

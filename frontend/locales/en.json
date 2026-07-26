@@ -59,7 +59,10 @@
 		"scrollToTop": "Scroll to top",
 		"nightShiftOn": "Schedule for night shift",
 		"nightShiftOff": "Remove from night shift",
-		"nightShiftWindow": "Night shift: {start}–{end}"
+		"nightShiftWindow": "Night shift: {start}–{end}",
+		"dayShiftOn": "Schedule for day shift",
+		"dayShiftOff": "Remove from day shift",
+		"dayShiftWindow": "Day shift: {start}–{end}"
 	},
 	"addDialog": {
 		"title": "Add Torrent",
@@ -106,10 +109,14 @@
 		"close": "Close",
 		"tabGeneral": "General",
 		"tabServer": "Server",
-		"tabNightShift": "Night Shift",
-		"nightShiftDescription": "Marked torrents are downloaded and seeded only during the configured window. Outside the window they are paused.",
-		"nightShiftWindowLabel": "Configured window",
+		"tabShifts": "Shifts",
+		"nightShiftDescription": "Torrents marked with the moon are downloaded and seeded only during the configured night window. Outside the window they are paused.",
+		"nightShiftWindowLabel": "Night shift window",
 		"nightShiftWindowHint": "Set via NIGHT_SHIFT_START and NIGHT_SHIFT_END environment variables.",
+		"dayShiftDescription": "Torrents marked with the sun are downloaded and seeded only during the configured day window. Outside the window they are paused.",
+		"dayShiftWindowLabel": "Day shift window",
+		"dayShiftWindowHint": "Set via DAY_SHIFT_START and DAY_SHIFT_END environment variables.",
+		"shiftConflictWarning": "A torrent can carry both marks. The schedulers are independent, so with non-overlapping windows they will start and stop such a torrent in turn.",
 		"configEnvVar": "Variable",
 		"configValue": "Value",
 		"configError": "Failed to load server config",
@@ -131,6 +138,9 @@
 			"nightShiftEnabled": "Whether the Night Shift scheduler is active (set NIGHT_SHIFT_START and NIGHT_SHIFT_END to enable).",
 			"nightShiftStart": "Start of the Night Shift window (HH:MM, 24h). Torrents tagged for night shift are downloaded only during this window.",
 			"nightShiftEnd": "End of the Night Shift window (HH:MM, 24h). The window may wrap over midnight when end ≤ start.",
+			"dayShiftEnabled": "Whether the Day Shift scheduler is active (set DAY_SHIFT_START and DAY_SHIFT_END to enable).",
+			"dayShiftStart": "Start of the Day Shift window (HH:MM, 24h). Torrents tagged for day shift are downloaded only during this window.",
+			"dayShiftEnd": "End of the Day Shift window (HH:MM, 24h). The window may wrap over midnight when end ≤ start.",
 			"dbPath": "Path to the SQLite database file that stores torrent notes.",
 			"noteMaxLength": "Maximum length of a torrent note, in characters.",
 			"noteCleanupInterval": "How often notes of torrents that no longer exist are removed."
@@ -210,6 +220,9 @@
 		"failDelete": "Failed to delete torrent",
 		"nightShiftOn": "Scheduled for night shift: {name}",
 		"nightShiftOff": "Removed from night shift: {name}",
-		"failNightShift": "Failed to update night shift"
+		"failNightShift": "Failed to update night shift",
+		"dayShiftOn": "Scheduled for day shift: {name}",
+		"dayShiftOff": "Removed from day shift: {name}",
+		"failDayShift": "Failed to update day shift"
 	}
 }

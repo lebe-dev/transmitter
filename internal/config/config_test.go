@@ -88,6 +88,99 @@ func TestLoadNightShift(t *testing.T) {
 	})
 }
 
+func TestLoadDayShift(t *testing.T) {
+	t.Setenv("TRANSMISSION_USER", "u")
+	t.Setenv("TRANSMISSION_PASS", "p")
+
+	t.Run("disabled when empty", func(t *testing.T) {
+		t.Setenv("DAY_SHIFT_START", "")
+		t.Setenv("DAY_SHIFT_END", "")
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if cfg.DayShiftEnabled {
+			t.Fatal("expected disabled")
+		}
+	})
+
+	t.Run("disabled when only start set", func(t *testing.T) {
+		t.Setenv("DAY_SHIFT_START", "08:00")
+		t.Setenv("DAY_SHIFT_END", "")
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if cfg.DayShiftEnabled {
+			t.Fatal("expected disabled")
+		}
+	})
+
+	t.Run("enabled when both set", func(t *testing.T) {
+		t.Setenv("DAY_SHIFT_START", "08:00")
+		t.Setenv("DAY_SHIFT_END", "22:15")
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if !cfg.DayShiftEnabled {
+			t.Fatal("expected enabled")
+		}
+		if cfg.DayShiftStart != (DayTime{8, 0}) || cfg.DayShiftEnd != (DayTime{22, 15}) {
+			t.Errorf("start=%v end=%v", cfg.DayShiftStart, cfg.DayShiftEnd)
+		}
+		if cfg.DayShiftInterval != time.Minute {
+			t.Errorf("interval=%v, want 1m", cfg.DayShiftInterval)
+		}
+	})
+
+	t.Run("custom interval", func(t *testing.T) {
+		t.Setenv("DAY_SHIFT_START", "08:00")
+		t.Setenv("DAY_SHIFT_END", "22:00")
+		t.Setenv("DAY_SHIFT_INTERVAL", "30s")
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if cfg.DayShiftInterval != 30*time.Second {
+			t.Errorf("interval=%v, want 30s", cfg.DayShiftInterval)
+		}
+	})
+
+	t.Run("error when same start and end", func(t *testing.T) {
+		t.Setenv("DAY_SHIFT_START", "09:00")
+		t.Setenv("DAY_SHIFT_END", "09:00")
+		if _, err := Load(); err == nil {
+			t.Fatal("expected error")
+		}
+	})
+
+	t.Run("error when malformed", func(t *testing.T) {
+		t.Setenv("DAY_SHIFT_START", "08:00")
+		t.Setenv("DAY_SHIFT_END", "nope")
+		if _, err := Load(); err == nil {
+			t.Fatal("expected error")
+		}
+	})
+
+	t.Run("independent from night shift", func(t *testing.T) {
+		t.Setenv("NIGHT_SHIFT_START", "23:00")
+		t.Setenv("NIGHT_SHIFT_END", "07:00")
+		t.Setenv("DAY_SHIFT_START", "08:00")
+		t.Setenv("DAY_SHIFT_END", "22:00")
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if !cfg.NightShiftEnabled || !cfg.DayShiftEnabled {
+			t.Fatalf("night=%v day=%v, want both enabled", cfg.NightShiftEnabled, cfg.DayShiftEnabled)
+		}
+		if cfg.NightShiftStart != (DayTime{23, 0}) || cfg.DayShiftStart != (DayTime{8, 0}) {
+			t.Errorf("windows crossed: night=%v day=%v", cfg.NightShiftStart, cfg.DayShiftStart)
+		}
+	})
+}
+
 func TestLoadSentry(t *testing.T) {
 	t.Setenv("TRANSMISSION_USER", "u")
 	t.Setenv("TRANSMISSION_PASS", "p")

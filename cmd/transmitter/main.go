@@ -10,10 +10,10 @@ import (
 
 	"github.com/lebe-dev/transmitter/internal/bot"
 	"github.com/lebe-dev/transmitter/internal/config"
-	"github.com/lebe-dev/transmitter/internal/nightshift"
 	"github.com/lebe-dev/transmitter/internal/notes"
 	"github.com/lebe-dev/transmitter/internal/sentrylog"
 	"github.com/lebe-dev/transmitter/internal/server"
+	"github.com/lebe-dev/transmitter/internal/shift"
 	"github.com/lebe-dev/transmitter/internal/transmission"
 	"github.com/lebe-dev/transmitter/static"
 )
@@ -58,10 +58,15 @@ func main() {
 	go notes.NewCleaner(noteStore, client, cfg.NoteCleanupInterval, logger).Run(ctx)
 
 	if cfg.NightShiftEnabled {
-		scheduler := nightshift.New(client, cfg, logger)
-		go scheduler.Run(ctx)
+		go shift.New(client, shift.NightOptions(cfg), logger).Run(ctx)
 	} else {
 		logger.Info("night-shift disabled (NIGHT_SHIFT_START/NIGHT_SHIFT_END not set)")
+	}
+
+	if cfg.DayShiftEnabled {
+		go shift.New(client, shift.DayOptions(cfg), logger).Run(ctx)
+	} else {
+		logger.Info("day-shift disabled (DAY_SHIFT_START/DAY_SHIFT_END not set)")
 	}
 
 	<-ctx.Done()
