@@ -126,4 +126,4 @@ release-image:
 release: release-image
 
 deploy:
-    ssh -t rpi "cd /opt/transmitter && sudo env APP_VERSION={{ version }} docker compose pull && sudo env APP_VERSION={{ version }} docker compose down && sudo env APP_VERSION={{ version }} docker compose up -d"
+    ssh -t rpi "cd /opt/transmitter && sudo sed -i -E 's#(image: {{ imageName }}:).*#\1{{ version }}#' docker-compose.yml && sudo docker compose pull && sudo docker compose down && sudo docker compose up -d"
