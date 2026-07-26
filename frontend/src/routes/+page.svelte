@@ -4,6 +4,7 @@
 	import { toast } from 'svelte-sonner';
 	import { mode, toggleMode, setTheme, theme } from 'mode-watcher';
 	import { getCoreRowModel, getSortedRowModel, type ColumnDef, type SortingState } from '@tanstack/table-core';
+	import { mergeProps } from 'bits-ui';
 	import { t as tt, locale, locales } from 'svelte-intl-precompile';
 	import SunIcon from '@lucide/svelte/icons/sun';
 	import MoonIcon from '@lucide/svelte/icons/moon';
@@ -41,6 +42,7 @@
 	import InfoIcon from '@lucide/svelte/icons/info';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import Hint from '$lib/components/Hint.svelte';
 	import TorrentDetailPanel from '$lib/components/TorrentDetailPanel.svelte';
 	import FileSelectDialog from '$lib/components/FileSelectDialog.svelte';
 
@@ -657,13 +659,13 @@
 				</div>
 				<span class="font-display font-semibold text-[17px] tracking-tight">Transmitter</span>
 				{#if showFreeSpace && downloadDirStore.defaultFreeSpace !== null}
-					<span
+					<Hint
+						text={$tt('header.freeSpace')}
 						class="inline-flex items-center gap-1.5 rounded-md bg-muted/60 px-2 py-1 text-xs font-medium text-muted-foreground tabular-nums"
-						title={$tt('header.freeSpace')}
 					>
 						<HardDriveIcon class="size-3.5 flex-shrink-0" />
 						<span class="truncate">{formatSize(downloadDirStore.defaultFreeSpace, $tt)}</span>
-					</span>
+					</Hint>
 				{/if}
 			</div>
 
@@ -839,33 +841,47 @@
 								<div class="flex items-center gap-0.5 flex-shrink-0">
 									{#if dayShiftEnabled}
 										{@const onDS = hasShiftLabel(t, DAY_SHIFT_LABEL)}
-										<button
-											onclick={(e) => { e.stopPropagation(); toggleShiftLabel(t, DAY_SHIFT_LABEL, DAY_SHIFT_TOASTS); }}
-											aria-label={onDS ? $tt('actions.dayShiftOff') : $tt('actions.dayShiftOn')}
-											title={dayShiftStart && dayShiftEnd
+										<Hint
+											text={dayShiftStart && dayShiftEnd
 												? $tt('actions.dayShiftWindow', { values: { start: dayShiftStart, end: dayShiftEnd } })
 												: onDS ? $tt('actions.dayShiftOff') : $tt('actions.dayShiftOn')}
-											class="size-7 rounded-md flex items-center justify-center transition-colors {onDS
-												? 'bg-amber-500/10 text-amber-600 dark:text-amber-300'
-												: 'text-muted-foreground/40 hover:text-muted-foreground'}"
 										>
-											<SunIcon class="size-3.5" />
-										</button>
+											{#snippet trigger({ props })}
+												<button
+													{...mergeProps(props, {
+														onclick: (e: MouseEvent) => { e.stopPropagation(); toggleShiftLabel(t, DAY_SHIFT_LABEL, DAY_SHIFT_TOASTS); }
+													})}
+													aria-label={onDS ? $tt('actions.dayShiftOff') : $tt('actions.dayShiftOn')}
+													class="size-7 rounded-md flex items-center justify-center transition-colors {onDS
+														? 'bg-amber-500/10 text-amber-600 dark:text-amber-300'
+														: 'text-muted-foreground/40 hover:text-muted-foreground'}"
+												>
+													<SunIcon class="size-3.5" />
+												</button>
+											{/snippet}
+										</Hint>
 									{/if}
 									{#if nightShiftEnabled}
 										{@const onNS = hasShiftLabel(t, NIGHT_SHIFT_LABEL)}
-										<button
-											onclick={(e) => { e.stopPropagation(); toggleShiftLabel(t, NIGHT_SHIFT_LABEL, NIGHT_SHIFT_TOASTS); }}
-											aria-label={onNS ? $tt('actions.nightShiftOff') : $tt('actions.nightShiftOn')}
-											title={nightShiftStart && nightShiftEnd
+										<Hint
+											text={nightShiftStart && nightShiftEnd
 												? $tt('actions.nightShiftWindow', { values: { start: nightShiftStart, end: nightShiftEnd } })
 												: onNS ? $tt('actions.nightShiftOff') : $tt('actions.nightShiftOn')}
-											class="size-7 rounded-md flex items-center justify-center transition-colors {onNS
-												? 'bg-indigo-600/10 text-indigo-600 dark:text-indigo-300'
-												: 'text-muted-foreground/40 hover:text-muted-foreground'}"
 										>
-											<MoonStarIcon class="size-3.5" />
-										</button>
+											{#snippet trigger({ props })}
+												<button
+													{...mergeProps(props, {
+														onclick: (e: MouseEvent) => { e.stopPropagation(); toggleShiftLabel(t, NIGHT_SHIFT_LABEL, NIGHT_SHIFT_TOASTS); }
+													})}
+													aria-label={onNS ? $tt('actions.nightShiftOff') : $tt('actions.nightShiftOn')}
+													class="size-7 rounded-md flex items-center justify-center transition-colors {onNS
+														? 'bg-indigo-600/10 text-indigo-600 dark:text-indigo-300'
+														: 'text-muted-foreground/40 hover:text-muted-foreground'}"
+												>
+													<MoonStarIcon class="size-3.5" />
+												</button>
+											{/snippet}
+										</Hint>
 									{/if}
 									<button
 										onclick={(e) => { e.stopPropagation(); pinStore.toggle(t.hashString); }}
@@ -883,7 +899,7 @@
 						{#if note}
 							<div class="flex items-start gap-1.5 mb-1.5 text-xs text-muted-foreground">
 								<NotebookPenIcon class="size-3 mt-0.5 flex-shrink-0" />
-								<span class="line-clamp-1 italic" title={note}>{note}</span>
+								<Hint text={note} class="line-clamp-1 italic">{note}</Hint>
 							</div>
 						{/if}
 
@@ -909,7 +925,7 @@
 								<div class="flex items-center gap-2 flex-shrink-0">
 								<span class="text-xs text-muted-foreground tabular-nums">{formatSize(t.totalSize, $tt)}</span>
 								{#if t.uploadedEver > 0}
-									<span class="text-xs text-primary tabular-nums" title={$tt('card.uploadedTotal')}>⬆ {formatSize(t.uploadedEver, $tt)}</span>
+									<Hint text={$tt('card.uploadedTotal')} class="text-xs text-primary tabular-nums">⬆ {formatSize(t.uploadedEver, $tt)}</Hint>
 								{/if}
 							</div>
 							</div>
@@ -918,10 +934,10 @@
 							<div class="flex items-center justify-between gap-2">
 								<div class="flex items-center gap-2 text-xs text-muted-foreground tabular-nums min-w-0 overflow-hidden">
 									{#if formatSpeed(t.rateDownload, $tt)}
-										<span class="text-primary" title={$tt('card.downloadSpeed')}>↓ {formatSpeed(t.rateDownload, $tt)}</span>
+										<Hint text={$tt('card.downloadSpeed')} class="text-primary">↓ {formatSpeed(t.rateDownload, $tt)}</Hint>
 									{/if}
 									{#if formatSpeed(t.rateUpload, $tt)}
-										<span class="text-primary" title={$tt('card.uploadSpeed')}>↑ {formatSpeed(t.rateUpload, $tt)}</span>
+										<Hint text={$tt('card.uploadSpeed')} class="text-primary">↑ {formatSpeed(t.rateUpload, $tt)}</Hint>
 									{/if}
 									{#if t.status !== 0 && t.status !== 6 && t.status !== 5 && formatEta(t.eta, $tt)}
 										<span>{$tt('eta.prefix')} {formatEta(t.eta, $tt)}</span>
@@ -980,33 +996,47 @@
 								<div class="flex items-center gap-0.5 flex-shrink-0">
 									{#if dayShiftEnabled}
 										{@const onDS = hasShiftLabel(t, DAY_SHIFT_LABEL)}
-										<button
-											onclick={(e) => { e.stopPropagation(); toggleShiftLabel(t, DAY_SHIFT_LABEL, DAY_SHIFT_TOASTS); }}
-											aria-label={onDS ? $tt('actions.dayShiftOff') : $tt('actions.dayShiftOn')}
-											title={dayShiftStart && dayShiftEnd
+										<Hint
+											text={dayShiftStart && dayShiftEnd
 												? $tt('actions.dayShiftWindow', { values: { start: dayShiftStart, end: dayShiftEnd } })
 												: onDS ? $tt('actions.dayShiftOff') : $tt('actions.dayShiftOn')}
-											class="size-7 rounded-md flex items-center justify-center transition-colors {onDS
-												? 'bg-amber-500/10 text-amber-600 dark:text-amber-300'
-												: 'text-muted-foreground/40 hover:text-muted-foreground'}"
 										>
-											<SunIcon class="size-3.5" />
-										</button>
+											{#snippet trigger({ props })}
+												<button
+													{...mergeProps(props, {
+														onclick: (e: MouseEvent) => { e.stopPropagation(); toggleShiftLabel(t, DAY_SHIFT_LABEL, DAY_SHIFT_TOASTS); }
+													})}
+													aria-label={onDS ? $tt('actions.dayShiftOff') : $tt('actions.dayShiftOn')}
+													class="size-7 rounded-md flex items-center justify-center transition-colors {onDS
+														? 'bg-amber-500/10 text-amber-600 dark:text-amber-300'
+														: 'text-muted-foreground/40 hover:text-muted-foreground'}"
+												>
+													<SunIcon class="size-3.5" />
+												</button>
+											{/snippet}
+										</Hint>
 									{/if}
 									{#if nightShiftEnabled}
 										{@const onNS = hasShiftLabel(t, NIGHT_SHIFT_LABEL)}
-										<button
-											onclick={(e) => { e.stopPropagation(); toggleShiftLabel(t, NIGHT_SHIFT_LABEL, NIGHT_SHIFT_TOASTS); }}
-											aria-label={onNS ? $tt('actions.nightShiftOff') : $tt('actions.nightShiftOn')}
-											title={nightShiftStart && nightShiftEnd
+										<Hint
+											text={nightShiftStart && nightShiftEnd
 												? $tt('actions.nightShiftWindow', { values: { start: nightShiftStart, end: nightShiftEnd } })
 												: onNS ? $tt('actions.nightShiftOff') : $tt('actions.nightShiftOn')}
-											class="size-7 rounded-md flex items-center justify-center transition-colors {onNS
-												? 'bg-indigo-600/10 text-indigo-600 dark:text-indigo-300'
-												: 'text-muted-foreground/40 hover:text-muted-foreground'}"
 										>
-											<MoonStarIcon class="size-3.5" />
-										</button>
+											{#snippet trigger({ props })}
+												<button
+													{...mergeProps(props, {
+														onclick: (e: MouseEvent) => { e.stopPropagation(); toggleShiftLabel(t, NIGHT_SHIFT_LABEL, NIGHT_SHIFT_TOASTS); }
+													})}
+													aria-label={onNS ? $tt('actions.nightShiftOff') : $tt('actions.nightShiftOn')}
+													class="size-7 rounded-md flex items-center justify-center transition-colors {onNS
+														? 'bg-indigo-600/10 text-indigo-600 dark:text-indigo-300'
+														: 'text-muted-foreground/40 hover:text-muted-foreground'}"
+												>
+													<MoonStarIcon class="size-3.5" />
+												</button>
+											{/snippet}
+										</Hint>
 									{/if}
 									<button
 										onclick={(e) => { e.stopPropagation(); pinStore.toggle(t.hashString); }}
@@ -1024,7 +1054,7 @@
 						{#if note}
 							<div class="flex items-start gap-1.5 mb-1.5 text-xs text-muted-foreground">
 								<NotebookPenIcon class="size-3 mt-0.5 flex-shrink-0" />
-								<span class="line-clamp-1 italic" title={note}>{note}</span>
+								<Hint text={note} class="line-clamp-1 italic">{note}</Hint>
 							</div>
 						{/if}
 
@@ -1050,7 +1080,7 @@
 								<div class="flex items-center gap-2 flex-shrink-0">
 								<span class="text-xs text-muted-foreground tabular-nums">{formatSize(t.totalSize, $tt)}</span>
 								{#if t.uploadedEver > 0}
-									<span class="text-xs text-primary tabular-nums" title={$tt('card.uploadedTotal')}>⬆ {formatSize(t.uploadedEver, $tt)}</span>
+									<Hint text={$tt('card.uploadedTotal')} class="text-xs text-primary tabular-nums">⬆ {formatSize(t.uploadedEver, $tt)}</Hint>
 								{/if}
 							</div>
 							</div>
@@ -1059,10 +1089,10 @@
 							<div class="flex items-center justify-between gap-2">
 								<div class="flex items-center gap-2 text-xs text-muted-foreground tabular-nums min-w-0 overflow-hidden">
 									{#if formatSpeed(t.rateDownload, $tt)}
-										<span class="text-primary" title={$tt('card.downloadSpeed')}>↓ {formatSpeed(t.rateDownload, $tt)}</span>
+										<Hint text={$tt('card.downloadSpeed')} class="text-primary">↓ {formatSpeed(t.rateDownload, $tt)}</Hint>
 									{/if}
 									{#if formatSpeed(t.rateUpload, $tt)}
-										<span class="text-primary" title={$tt('card.uploadSpeed')}>↑ {formatSpeed(t.rateUpload, $tt)}</span>
+										<Hint text={$tt('card.uploadSpeed')} class="text-primary">↑ {formatSpeed(t.rateUpload, $tt)}</Hint>
 									{/if}
 									{#if t.status !== 0 && t.status !== 6 && t.status !== 5 && formatEta(t.eta, $tt)}
 										<span>{$tt('eta.prefix')} {formatEta(t.eta, $tt)}</span>

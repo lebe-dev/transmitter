@@ -2,6 +2,7 @@
 	import { t as tt } from 'svelte-intl-precompile';
 	import { get } from 'svelte/store';
 
+	import Hint from '$lib/components/Hint.svelte';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
@@ -89,7 +90,7 @@
 		<AlertDialog.Header>
 			<AlertDialog.Title>{get(tt)('fileSelectDialog.title')}</AlertDialog.Title>
 			<AlertDialog.Description>
-				<span class="block break-all" title={torrentName}>{torrentName}</span>
+				<Hint text={torrentName} class="block break-all">{torrentName}</Hint>
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 
@@ -124,9 +125,9 @@
 							onchange={() => toggle(i)}
 							class="size-3.5 accent-primary flex-shrink-0 cursor-pointer"
 						/>
-						<span class="text-sm break-all min-w-0" title={file.name}>
+						<Hint text={file.name} class="text-sm break-all min-w-0">
 							{basename(file.name)}
-						</span>
+						</Hint>
 						<span class="text-xs text-muted-foreground ml-auto flex-shrink-0">
 							{formatSize(file.length, $tt)}
 						</span>

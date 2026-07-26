@@ -14,6 +14,8 @@
 	import FolderOpenIcon from '@lucide/svelte/icons/folder-open';
 	import FileIcon from '@lucide/svelte/icons/file';
 
+	import { mergeProps } from 'bits-ui';
+	import Hint from '$lib/components/Hint.svelte';
 	import * as Sheet from '$lib/components/ui/sheet/index.js';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -392,21 +394,24 @@
 					class="size-3.5 accent-primary flex-shrink-0 cursor-pointer"
 				/>
 				<FileIcon class="size-3.5 text-muted-foreground flex-shrink-0" />
-				<span class="text-sm break-all leading-snug min-w-0 flex-1" title={file.name}>
+				<Hint text={file.name} class="text-sm break-all leading-snug min-w-0 flex-1">
 					{node.name}
-				</span>
+				</Hint>
 				{#if stat}
-					<button
-						onclick={() => cyclePriority(node.index, stat.priority)}
-						disabled={isBusy}
-						title={$tt('detail.cyclePriority')}
-						class="text-[10px] font-medium px-1.5 py-0.5 rounded cursor-pointer transition-colors flex-shrink-0
-							{stat.priority === 1 ? 'bg-primary/15 text-primary' : ''}
-							{stat.priority === 0 ? 'bg-muted text-muted-foreground' : ''}
-							{stat.priority === -1 ? 'bg-muted/50 text-muted-foreground/60' : ''}"
-					>
-						{priorityLabel(stat.priority)}
-					</button>
+					<Hint text={$tt('detail.cyclePriority')}>
+						{#snippet trigger({ props })}
+							<button
+								{...mergeProps(props, { onclick: () => cyclePriority(node.index, stat.priority) })}
+								disabled={isBusy}
+								class="text-[10px] font-medium px-1.5 py-0.5 rounded cursor-pointer transition-colors flex-shrink-0
+									{stat.priority === 1 ? 'bg-primary/15 text-primary' : ''}
+									{stat.priority === 0 ? 'bg-muted text-muted-foreground' : ''}
+									{stat.priority === -1 ? 'bg-muted/50 text-muted-foreground/60' : ''}"
+							>
+								{priorityLabel(stat.priority)}
+							</button>
+						{/snippet}
+					</Hint>
 				{/if}
 				<span class="text-xs text-muted-foreground tabular-nums flex-shrink-0">
 					{formatSize(file.length, $tt)}
@@ -568,8 +573,8 @@
 										<div class="flex items-center justify-between gap-2">
 											<span class="text-xs text-muted-foreground truncate">{peer.clientName}</span>
 											<div class="flex items-center gap-2 text-xs tabular-nums flex-shrink-0">
-												<span class="text-primary" title={$tt('card.downloadSpeed')}>↓ {formatSpeed(peer.rateToClient, $tt) || '—'}</span>
-												<span class="text-primary" title={$tt('card.uploadSpeed')}>↑ {formatSpeed(peer.rateToPeer, $tt) || '—'}</span>
+												<Hint text={$tt('card.downloadSpeed')} class="text-primary">↓ {formatSpeed(peer.rateToClient, $tt) || '—'}</Hint>
+												<Hint text={$tt('card.uploadSpeed')} class="text-primary">↑ {formatSpeed(peer.rateToPeer, $tt) || '—'}</Hint>
 											</div>
 										</div>
 									</div>
@@ -587,9 +592,9 @@
 								{#each detail.trackerStats as tracker}
 									<div class="rounded-md border border-border/60 px-3 py-2">
 										<div class="flex items-center justify-between gap-2 mb-1">
-											<span class="text-sm truncate min-w-0" title={tracker.announce}>
+											<Hint text={tracker.announce} class="text-sm truncate min-w-0">
 												{tracker.host}
-											</span>
+											</Hint>
 											<span class="text-[11px] text-muted-foreground flex-shrink-0">
 												T{tracker.tier}
 											</span>
