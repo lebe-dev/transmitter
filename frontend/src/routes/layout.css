@@ -116,7 +116,20 @@
         @apply border-border outline-ring/50;
     }
     html {
-        overflow-y: scroll;
+        /*
+         * Reserve the scrollbar gutter instead of forcing a permanent scrollbar.
+         *
+         * `overflow-y: scroll` here breaks the body scroll lock used by bits-ui
+         * dialogs/sheets/selects: the lock sets `overflow: hidden` on <body>, which
+         * cannot propagate to the viewport while <html> has an explicit overflow, so
+         * the scrollbar stays visible — yet the lock still adds `padding-right` to
+         * compensate for a scrollbar that never disappeared, shifting the page.
+         *
+         * `scrollbar-gutter: stable` keeps the layout width constant, lets the lock
+         * actually stop the page from scrolling, and is explicitly detected by bits-ui
+         * so no padding compensation is applied at all.
+         */
+        scrollbar-gutter: stable;
     }
     body {
         @apply bg-background text-foreground;
