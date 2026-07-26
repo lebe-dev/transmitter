@@ -736,9 +736,9 @@
 
 							<!-- Note -->
 						{#if note}
-							<div class="flex items-start gap-1.5 mb-1.5 text-xs text-muted-foreground">
+							<div class="flex items-start gap-1.5 mb-2.5 text-xs text-muted-foreground">
 								<NotebookPenIcon class="size-3 mt-0.5 flex-shrink-0" />
-								<Hint text={note} class="line-clamp-1 italic">{note}</Hint>
+								<span class="min-w-0 break-words">{note}</span>
 							</div>
 						{/if}
 
@@ -848,9 +848,9 @@
 
 							<!-- Note -->
 						{#if note}
-							<div class="flex items-start gap-1.5 mb-1.5 text-xs text-muted-foreground">
+							<div class="flex items-start gap-1.5 mb-3 text-xs text-muted-foreground">
 								<NotebookPenIcon class="size-3 mt-0.5 flex-shrink-0" />
-								<Hint text={note} class="line-clamp-1 italic">{note}</Hint>
+								<span class="min-w-0 break-words">{note}</span>
 							</div>
 						{/if}
 
