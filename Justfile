@@ -131,5 +131,8 @@ release-image:
 
 release: release-image
 
-deploy:
+# Depends on release-image so the tag being deployed is guaranteed to exist in the registry —
+# buildNumber is the git short hash at invocation time, and it would otherwise drift if a commit
+# landed between a separate `just release` and `just deploy` call.
+deploy: release-image
     ssh -t rpi "cd /opt/transmitter && sudo sed -i -E 's#(image: {{ imageName }}:).*#\1{{ tag }}#' docker-compose.yml && sudo docker compose pull && sudo docker compose down && sudo docker compose up -d"
