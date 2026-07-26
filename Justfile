@@ -9,6 +9,10 @@ cleanup:
     rm -f transmitter
     rm -rf static/dist frontend/build
 
+stop:
+    lsof -ti :4200 | xargs kill -9
+    lsof -ti :18080 | xargs kill -9
+
 # --- Dependencies ---
 bump-backend-deps:
     go get -u ./...
