@@ -67,21 +67,16 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)
 	defer stop()
 
-	tgBot := startBot(ctx, cfg, client, noteStore, logger)
+	// The same set of shifts drives the schedulers and the bot's /shifts card.
+	shiftOptions := configuredShifts(cfg, logger)
+
+	tgBot := startBot(ctx, cfg, client, noteStore, logger, bot.Shifts{Configured: shiftOptions, Store: prefStore})
 	srv := startServer(cfg, client, noteStore, prefStore, version, logger, stop)
 
 	go notes.NewCleaner(noteStore, client, cfg.NoteCleanupInterval, logger).Run(ctx)
 
-	if cfg.NightShiftEnabled {
-		go shift.New(client, shift.NightOptions(cfg), prefStore, logger).Run(ctx)
-	} else {
-		logger.Info("night-shift not configured (NIGHT_SHIFT_START/NIGHT_SHIFT_END not set)")
-	}
-
-	if cfg.DayShiftEnabled {
-		go shift.New(client, shift.DayOptions(cfg), prefStore, logger).Run(ctx)
-	} else {
-		logger.Info("day-shift not configured (DAY_SHIFT_START/DAY_SHIFT_END not set)")
+	for _, opts := range shiftOptions {
+		go shift.New(client, opts, prefStore, logger).Run(ctx)
 	}
 
 	<-ctx.Done()
@@ -117,8 +112,28 @@ func setupLogger(cfg *config.Config) *slog.Logger {
 	return logger
 }
 
+// configuredShifts collects the shifts that have a time window set in the
+// environment. The rest get no scheduler and are hidden from the bot.
+func configuredShifts(cfg *config.Config, logger *slog.Logger) []shift.Options {
+	var opts []shift.Options
+
+	if cfg.NightShiftEnabled {
+		opts = append(opts, shift.NightOptions(cfg))
+	} else {
+		logger.Info("night-shift not configured (NIGHT_SHIFT_START/NIGHT_SHIFT_END not set)")
+	}
+
+	if cfg.DayShiftEnabled {
+		opts = append(opts, shift.DayOptions(cfg))
+	} else {
+		logger.Info("day-shift not configured (DAY_SHIFT_START/DAY_SHIFT_END not set)")
+	}
+
+	return opts
+}
+
 // startBot initializes and starts the Telegram bot when enabled, returning nil when disabled.
-func startBot(ctx context.Context, cfg *config.Config, client *transmission.Client, noteStore bot.NoteSource, logger *slog.Logger) *bot.Bot {
+func startBot(ctx context.Context, cfg *config.Config, client *transmission.Client, noteStore bot.NoteSource, logger *slog.Logger, shifts bot.Shifts) *bot.Bot {
 	if !cfg.TelegramBotEnabled {
 		logger.Info("telegram bot disabled (TELEGRAM_BOT_ENABLED=false)")
 		return nil
@@ -128,7 +143,7 @@ func startBot(ctx context.Context, cfg *config.Config, client *transmission.Clie
 		os.Exit(1)
 	}
 
-	tgBot, err := bot.New(cfg.TelegramToken, cfg.TelegramUsers, client, noteStore, logger, cfg.FilePriorityEnabled, cfg.FilePriorityHighCount, cfg.FileSelectTimeout)
+	tgBot, err := bot.New(cfg.TelegramToken, cfg.TelegramUsers, client, noteStore, logger, cfg.FilePriorityEnabled, cfg.FilePriorityHighCount, cfg.FileSelectTimeout, shifts)
 	if err != nil {
 		logger.Error("bot init failed", "err", err)
 		os.Exit(1)

@@ -63,6 +63,10 @@ func (b *Bot) handleCallback(c telebot.Context) error {
 		return b.callbackFileSkip(c, data)
 	case strings.HasPrefix(data, "fp:"):
 		return b.callbackFilePage(c, data)
+	case strings.HasPrefix(data, shiftTogglePrefix):
+		return b.callbackShiftToggle(c, data)
+	case data == shiftsRefreshData:
+		return b.callbackShiftsRefresh(c)
 	case data == "noop":
 		return c.Respond()
 	default:

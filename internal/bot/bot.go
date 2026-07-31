@@ -38,10 +38,11 @@ type Bot struct {
 	fileSelectMu          sync.Mutex
 	fileSelect            map[int64]*FileSelectState
 	fileSelectTimeout     time.Duration
+	shifts                Shifts
 }
 
 // New creates a new Bot instance. Returns an error if the token is invalid.
-func New(token string, allowedUsers []string, client *transmission.Client, noteSource NoteSource, logger *slog.Logger, autoPriorityEnabled bool, autoPriorityHighCount int, fileSelectTimeout time.Duration) (*Bot, error) {
+func New(token string, allowedUsers []string, client *transmission.Client, noteSource NoteSource, logger *slog.Logger, autoPriorityEnabled bool, autoPriorityHighCount int, fileSelectTimeout time.Duration, shifts Shifts) (*Bot, error) {
 	tg, err := telebot.NewBot(telebot.Settings{
 		Token:  token,
 		Poller: &telebot.LongPoller{Timeout: 10},
@@ -67,6 +68,7 @@ func New(token string, allowedUsers []string, client *transmission.Client, noteS
 		autoPriorityHighCount: autoPriorityHighCount,
 		fileSelect:            make(map[int64]*FileSelectState),
 		fileSelectTimeout:     fileSelectTimeout,
+		shifts:                shifts,
 	}
 	b.notifyFn = b.broadcastNotification
 
@@ -82,6 +84,7 @@ func (b *Bot) registerHandlers() {
 	b.tg.Handle("/add", b.handleAdd)
 	b.tg.Handle("/status", b.handleStatus)
 	b.tg.Handle("/status_all", b.handleStatusAll)
+	b.tg.Handle("/shifts", b.handleShifts)
 	b.tg.Handle(telebot.OnDocument, b.handleDocument)
 	b.tg.Handle(telebot.OnCallback, b.handleCallback)
 }
