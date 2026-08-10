@@ -1,6 +1,6 @@
 services:
   transmitter:
-    image: tinyops/transmitter:1.3.0-2408b22
+    image: tinyops/transmitter:1.4.0-dev-09a8d77
     environment:
       - LISTEN_ADDR=0.0.0.0:8080
       - DB_PATH=/app/data/transmitter.db
