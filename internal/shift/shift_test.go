@@ -132,10 +132,6 @@ func newScheduler(t *testing.T, rs *recordingServer, label string, now time.Time
 
 func newSchedulerWithToggle(t *testing.T, rs *recordingServer, label string, now time.Time, start, end config.DayTime, toggle Toggle) *Scheduler {
 	t.Helper()
-	srv := httptest.NewServer(rs.handle(t))
-	t.Cleanup(srv.Close)
-	client := transmission.NewClient(srv.URL, "u", "p")
-
 	opts := Options{
 		Name:     label,
 		Label:    label,
@@ -143,7 +139,16 @@ func newSchedulerWithToggle(t *testing.T, rs *recordingServer, label string, now
 		End:      end,
 		Interval: time.Minute,
 	}
-	s := New(client, opts, toggle, slog.New(slog.NewTextHandler(testWriter{t}, nil)))
+	return newSchedulerWithPeers(t, rs, opts, now, nil, toggle)
+}
+
+func newSchedulerWithPeers(t *testing.T, rs *recordingServer, opts Options, now time.Time, peers []Options, toggle Toggle) *Scheduler {
+	t.Helper()
+	srv := httptest.NewServer(rs.handle(t))
+	t.Cleanup(srv.Close)
+	client := transmission.NewClient(srv.URL, "u", "p")
+
+	s := New(client, opts, append([]Options{opts}, peers...), toggle, slog.New(slog.NewTextHandler(testWriter{t}, nil)))
 	s.now = func() time.Time { return now }
 	return s
 }
@@ -158,6 +163,20 @@ type stubToggle struct {
 func (s *stubToggle) ShiftEnabled(_ context.Context, shift string) (bool, error) {
 	s.shift = shift
 	return s.enabled, s.err
+}
+
+// perShiftToggle answers the enabled lookup per shift name; a missing entry is enabled.
+type perShiftToggle struct {
+	enabled map[string]bool
+	err     error
+}
+
+func (p *perShiftToggle) ShiftEnabled(_ context.Context, shift string) (bool, error) {
+	if p.err != nil {
+		return false, p.err
+	}
+	enabled, ok := p.enabled[shift]
+	return !ok || enabled, nil
 }
 
 type testWriter struct{ t *testing.T }
@@ -296,15 +315,15 @@ func TestReconcileRunsWhenToggleLookupFails(t *testing.T) {
 	}
 }
 
-// A torrent carrying both labels belongs to both shifts; the schedulers are not
-// coordinated, so each one acts on it according to its own window.
+// A torrent carrying both labels belongs to both shifts; inside its own window
+// each scheduler starts it.
 func TestClassifyTorrentWithBothLabels(t *testing.T) {
 	torrents := []transmission.Torrent{
 		{ID: 7, Status: 0, PercentDone: 0.5, Labels: []string{NightLabel, DayLabel}},
 	}
 
 	for _, label := range []string{NightLabel, DayLabel} {
-		tagged, toStart, toStop := classify(torrents, label, true)
+		tagged, toStart, toStop := classify(torrents, label, true, nil)
 		if len(tagged) != 1 || tagged[0] != 7 {
 			t.Errorf("%s: tagged = %v, want [7]", label, tagged)
 		}
@@ -314,5 +333,103 @@ func TestClassifyTorrentWithBothLabels(t *testing.T) {
 		if len(toStop) != 0 {
 			t.Errorf("%s: toStop = %v, want none", label, toStop)
 		}
+	}
+}
+
+// Outside the window a torrent that also belongs to a shift currently on duty
+// must be left running; one tagged only by this shift is still stopped.
+func TestClassifySkipsTorrentsClaimedByShiftOnDuty(t *testing.T) {
+	torrents := []transmission.Torrent{
+		{ID: 1, Status: 6, PercentDone: 1.0, Labels: []string{NightLabel, DayLabel}},
+		{ID: 2, Status: 6, PercentDone: 1.0, Labels: []string{NightLabel}},
+	}
+
+	tagged, toStart, toStop := classify(torrents, NightLabel, false, []string{DayLabel})
+
+	if len(tagged) != 2 {
+		t.Errorf("tagged = %v, want both torrents", tagged)
+	}
+	if len(toStart) != 0 {
+		t.Errorf("toStart = %v, want none", toStart)
+	}
+	if len(toStop) != 1 || toStop[0] != 2 {
+		t.Errorf("toStop = %v, want [2]", toStop)
+	}
+}
+
+// The reported bug: a torrent labelled for both shifts got paused by the night
+// scheduler while the day shift was on duty.
+func TestReconcileKeepsTorrentRunningForOtherShift(t *testing.T) {
+	rs := &recordingServer{torrents: []transmission.Torrent{
+		{ID: 1, Status: 6, PercentDone: 1.0, Labels: []string{NightLabel, DayLabel}},
+		{ID: 2, Status: 6, PercentDone: 1.0, Labels: []string{NightLabel}},
+	}}
+	night := Options{Name: NightLabel, Label: NightLabel, Interval: time.Minute,
+		Start: config.DayTime{Hour: 23, Minute: 0}, End: config.DayTime{Hour: 7, Minute: 0}}
+	day := Options{Name: DayLabel, Label: DayLabel, Interval: time.Minute,
+		Start: config.DayTime{Hour: 8, Minute: 0}, End: config.DayTime{Hour: 22, Minute: 0}}
+
+	s := newSchedulerWithPeers(t, rs, night, time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC),
+		[]Options{day}, &perShiftToggle{})
+
+	s.reconcile(context.Background())
+
+	if len(rs.starts) != 0 {
+		t.Errorf("starts = %v, want none", rs.starts)
+	}
+	if len(rs.stops) != 1 || len(rs.stops[0]) != 1 || rs.stops[0][0] != 2 {
+		t.Errorf("stops = %v, want [[2]] — the day-shift torrent must keep seeding", rs.stops)
+	}
+}
+
+// A peer that the user switched off is not on duty: its torrents get stopped.
+func TestReconcileStopsTorrentWhenOtherShiftDisabled(t *testing.T) {
+	rs := &recordingServer{torrents: []transmission.Torrent{
+		{ID: 1, Status: 6, PercentDone: 1.0, Labels: []string{NightLabel, DayLabel}},
+	}}
+	night := Options{Name: NightLabel, Label: NightLabel, Interval: time.Minute,
+		Start: config.DayTime{Hour: 23, Minute: 0}, End: config.DayTime{Hour: 7, Minute: 0}}
+	day := Options{Name: DayLabel, Label: DayLabel, Interval: time.Minute,
+		Start: config.DayTime{Hour: 8, Minute: 0}, End: config.DayTime{Hour: 22, Minute: 0}}
+
+	s := newSchedulerWithPeers(t, rs, night, time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC),
+		[]Options{day}, &perShiftToggle{enabled: map[string]bool{DayLabel: false}})
+
+	s.reconcile(context.Background())
+
+	if len(rs.stops) != 1 || len(rs.stops[0]) != 1 || rs.stops[0][0] != 1 {
+		t.Errorf("stops = %v, want [[1]]", rs.stops)
+	}
+}
+
+// A peer whose window is closed too does not hold the torrent open.
+func TestReconcileStopsTorrentWhenNoShiftOnDuty(t *testing.T) {
+	rs := &recordingServer{torrents: []transmission.Torrent{
+		{ID: 1, Status: 6, PercentDone: 1.0, Labels: []string{NightLabel, DayLabel}},
+	}}
+	night := Options{Name: NightLabel, Label: NightLabel, Interval: time.Minute,
+		Start: config.DayTime{Hour: 23, Minute: 0}, End: config.DayTime{Hour: 7, Minute: 0}}
+	day := Options{Name: DayLabel, Label: DayLabel, Interval: time.Minute,
+		Start: config.DayTime{Hour: 8, Minute: 0}, End: config.DayTime{Hour: 22, Minute: 0}}
+
+	s := newSchedulerWithPeers(t, rs, night, time.Date(2026, 1, 1, 22, 30, 0, 0, time.UTC),
+		[]Options{day}, &perShiftToggle{})
+
+	s.reconcile(context.Background())
+
+	if len(rs.stops) != 1 || len(rs.stops[0]) != 1 || rs.stops[0][0] != 1 {
+		t.Errorf("stops = %v, want [[1]] — both windows are closed at 22:30", rs.stops)
+	}
+}
+
+// New must not treat the scheduler's own shift as a peer.
+func TestNewExcludesOwnShiftFromPeers(t *testing.T) {
+	night := Options{Name: NightLabel, Label: NightLabel}
+	day := Options{Name: DayLabel, Label: DayLabel}
+
+	s := New(nil, night, []Options{night, day}, nil, slog.New(slog.NewTextHandler(testWriter{t}, nil)))
+
+	if len(s.peers) != 1 || s.peers[0].Label != DayLabel {
+		t.Errorf("peers = %v, want only the day shift", s.peers)
 	}
 }

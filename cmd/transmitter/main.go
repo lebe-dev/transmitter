@@ -76,7 +76,7 @@ func main() {
 	go notes.NewCleaner(noteStore, client, cfg.NoteCleanupInterval, logger).Run(ctx)
 
 	for _, opts := range shiftOptions {
-		go shift.New(client, opts, prefStore, logger).Run(ctx)
+		go shift.New(client, opts, shiftOptions, prefStore, logger).Run(ctx)
 	}
 
 	<-ctx.Done()

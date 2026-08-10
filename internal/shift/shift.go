@@ -6,9 +6,11 @@
 // stopped.
 //
 // Two shifts are supported: the night shift ([NightLabel]) and the day shift
-// ([DayLabel]). They run as independent schedulers and are not coordinated: a
-// torrent carrying both labels is claimed by both, so with non-overlapping
-// windows the schedulers will start and stop it in turn.
+// ([DayLabel]). They run as independent schedulers, but a torrent carrying both
+// labels is claimed by both, so stopping is coordinated: a scheduler leaves a
+// torrent alone when another enabled shift claims it and that shift's window is
+// open right now. In other words a torrent runs while any of its shifts is on
+// duty and is stopped once all of them are off.
 //
 // A scheduler can be switched off from the UI (see [Toggle]). While it is off
 // the scheduler touches nothing at all: torrents keep whatever state they are
@@ -74,6 +76,9 @@ type Toggle interface {
 type Scheduler struct {
 	client *transmission.Client
 	opts   Options
+	// peers are the other configured shifts. They are consulted before stopping:
+	// a torrent that also belongs to a peer whose window is open stays running.
+	peers []Options
 	// toggle gates every reconcile; a nil toggle keeps the shift always on.
 	toggle Toggle
 	now    func() time.Time
@@ -84,11 +89,20 @@ type Scheduler struct {
 }
 
 // New creates a Scheduler that reconciles the given shift's torrents on its
-// interval, as long as toggle reports the shift as enabled.
-func New(client *transmission.Client, opts Options, toggle Toggle, logger *slog.Logger) *Scheduler {
+// interval, as long as toggle reports the shift as enabled. all lists every
+// configured shift (opts included); the rest become this scheduler's peers.
+func New(client *transmission.Client, opts Options, all []Options, toggle Toggle, logger *slog.Logger) *Scheduler {
+	var peers []Options
+	for _, o := range all {
+		if o.Label != opts.Label {
+			peers = append(peers, o)
+		}
+	}
+
 	return &Scheduler{
 		client: client,
 		opts:   opts,
+		peers:  peers,
 		toggle: toggle,
 		now:    time.Now,
 		logger: logger,
@@ -132,12 +146,19 @@ func (s *Scheduler) reconcile(ctx context.Context) {
 	now := s.now()
 	inWindow := InWindow(now, s.opts.Start, s.opts.End)
 
-	tagged, toStart, toStop := classify(torrents, s.opts.Label, inWindow)
+	// Outside the window a torrent may still be on duty for another shift.
+	var onDuty []string
+	if !inWindow {
+		onDuty = s.peersOnDuty(ctx, now)
+	}
+
+	tagged, toStart, toStop := classify(torrents, s.opts.Label, inWindow, onDuty)
 
 	s.logger.Info(s.opts.Name+": reconcile",
 		"now", now.Format("15:04 MST"),
 		"window", s.opts.Start.String()+"-"+s.opts.End.String(),
 		"in_window", inWindow,
+		"peers_on_duty", onDuty,
 		"torrents_total", len(torrents),
 		"tagged", len(tagged),
 		"tagged_ids", tagged,
@@ -186,9 +207,35 @@ func (s *Scheduler) enabled(ctx context.Context) bool {
 	return enabled
 }
 
+// peersOnDuty returns the labels of the other configured shifts that are
+// switched on and whose window is open at the given moment. A peer whose
+// enabled state cannot be read counts as on duty: keeping a torrent seeding is
+// the harmless outcome of a broken preference lookup.
+func (s *Scheduler) peersOnDuty(ctx context.Context, now time.Time) []string {
+	var labels []string
+	for _, p := range s.peers {
+		if !InWindow(now, p.Start, p.End) {
+			continue
+		}
+		if s.toggle != nil {
+			enabled, err := s.toggle.ShiftEnabled(ctx, p.Name)
+			if err != nil {
+				s.logger.Warn(s.opts.Name+": failed to read peer enabled state, assuming enabled",
+					"peer", p.Name, "err", err)
+			} else if !enabled {
+				continue
+			}
+		}
+		labels = append(labels, p.Label)
+	}
+	return labels
+}
+
 // classify splits torrents into those tagged with the given label and the subsets
 // that need starting or stopping given whether the current time is inside the window.
-func classify(torrents []transmission.Torrent, label string, inWindow bool) (tagged, toStart, toStop []int64) {
+// Torrents also carrying one of the onDuty labels are never stopped: another shift
+// is running them right now.
+func classify(torrents []transmission.Torrent, label string, inWindow bool, onDuty []string) (tagged, toStart, toStop []int64) {
 	for _, t := range torrents {
 		if !slices.Contains(t.Labels, label) {
 			continue
@@ -200,11 +247,16 @@ func classify(torrents []transmission.Torrent, label string, inWindow bool) (tag
 		switch {
 		case inWindow && t.Status == 0:
 			toStart = append(toStart, t.ID)
-		case !inWindow && t.Status != 0:
+		case !inWindow && t.Status != 0 && !claimedBy(t, onDuty):
 			toStop = append(toStop, t.ID)
 		}
 	}
 	return tagged, toStart, toStop
+}
+
+// claimedBy reports whether the torrent carries any of the given shift labels.
+func claimedBy(t transmission.Torrent, labels []string) bool {
+	return slices.ContainsFunc(labels, func(l string) bool { return slices.Contains(t.Labels, l) })
 }
 
 // InWindow reports whether the given moment falls inside the [start, end) window.
