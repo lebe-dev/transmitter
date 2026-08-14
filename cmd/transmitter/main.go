@@ -10,6 +10,7 @@ import (
 
 	"github.com/lebe-dev/transmitter/internal/bot"
 	"github.com/lebe-dev/transmitter/internal/config"
+	"github.com/lebe-dev/transmitter/internal/impact"
 	"github.com/lebe-dev/transmitter/internal/notes"
 	"github.com/lebe-dev/transmitter/internal/prefs"
 	"github.com/lebe-dev/transmitter/internal/sentrylog"
@@ -70,13 +71,18 @@ func main() {
 	// The same set of shifts drives the schedulers and the bot's /shifts card.
 	shiftOptions := configuredShifts(cfg, logger)
 
+	// Stops torrents that gave back everything they took; the shifts consult the
+	// same worker so they do not restart what it paused.
+	impactWorker := impact.New(client, cfg.ImpactTargetRatio, cfg.ImpactInterval, prefStore, logger)
+
 	tgBot := startBot(ctx, cfg, client, noteStore, logger, bot.Shifts{Configured: shiftOptions, Store: prefStore})
 	srv := startServer(cfg, client, noteStore, prefStore, version, logger, stop)
 
 	go notes.NewCleaner(noteStore, client, cfg.NoteCleanupInterval, logger).Run(ctx)
+	go impactWorker.Run(ctx)
 
 	for _, opts := range shiftOptions {
-		go shift.New(client, opts, shiftOptions, prefStore, logger).Run(ctx)
+		go shift.New(client, opts, shiftOptions, prefStore, impactWorker, logger).Run(ctx)
 	}
 
 	<-ctx.Done()
@@ -153,14 +159,21 @@ func startBot(ctx context.Context, cfg *config.Config, client *transmission.Clie
 	return tgBot
 }
 
+// prefStore holds the runtime toggles the HTTP handlers read and write: the
+// shift schedulers and the impact auto-stop rule. internal/prefs implements both.
+type prefStore interface {
+	server.ShiftStore
+	server.ImpactStore
+}
+
 // startServer initializes and starts the HTTP server when enabled, returning nil when disabled.
-func startServer(cfg *config.Config, client *transmission.Client, noteStore server.NoteStore, shiftStore server.ShiftStore, version string, logger *slog.Logger, stop context.CancelFunc) *server.Server {
+func startServer(cfg *config.Config, client *transmission.Client, noteStore server.NoteStore, prefStore prefStore, version string, logger *slog.Logger, stop context.CancelFunc) *server.Server {
 	if !cfg.WebUIEnabled {
 		logger.Info("web UI disabled (WEBUI_ENABLED=false)")
 		return nil
 	}
 
-	srv, err := server.New(cfg, client, noteStore, shiftStore, version, static.FS, logger)
+	srv, err := server.New(cfg, client, noteStore, prefStore, prefStore, version, static.FS, logger)
 	if err != nil {
 		logger.Error("server init failed", "err", err)
 		os.Exit(1)

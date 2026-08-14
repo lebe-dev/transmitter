@@ -101,3 +101,37 @@ func TestInvalidShiftName(t *testing.T) {
 		t.Errorf("SetShiftEnabled(empty) error = %v, want ErrInvalidShift", err)
 	}
 }
+
+func TestImpactAutoStopDisabledByDefault(t *testing.T) {
+	store := newStore(t, filepath.Join(t.TempDir(), "prefs.db"))
+
+	enabled, err := store.ImpactAutoStopEnabled(context.Background())
+	if err != nil {
+		t.Fatalf("ImpactAutoStopEnabled() error = %v", err)
+	}
+	if enabled {
+		t.Error("ImpactAutoStopEnabled() = true, want false until the user switches it on")
+	}
+}
+
+func TestSetImpactAutoStopEnabled(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "prefs.db")
+	ctx := context.Background()
+
+	store := newStore(t, path)
+	if err := store.SetImpactAutoStopEnabled(ctx, true); err != nil {
+		t.Fatalf("SetImpactAutoStopEnabled() error = %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+
+	reopened := newStore(t, path)
+	enabled, err := reopened.ImpactAutoStopEnabled(ctx)
+	if err != nil {
+		t.Fatalf("ImpactAutoStopEnabled() error = %v", err)
+	}
+	if !enabled {
+		t.Error("ImpactAutoStopEnabled() = false after reopen, want the stored true")
+	}
+}

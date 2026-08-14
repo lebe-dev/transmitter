@@ -7,16 +7,12 @@ Transmitter es una alternativa moderna y ligera a la interfaz web estándar de T
 
 ## Características
 
-- **Lista de torrents** — tabla ordenable: nombre, estado, progreso, tamaño, velocidad, fecha de adición, ETA
-- **Filtros por estado** — Todos, Descargando, Sembrando, Pausado, Completado
-- **Búsqueda** — filtra torrents por nombre (sin distinción de mayúsculas)
-- **Añadir torrents** — enlaces magnet o carga de archivos .torrent
-- **Gestión** — pausar, reanudar, eliminar torrents
+- **Operaciones básicas** — lista ordenable (nombre, estado, progreso, tamaño, velocidad, fecha de adición, ETA) con filtros por estado, búsqueda por nombre sin distinción de mayúsculas, adición mediante enlace magnet o archivo .torrent y pausar/reanudar/eliminar
 - **Notas** — texto libre para cualquier torrent (guardado en el servidor en SQLite, visible en la lista, el panel de detalles y el bot de Telegram)
 - **Turno nocturno** — marca torrents para descargarlos y compartirlos sólo dentro de una ventana horaria configurada; fuera de la ventana se pausan
 - **Turno diurno** — lo mismo, con su propia etiqueta, su ventana y un botón con el sol; los turnos son independientes y un torrent puede llevar ambas marcas
 - **Interruptores de turnos** — cualquier turno configurado se puede desactivar en «Ajustes → Turnos»; el estado se guarda en SQLite en el servidor, por lo que se aplica en todos los navegadores y se mantiene tras reiniciar. Mientras un turno está desactivado su planificador no toca nada: los torrents se quedan como están y el botón del turno se ve en gris
-- **Auto-actualización** — actualizaciones en vivo cada 3–5 segundos
+- **Impact** — cuánto ha devuelto un torrent de lo que descargó. Un trofeo marca los que han subido el 100% de su descarga, el filtro «Sin devolver» muestra el resto (se pueden enviar a un turno en bloque) y un interruptor opcional detiene el torrent al alcanzar el objetivo
 - **Idiomas soportados**: en, ru, es, de
 - **Docker images**: linux/amd64, linux/arm/v7, linux/arm64/v8
 
@@ -59,6 +55,8 @@ Todos los ajustes se realizan mediante variables de entorno:
 | `DB_PATH` | No | `data/transmitter.db` (imagen Docker: `/app/data/transmitter.db`) |
 | `TORRENT_NOTE_MAX_LENGTH` | No | `200` |
 | `TORRENT_NOTE_CLEANUP_INTERVAL` | No | `1h` |
+| `IMPACT_TARGET_RATIO` | No | `1` |
+| `IMPACT_INTERVAL` | No | `5m` |
 | `SENTRY_DSN` | No | — (desactivado) |
 | `SENTRY_ENVIRONMENT` | Si se usa Sentry | — |
 

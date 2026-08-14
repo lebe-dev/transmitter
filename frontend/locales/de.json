@@ -22,7 +22,8 @@
 		"downloading": "Herunterladen",
 		"seeding": "Seeden",
 		"paused": "Pausiert",
-		"done": "Fertig"
+		"done": "Fertig",
+		"undergiven": "Nicht zurückgegeben"
 	},
 	"sort": {
 		"label": "Sortierung:",
@@ -174,8 +175,12 @@
 			"dayShiftEnd": "Ende des Tagschicht-Fensters (HH:MM, 24h). Das Fenster darf Mitternacht überspannen, wenn Ende ≤ Beginn.",
 			"dbPath": "Pfad zur SQLite-Datenbankdatei, in der die Torrent-Notizen gespeichert werden.",
 			"noteMaxLength": "Maximale Länge einer Torrent-Notiz in Zeichen.",
-			"noteCleanupInterval": "Wie oft Notizen nicht mehr vorhandener Torrents entfernt werden."
-		}
+			"noteCleanupInterval": "Wie oft Notizen nicht mehr vorhandener Torrents entfernt werden.",
+			"impactTargetRatio": "Upload-Verhältnis, das als vollständige Rückgabe gilt: 1 bedeutet, der Torrent hat so viel hochgeladen wie heruntergeladen.",
+			"impactInterval": "Wie oft Torrents auf das Ziel-Upload-Verhältnis geprüft werden."
+		},
+		"impactAutoStop": "Seeding beenden, sobald {percent}% zurückgegeben sind",
+		"impactAutoStopHint": "Ein Torrent, der {percent}% des Heruntergeladenen hochgeladen hat, wird automatisch pausiert. Solange die Option aktiv ist, starten die Schichten solche Torrents nicht neu."
 	},
 	"themes": {
 		"yellow": "Gelb",
@@ -205,7 +210,8 @@
 	"card": {
 		"downloadSpeed": "Download-Geschwindigkeit",
 		"uploadSpeed": "Upload-Geschwindigkeit",
-		"uploadedTotal": "Gesamt hochgeladen"
+		"uploadedTotal": "Gesamt hochgeladen",
+		"impactReached": "Sie haben {percent}% des Heruntergeladenen zurückgegeben"
 	},
 	"note": {
 		"label": "Notiz",
@@ -255,6 +261,7 @@
 		"dayShiftOn": "Für Tagschicht eingeplant: {name}",
 		"dayShiftOff": "Aus Tagschicht entfernt: {name}",
 		"failDayShift": "Tagschicht konnte nicht aktualisiert werden",
-		"failShiftToggle": "Schicht konnte nicht umgeschaltet werden"
+		"failShiftToggle": "Schicht konnte nicht umgeschaltet werden",
+		"failImpactToggle": "Automatisches Stoppen konnte nicht umgeschaltet werden"
 	}
 }

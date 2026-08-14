@@ -21,6 +21,7 @@
 	import PinIcon from '@lucide/svelte/icons/pin';
 	import MoonStarIcon from '@lucide/svelte/icons/moon-star';
 	import NotebookPenIcon from '@lucide/svelte/icons/notebook-pen';
+	import TrophyIcon from '@lucide/svelte/icons/trophy';
 
 	import XIcon from '@lucide/svelte/icons/x';
 	import FolderIcon from '@lucide/svelte/icons/folder';
@@ -32,6 +33,7 @@
 	import { formatSize, formatSpeed, formatEta, formatDate } from '$lib/format.js';
 	import { parseTorrentSize } from '$lib/bencode.js';
 	import { DAY_SHIFT_LABEL, NIGHT_SHIFT_LABEL } from '$lib/bulk.js';
+	import { percent as impactPercent, reached as impactReached, undergiven as impactUndergiven } from '$lib/impact.js';
 	import type { Torrent, FilterStatus } from '$lib/types.js';
 	import { createSvelteTable } from '$lib/components/ui/data-table/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
@@ -147,6 +149,8 @@
 		done: torrentStore.torrents.filter(
 			(t) => t.percentDone === 1 && (t.status === 0 || t.status === 5 || t.status === 6)
 		).length,
+		undergiven: torrentStore.torrents.filter((t) => impactUndergiven(t, settingsStore.impactTargetRatio))
+			.length,
 	});
 
 	const FILTER_KEYS: { key: FilterStatus; tKey: string }[] = [
@@ -155,6 +159,7 @@
 		{ key: 'seeding', tKey: 'filters.seeding' },
 		{ key: 'paused', tKey: 'filters.paused' },
 		{ key: 'done', tKey: 'filters.done' },
+		{ key: 'undergiven', tKey: 'filters.undergiven' },
 	];
 
 	// ── File selection dialog ─────────────────────────────────────────────────
@@ -497,6 +502,22 @@
 	});
 </script>
 
+{#snippet impactBadge(t: Torrent)}
+	{#if impactReached(t, settingsStore.impactTargetRatio)}
+		<Hint text={$tt('card.impactReached', { values: { percent: impactPercent(t) } })}>
+			{#snippet trigger({ props })}
+				<span
+					{...props}
+					class="text-primary flex items-center flex-shrink-0"
+					aria-label={$tt('card.impactReached', { values: { percent: impactPercent(t) } })}
+				>
+					<TrophyIcon class="size-3.5" />
+				</span>
+			{/snippet}
+		</Hint>
+	{/if}
+{/snippet}
+
 <!--
 	Кнопки смен в шапке карточки торрента (обычный и компактный вид).
 	Смена без окна в переменных окружения не показывается вовсе; выключенная
@@ -766,6 +787,7 @@
 								{#if t.uploadedEver > 0}
 									<Hint text={$tt('card.uploadedTotal')} class="text-xs text-primary tabular-nums">⬆ {formatSize(t.uploadedEver, $tt)}</Hint>
 								{/if}
+								{@render impactBadge(t)}
 							</div>
 							</div>
 
@@ -878,6 +900,7 @@
 								{#if t.uploadedEver > 0}
 									<Hint text={$tt('card.uploadedTotal')} class="text-xs text-primary tabular-nums">⬆ {formatSize(t.uploadedEver, $tt)}</Hint>
 								{/if}
+								{@render impactBadge(t)}
 							</div>
 							</div>
 

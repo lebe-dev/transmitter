@@ -1,4 +1,6 @@
 import { getTorrents, getSession, getNotes, setNote } from './api.js';
+import { undergiven } from './impact.js';
+import { settingsStore } from './settings.svelte.js';
 import type { Torrent, FilterStatus, TorrentNotes } from './types.js';
 
 const POLL_ACTIVE = 5_000;
@@ -43,6 +45,9 @@ class TorrentStore {
 					(t) =>
 						t.percentDone === 1 && (t.status === 0 || t.status === 5 || t.status === 6)
 				);
+				break;
+			case 'undergiven':
+				list = list.filter((t) => undergiven(t, settingsStore.impactTargetRatio));
 				break;
 		}
 

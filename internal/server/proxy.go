@@ -178,17 +178,26 @@ type UISettings struct {
 	DayShiftStart        string `json:"dayShiftStart,omitempty"`
 	DayShiftEnd          string `json:"dayShiftEnd,omitempty"`
 	NoteMaxLength        int    `json:"noteMaxLength"`
+	// ImpactTargetRatio is the upload ratio counted as a full payback; the UI
+	// marks torrents that reached it and offers the ones that did not.
+	ImpactTargetRatio float64 `json:"impactTargetRatio"`
+	// ImpactAutoStopEnabled tells whether reaching that ratio also stops the torrent.
+	ImpactAutoStopEnabled bool `json:"impactAutoStopEnabled"`
 }
 
 // SettingsHandler returns UI-relevant server configuration as JSON. The shift
-// toggles are read from shifts on every request, since they change at runtime;
-// a nil store leaves the values of settings untouched.
-func SettingsHandler(settings UISettings, shifts ShiftStore) http.HandlerFunc {
+// toggles and the impact auto-stop toggle are read from the stores on every
+// request, since they change at runtime; a nil store leaves the values of
+// settings untouched.
+func SettingsHandler(settings UISettings, shifts ShiftStore, impact ImpactStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		resp := settings
 		if shifts != nil {
 			resp.NightShiftEnabled = settings.NightShiftConfigured && shiftEnabled(r.Context(), shifts, shift.NightLabel)
 			resp.DayShiftEnabled = settings.DayShiftConfigured && shiftEnabled(r.Context(), shifts, shift.DayLabel)
+		}
+		if impact != nil {
+			resp.ImpactAutoStopEnabled = impactAutoStopEnabled(r.Context(), impact)
 		}
 
 		w.Header().Set(headerContentType, mimeJSON)
@@ -220,6 +229,8 @@ type ServerConfig struct {
 	DBPath                string   `json:"dbPath"`
 	NoteMaxLength         int      `json:"noteMaxLength"`
 	NoteCleanupInterval   string   `json:"noteCleanupInterval"`
+	ImpactTargetRatio     float64  `json:"impactTargetRatio"`
+	ImpactInterval        string   `json:"impactInterval"`
 }
 
 // ConfigHandler returns non-sensitive server configuration as JSON.

@@ -62,22 +62,9 @@ func (s *Store) ShiftEnabled(ctx context.Context, shift string) (bool, error) {
 		return false, err
 	}
 
-	var raw string
-	err = s.db.QueryRowContext(ctx, `SELECT value FROM prefs WHERE key = ?`, key).Scan(&raw)
-	if errors.Is(err, sql.ErrNoRows) {
-		return true, nil
-	}
-	if err != nil {
-		return false, fmt.Errorf("get pref %q: %w", key, err)
-	}
-
-	enabled, err := strconv.ParseBool(raw)
-	if err != nil {
-		// A value we cannot parse is treated as the default instead of failing
-		// the request: the scheduler must keep running.
-		return true, nil
-	}
-	return enabled, nil
+	// A missing or unparsable value is treated as the default instead of failing
+	// the request: the scheduler must keep running.
+	return s.boolPref(ctx, key, true)
 }
 
 // SetShiftEnabled switches the named shift scheduler on or off.
@@ -87,10 +74,50 @@ func (s *Store) SetShiftEnabled(ctx context.Context, shift string, enabled bool)
 		return err
 	}
 
-	_, err = s.db.ExecContext(ctx,
+	return s.setBoolPref(ctx, key, enabled)
+}
+
+// impactAutoStopKey holds whether torrents that reached the target upload ratio
+// are stopped automatically.
+const impactAutoStopKey = "impact.autostop.enabled"
+
+// ImpactAutoStopEnabled reports whether the impact worker may stop torrents that
+// reached the target upload ratio. Unlike the shifts it is off by default:
+// stopping a torrent nobody asked to stop is a surprise, so the user opts in.
+func (s *Store) ImpactAutoStopEnabled(ctx context.Context) (bool, error) {
+	return s.boolPref(ctx, impactAutoStopKey, false)
+}
+
+// SetImpactAutoStopEnabled switches automatic stopping on or off.
+func (s *Store) SetImpactAutoStopEnabled(ctx context.Context, enabled bool) error {
+	return s.setBoolPref(ctx, impactAutoStopKey, enabled)
+}
+
+// boolPref reads a boolean preference, returning def when it was never stored or
+// cannot be parsed.
+func (s *Store) boolPref(ctx context.Context, key string, def bool) (bool, error) {
+	var raw string
+	err := s.db.QueryRowContext(ctx, `SELECT value FROM prefs WHERE key = ?`, key).Scan(&raw)
+	if errors.Is(err, sql.ErrNoRows) {
+		return def, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("get pref %q: %w", key, err)
+	}
+
+	value, err := strconv.ParseBool(raw)
+	if err != nil {
+		return def, nil
+	}
+	return value, nil
+}
+
+// setBoolPref stores a boolean preference.
+func (s *Store) setBoolPref(ctx context.Context, key string, value bool) error {
+	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO prefs (key, value, updated_at) VALUES (?, ?, ?)
 		 ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
-		key, strconv.FormatBool(enabled), s.now().Unix(),
+		key, strconv.FormatBool(value), s.now().Unix(),
 	)
 	if err != nil {
 		return fmt.Errorf("set pref %q: %w", key, err)

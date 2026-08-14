@@ -18,21 +18,27 @@ type RPCResponse struct {
 
 // Torrent holds fields returned by torrent-get.
 type Torrent struct {
-	ID           int64    `json:"id"`
-	Name         string   `json:"name"`
-	Status       int      `json:"status"`
-	PercentDone  float64  `json:"percentDone"`
-	TotalSize    int64    `json:"totalSize"`
-	RateDownload int64    `json:"rateDownload"`
-	RateUpload   int64    `json:"rateUpload"`
-	AddedDate    int64    `json:"addedDate"`
-	ETA          int64    `json:"eta"`
-	HashString   string   `json:"hashString"`
-	DownloadDir  string   `json:"downloadDir"`
-	Error        int      `json:"error"`
-	ErrorString  string   `json:"errorString"`
-	UploadedEver int64    `json:"uploadedEver"`
-	Labels       []string `json:"labels"`
+	ID           int64   `json:"id"`
+	Name         string  `json:"name"`
+	Status       int     `json:"status"`
+	PercentDone  float64 `json:"percentDone"`
+	TotalSize    int64   `json:"totalSize"`
+	RateDownload int64   `json:"rateDownload"`
+	RateUpload   int64   `json:"rateUpload"`
+	AddedDate    int64   `json:"addedDate"`
+	ETA          int64   `json:"eta"`
+	HashString   string  `json:"hashString"`
+	DownloadDir  string  `json:"downloadDir"`
+	Error        int     `json:"error"`
+	ErrorString  string  `json:"errorString"`
+	UploadedEver int64   `json:"uploadedEver"`
+	// DownloadedEver is the payload downloaded over the torrent's lifetime; it is
+	// the denominator of UploadRatio.
+	DownloadedEver int64 `json:"downloadedEver"`
+	// UploadRatio is uploadedEver/downloadedEver as reported by Transmission.
+	// It is negative when the ratio is unknown (nothing downloaded yet).
+	UploadRatio float64  `json:"uploadRatio"`
+	Labels      []string `json:"labels"`
 }
 
 // TorrentGetArgs are arguments for torrent-get.
@@ -104,5 +110,6 @@ var TorrentFields = []string{
 	"id", "name", "status", "percentDone", "totalSize",
 	"rateDownload", "rateUpload", "addedDate", "eta",
 	"hashString", "downloadDir", "error", "errorString", "uploadedEver",
+	"downloadedEver", "uploadRatio",
 	"labels",
 }

@@ -275,3 +275,51 @@ func TestLoadNoteSettings(t *testing.T) {
 		}
 	})
 }
+
+func TestLoadImpact(t *testing.T) {
+	t.Setenv("TRANSMISSION_USER", "u")
+	t.Setenv("TRANSMISSION_PASS", "p")
+
+	t.Run("defaults", func(t *testing.T) {
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if cfg.ImpactTargetRatio != defaultImpactTargetRatio {
+			t.Errorf("ImpactTargetRatio = %v, want %v", cfg.ImpactTargetRatio, defaultImpactTargetRatio)
+		}
+		if cfg.ImpactInterval != defaultImpactInterval {
+			t.Errorf("ImpactInterval = %v, want %v", cfg.ImpactInterval, defaultImpactInterval)
+		}
+	})
+
+	t.Run("overrides", func(t *testing.T) {
+		t.Setenv("IMPACT_TARGET_RATIO", "2.5")
+		t.Setenv("IMPACT_INTERVAL", "30s")
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if cfg.ImpactTargetRatio != 2.5 {
+			t.Errorf("ImpactTargetRatio = %v, want 2.5", cfg.ImpactTargetRatio)
+		}
+		if cfg.ImpactInterval != 30*time.Second {
+			t.Errorf("ImpactInterval = %v, want 30s", cfg.ImpactInterval)
+		}
+	})
+
+	t.Run("invalid values fall back to defaults", func(t *testing.T) {
+		t.Setenv("IMPACT_TARGET_RATIO", "-1")
+		t.Setenv("IMPACT_INTERVAL", "never")
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if cfg.ImpactTargetRatio != defaultImpactTargetRatio {
+			t.Errorf("ImpactTargetRatio = %v, want default", cfg.ImpactTargetRatio)
+		}
+		if cfg.ImpactInterval != defaultImpactInterval {
+			t.Errorf("ImpactInterval = %v, want default", cfg.ImpactInterval)
+		}
+	})
+}

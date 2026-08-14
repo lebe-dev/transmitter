@@ -23,6 +23,8 @@ const TORRENT_FIELDS = [
 	'error',
 	'errorString',
 	'uploadedEver',
+	'downloadedEver',
+	'uploadRatio',
 	'labels',
 ];
 
@@ -134,6 +136,16 @@ export async function getServerConfig(): Promise<ServerConfig> {
 /** Включает или выключает планировщик смены; состояние хранится на сервере. */
 export async function setShiftEnabled(shift: ShiftName, enabled: boolean): Promise<void> {
 	const res = await fetch(`/api/shifts/${shift}`, {
+		method: 'PUT',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ enabled }),
+	});
+	if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
+/** Включает или выключает авто-снятие раздач, отдавших целевой процент. */
+export async function setImpactAutoStop(enabled: boolean): Promise<void> {
+	const res = await fetch('/api/impact', {
 		method: 'PUT',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({ enabled }),

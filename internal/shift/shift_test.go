@@ -148,7 +148,7 @@ func newSchedulerWithPeers(t *testing.T, rs *recordingServer, opts Options, now 
 	t.Cleanup(srv.Close)
 	client := transmission.NewClient(srv.URL, "u", "p")
 
-	s := New(client, opts, append([]Options{opts}, peers...), toggle, slog.New(slog.NewTextHandler(testWriter{t}, nil)))
+	s := New(client, opts, append([]Options{opts}, peers...), toggle, nil, slog.New(slog.NewTextHandler(testWriter{t}, nil)))
 	s.now = func() time.Time { return now }
 	return s
 }
@@ -323,7 +323,7 @@ func TestClassifyTorrentWithBothLabels(t *testing.T) {
 	}
 
 	for _, label := range []string{NightLabel, DayLabel} {
-		tagged, toStart, toStop := classify(torrents, label, true, nil)
+		tagged, toStart, toStop := classify(torrents, label, true, nil, 0)
 		if len(tagged) != 1 || tagged[0] != 7 {
 			t.Errorf("%s: tagged = %v, want [7]", label, tagged)
 		}
@@ -344,7 +344,7 @@ func TestClassifySkipsTorrentsClaimedByShiftOnDuty(t *testing.T) {
 		{ID: 2, Status: 6, PercentDone: 1.0, Labels: []string{NightLabel}},
 	}
 
-	tagged, toStart, toStop := classify(torrents, NightLabel, false, []string{DayLabel})
+	tagged, toStart, toStop := classify(torrents, NightLabel, false, []string{DayLabel}, 0)
 
 	if len(tagged) != 2 {
 		t.Errorf("tagged = %v, want both torrents", tagged)
@@ -427,9 +427,51 @@ func TestNewExcludesOwnShiftFromPeers(t *testing.T) {
 	night := Options{Name: NightLabel, Label: NightLabel}
 	day := Options{Name: DayLabel, Label: DayLabel}
 
-	s := New(nil, night, []Options{night, day}, nil, slog.New(slog.NewTextHandler(testWriter{t}, nil)))
+	s := New(nil, night, []Options{night, day}, nil, nil, slog.New(slog.NewTextHandler(testWriter{t}, nil)))
 
 	if len(s.peers) != 1 || s.peers[0].Label != DayLabel {
 		t.Errorf("peers = %v, want only the day shift", s.peers)
+	}
+}
+
+// stubImpact answers the auto-stop lookup with a fixed target and state.
+type stubImpact struct {
+	target float64
+	on     bool
+}
+
+func (s stubImpact) StopTarget(context.Context) (float64, bool) { return s.target, s.on }
+
+// Inside the window a torrent that already paid back its download must stay
+// paused while automatic stopping is on: the impact worker stopped it on purpose.
+func TestReconcileSkipsStartOfTorrentsThatPaidBack(t *testing.T) {
+	rs := &recordingServer{torrents: []transmission.Torrent{
+		{ID: 1, Status: 0, PercentDone: 1.0, UploadRatio: 1.2, DownloadedEver: 100, Labels: []string{NightLabel}},
+		{ID: 2, Status: 0, PercentDone: 1.0, UploadRatio: 0.3, DownloadedEver: 100, Labels: []string{NightLabel}},
+	}}
+	s := newScheduler(t, rs, NightLabel, time.Date(2026, 1, 1, 23, 30, 0, 0, time.UTC),
+		config.DayTime{Hour: 23, Minute: 0}, config.DayTime{Hour: 7, Minute: 0})
+	s.impact = stubImpact{target: 1.0, on: true}
+
+	s.reconcile(context.Background())
+
+	if len(rs.starts) != 1 || !slices.Equal(rs.starts[0], []int64{2}) {
+		t.Fatalf("starts = %v, want one batch [2]", rs.starts)
+	}
+}
+
+// With automatic stopping off the ratio means nothing to the shift.
+func TestReconcileStartsPaidBackTorrentsWhenAutoStopOff(t *testing.T) {
+	rs := &recordingServer{torrents: []transmission.Torrent{
+		{ID: 1, Status: 0, PercentDone: 1.0, UploadRatio: 5.0, DownloadedEver: 100, Labels: []string{NightLabel}},
+	}}
+	s := newScheduler(t, rs, NightLabel, time.Date(2026, 1, 1, 23, 30, 0, 0, time.UTC),
+		config.DayTime{Hour: 23, Minute: 0}, config.DayTime{Hour: 7, Minute: 0})
+	s.impact = stubImpact{target: 1.0, on: false}
+
+	s.reconcile(context.Background())
+
+	if len(rs.starts) != 1 || !slices.Equal(rs.starts[0], []int64{1}) {
+		t.Fatalf("starts = %v, want one batch [1]", rs.starts)
 	}
 }

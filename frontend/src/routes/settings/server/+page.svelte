@@ -26,6 +26,8 @@
 		{ envVar: 'DB_PATH',                  key: 'dbPath' },
 		{ envVar: 'TORRENT_NOTE_MAX_LENGTH',  key: 'noteMaxLength' },
 		{ envVar: 'TORRENT_NOTE_CLEANUP_INTERVAL', key: 'noteCleanupInterval' },
+		{ envVar: 'IMPACT_TARGET_RATIO',      key: 'impactTargetRatio' },
+		{ envVar: 'IMPACT_INTERVAL',          key: 'impactInterval' },
 	];
 
 	const NIGHT_SHIFT_CONFIG_ROWS: { envVar: string; key: keyof ServerConfig }[] = [

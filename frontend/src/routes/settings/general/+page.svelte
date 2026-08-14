@@ -1,8 +1,12 @@
 <script lang="ts">
+	import { get } from 'svelte/store';
+	import { toast } from 'svelte-sonner';
 	import { t as tt, locale, locales } from 'svelte-intl-precompile';
 	import { setTheme, theme } from 'mode-watcher';
 
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
+	import { Separator } from '$lib/components/ui/separator/index.js';
+	import { Switch } from '$lib/components/ui/switch/index.js';
 	import { settingsStore } from '$lib/settings.svelte.js';
 
 	const LOCALE_STORAGE_KEY = 'transmitter-locale';
@@ -27,6 +31,17 @@
 
 	function onColorThemeChange(value: string) {
 		if (value) setTheme(toMwTheme(value));
+	}
+
+	/** Цель отдачи в процентах: 1.0 → 100 %. */
+	const impactPercent = $derived(Math.round(settingsStore.impactTargetRatio * 100));
+
+	async function onImpactAutoStopChange(enabled: boolean) {
+		try {
+			await settingsStore.setImpactAutoStopEnabled(enabled);
+		} catch {
+			toast.error(get(tt)('toast.failImpactToggle'));
+		}
 	}
 
 	function onLocaleChange(loc: string) {
@@ -90,5 +105,23 @@
 				{$tt('settings.showFreeSpace')}
 			</label>
 		</div>
+	</div>
+
+	<Separator />
+
+	<div class="flex flex-col gap-3">
+		<div class="flex items-center justify-between gap-3">
+			<label for="impact-auto-stop" class="text-sm font-medium cursor-pointer select-none">
+				{$tt('settings.impactAutoStop', { values: { percent: impactPercent } })}
+			</label>
+			<Switch
+				id="impact-auto-stop"
+				checked={settingsStore.impactAutoStopEnabled}
+				onCheckedChange={(v) => onImpactAutoStopChange(v)}
+			/>
+		</div>
+		<p class="text-xs text-muted-foreground leading-relaxed">
+			{$tt('settings.impactAutoStopHint', { values: { percent: impactPercent } })}
+		</p>
 	</div>
 </div>

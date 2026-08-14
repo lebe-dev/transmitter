@@ -15,10 +15,14 @@ export interface Torrent {
 	error: number;
 	errorString: string;
 	uploadedEver: number;
+	downloadedEver: number;
+	/** uploadedEver / downloadedEver по версии Transmission; отрицательное — соотношение неизвестно. */
+	uploadRatio: number;
 	labels: string[];
 }
 
-export type FilterStatus = 'all' | 'downloading' | 'seeding' | 'paused' | 'done';
+/** «undergiven» — раздача скачала больше, чем отдала (impact ниже цели). */
+export type FilterStatus = 'all' | 'downloading' | 'seeding' | 'paused' | 'done' | 'undergiven';
 
 export interface TorrentFile {
 	bytesCompleted: number;
@@ -80,6 +84,10 @@ export interface UISettings {
 	dayShiftStart?: string;
 	dayShiftEnd?: string;
 	noteMaxLength: number;
+	/** Коэффициент отдачи, считающийся полным возвратом (1 = отдали столько, сколько скачали). */
+	impactTargetRatio: number;
+	/** Снимать ли с раздачи торренты, достигшие цели. */
+	impactAutoStopEnabled: boolean;
 }
 
 export type ShiftName = 'night' | 'day';
@@ -107,6 +115,8 @@ export interface ServerConfig {
 	dbPath: string;
 	noteMaxLength: number;
 	noteCleanupInterval: string;
+	impactTargetRatio: number;
+	impactInterval: string;
 }
 
 /** Torrent notes keyed by torrent hash. */

@@ -18,6 +18,8 @@ function torrent(id: number, patch: Partial<Torrent> = {}): Torrent {
 		error: 0,
 		errorString: '',
 		uploadedEver: 0,
+		downloadedEver: 0,
+		uploadRatio: -1,
 		labels: [],
 		...patch,
 	};

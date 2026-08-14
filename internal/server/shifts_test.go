@@ -148,7 +148,7 @@ func TestSettingsHandlerReportsStoredShiftState(t *testing.T) {
 		DayShiftConfigured:   true,
 		DayShiftStart:        "08:00",
 		DayShiftEnd:          "23:00",
-	}, store)
+	}, store, nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/settings", nil))
 
@@ -171,7 +171,7 @@ func TestSettingsHandlerIgnoresStateOfUnconfiguredShift(t *testing.T) {
 	store := newFakeShiftStore()
 	store.state[shift.DayLabel] = true
 
-	h := SettingsHandler(UISettings{}, store)
+	h := SettingsHandler(UISettings{}, store, nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/settings", nil))
 

@@ -22,7 +22,8 @@
 		"downloading": "Descargando",
 		"seeding": "Sembrando",
 		"paused": "Pausado",
-		"done": "Listo"
+		"done": "Listo",
+		"undergiven": "Sin devolver"
 	},
 	"sort": {
 		"label": "Ordenar:",
@@ -174,8 +175,12 @@
 			"dayShiftEnd": "Fin de la ventana del turno diurno (HH:MM, 24h). La ventana puede cruzar la medianoche si el fin ≤ inicio.",
 			"dbPath": "Ruta al archivo de base de datos SQLite donde se guardan las notas de los torrents.",
 			"noteMaxLength": "Longitud máxima de una nota de torrent, en caracteres.",
-			"noteCleanupInterval": "Con qué frecuencia se eliminan las notas de torrents que ya no existen."
-		}
+			"noteCleanupInterval": "Con qué frecuencia se eliminan las notas de torrents que ya no existen.",
+			"impactTargetRatio": "Proporción de subida considerada devolución completa: 1 significa que el torrent subió tanto como descargó.",
+			"impactInterval": "Con qué frecuencia se comprueba si los torrents alcanzaron la proporción objetivo."
+		},
+		"impactAutoStop": "Dejar de sembrar al devolver el {percent}%",
+		"impactAutoStopHint": "Un torrent que ha subido el {percent}% de lo que descargó se pausa automáticamente. Mientras la opción esté activa, los turnos no reinician esos torrents."
 	},
 	"themes": {
 		"yellow": "Amarillo",
@@ -205,7 +210,8 @@
 	"card": {
 		"downloadSpeed": "Velocidad de descarga",
 		"uploadSpeed": "Velocidad de subida",
-		"uploadedTotal": "Subido total"
+		"uploadedTotal": "Subido total",
+		"impactReached": "Has devuelto el {percent}% de lo descargado"
 	},
 	"note": {
 		"label": "Nota",
@@ -255,6 +261,7 @@
 		"dayShiftOn": "Programado para turno diurno: {name}",
 		"dayShiftOff": "Quitado del turno diurno: {name}",
 		"failDayShift": "No se pudo actualizar el turno diurno",
-		"failShiftToggle": "No se pudo cambiar el turno"
+		"failShiftToggle": "No se pudo cambiar el turno",
+		"failImpactToggle": "No se pudo cambiar la parada automática"
 	}
 }

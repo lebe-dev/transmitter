@@ -147,7 +147,7 @@ func TestSettingsHandler(t *testing.T) {
 		DayShiftEnabled:      true,
 		DayShiftStart:        "08:00",
 		DayShiftEnd:          "22:00",
-	}, nil)
+	}, nil, nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/settings", nil))
 
@@ -167,7 +167,7 @@ func TestSettingsHandler(t *testing.T) {
 }
 
 func TestSettingsHandlerOmitsDisabledDayShift(t *testing.T) {
-	h := SettingsHandler(UISettings{DeleteWithData: true}, nil)
+	h := SettingsHandler(UISettings{DeleteWithData: true}, nil, nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/settings", nil))
 

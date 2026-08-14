@@ -1,4 +1,4 @@
-import { getSettings, getServerConfig, setShiftEnabled } from './api.js';
+import { getSettings, getServerConfig, setImpactAutoStop, setShiftEnabled } from './api.js';
 import type { ServerConfig, ShiftName, UISettings } from './types.js';
 
 const COMPACT_STORAGE_KEY = 'transmitter-compact';
@@ -49,6 +49,10 @@ class SettingsStore {
 	deleteWithData = $state(false);
 	/** Лимит длины заметки в символах, приходит с сервера. */
 	noteMaxLength = $state(0);
+	/** Коэффициент отдачи, считающийся полным возвратом (impact), приходит с сервера. */
+	impactTargetRatio = $state(1);
+	/** Снимать ли раздачу автоматически, когда она отдала цель. */
+	impactAutoStopEnabled = $state(false);
 
 	day = $state<ShiftState>({ configured: false, enabled: false });
 	night = $state<ShiftState>({ configured: false, enabled: false });
@@ -105,6 +109,8 @@ class SettingsStore {
 				this.version = s.version;
 				this.deleteWithData = s.deleteWithData;
 				this.noteMaxLength = s.noteMaxLength;
+				this.impactTargetRatio = s.impactTargetRatio;
+				this.impactAutoStopEnabled = s.impactAutoStopEnabled;
 				this.day = {
 					configured: s.dayShiftConfigured,
 					enabled: s.dayShiftEnabled,
@@ -136,6 +142,18 @@ class SettingsStore {
 			await setShiftEnabled(shift, enabled);
 		} catch (err) {
 			target.enabled = previous;
+			throw err;
+		}
+	}
+
+	/** Включает/выключает авто-снятие с раздачи, откатывая переключатель при ошибке. */
+	async setImpactAutoStopEnabled(enabled: boolean) {
+		const previous = this.impactAutoStopEnabled;
+		this.impactAutoStopEnabled = enabled;
+		try {
+			await setImpactAutoStop(enabled);
+		} catch (err) {
+			this.impactAutoStopEnabled = previous;
 			throw err;
 		}
 	}

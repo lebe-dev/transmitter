@@ -17,6 +17,12 @@ const (
 	defaultNoteMaxLength = 200
 	// defaultNoteCleanupInterval is how often notes of deleted torrents are collected.
 	defaultNoteCleanupInterval = time.Hour
+	// defaultImpactTargetRatio is the upload ratio counted as "gave back everything
+	// we took": uploaded as much as was downloaded.
+	defaultImpactTargetRatio = 1.0
+	// defaultImpactInterval is how often the impact worker looks for torrents that
+	// reached the target ratio.
+	defaultImpactInterval = 5 * time.Minute
 )
 
 // Config holds all application configuration loaded from environment variables.
@@ -45,6 +51,8 @@ type Config struct {
 	DayShiftStart         DayTime
 	DayShiftEnd           DayTime
 	DayShiftInterval      time.Duration
+	ImpactTargetRatio     float64
+	ImpactInterval        time.Duration
 	DBPath                string
 	NoteMaxLength         int
 	NoteCleanupInterval   time.Duration
@@ -102,6 +110,8 @@ func Load() (*Config, error) {
 	cfg.DeleteWithData = strings.EqualFold(os.Getenv("DELETE_WITH_DATA"), "true")
 	cfg.NightShiftInterval = parseDuration(os.Getenv("NIGHT_SHIFT_INTERVAL"), time.Minute)
 	cfg.DayShiftInterval = parseDuration(os.Getenv("DAY_SHIFT_INTERVAL"), time.Minute)
+	cfg.ImpactTargetRatio = parsePositiveFloat(os.Getenv("IMPACT_TARGET_RATIO"), defaultImpactTargetRatio)
+	cfg.ImpactInterval = parseDuration(os.Getenv("IMPACT_INTERVAL"), defaultImpactInterval)
 	cfg.DBPath = envOrDefault("DB_PATH", "data/transmitter.db")
 	cfg.NoteMaxLength = parsePositiveInt(os.Getenv("TORRENT_NOTE_MAX_LENGTH"), defaultNoteMaxLength)
 	cfg.NoteCleanupInterval = parseDuration(os.Getenv("TORRENT_NOTE_CLEANUP_INTERVAL"), defaultNoteCleanupInterval)
@@ -225,6 +235,17 @@ func parsePositiveInt(s string, def int) int {
 		return def
 	}
 	return n
+}
+
+func parsePositiveFloat(s string, def float64) float64 {
+	if s == "" {
+		return def
+	}
+	f, err := strconv.ParseFloat(s, 64)
+	if err != nil || f <= 0 {
+		return def
+	}
+	return f
 }
 
 func parsePositiveInt64(s string, def int64) int64 {

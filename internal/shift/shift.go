@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/lebe-dev/transmitter/internal/config"
+	"github.com/lebe-dev/transmitter/internal/impact"
 	"github.com/lebe-dev/transmitter/internal/transmission"
 )
 
@@ -65,6 +66,14 @@ func DayOptions(cfg *config.Config) Options {
 	}
 }
 
+// Impact reports the upload ratio at which a torrent counts as fully paid back,
+// and whether torrents reaching it are stopped automatically right now (see
+// internal/impact). While that rule is on, a shift must not restart such a
+// torrent: it would undo the stop on every tick.
+type Impact interface {
+	StopTarget(ctx context.Context) (float64, bool)
+}
+
 // Toggle reports whether a shift is currently switched on by the user.
 // The state is persisted outside the scheduler (see internal/prefs) so it
 // survives a restart.
@@ -81,6 +90,9 @@ type Scheduler struct {
 	peers []Options
 	// toggle gates every reconcile; a nil toggle keeps the shift always on.
 	toggle Toggle
+	// impact keeps the shift from restarting torrents that already paid back;
+	// a nil impact means the rule never applies.
+	impact Impact
 	now    func() time.Time
 	logger *slog.Logger
 	// lastEnabled remembers the previous toggle state so switching a shift on or
@@ -91,7 +103,9 @@ type Scheduler struct {
 // New creates a Scheduler that reconciles the given shift's torrents on its
 // interval, as long as toggle reports the shift as enabled. all lists every
 // configured shift (opts included); the rest become this scheduler's peers.
-func New(client *transmission.Client, opts Options, all []Options, toggle Toggle, logger *slog.Logger) *Scheduler {
+// impact may be nil; otherwise it holds back torrents that reached their upload
+// target while automatic stopping is on.
+func New(client *transmission.Client, opts Options, all []Options, toggle Toggle, impact Impact, logger *slog.Logger) *Scheduler {
 	var peers []Options
 	for _, o := range all {
 		if o.Label != opts.Label {
@@ -104,6 +118,7 @@ func New(client *transmission.Client, opts Options, all []Options, toggle Toggle
 		opts:   opts,
 		peers:  peers,
 		toggle: toggle,
+		impact: impact,
 		now:    time.Now,
 		logger: logger,
 	}
@@ -152,7 +167,7 @@ func (s *Scheduler) reconcile(ctx context.Context) {
 		onDuty = s.peersOnDuty(ctx, now)
 	}
 
-	tagged, toStart, toStop := classify(torrents, s.opts.Label, inWindow, onDuty)
+	tagged, toStart, toStop := classify(torrents, s.opts.Label, inWindow, onDuty, s.impactTarget(ctx))
 
 	s.logger.Info(s.opts.Name+": reconcile",
 		"now", now.Format("15:04 MST"),
@@ -207,6 +222,19 @@ func (s *Scheduler) enabled(ctx context.Context) bool {
 	return enabled
 }
 
+// impactTarget returns the upload ratio above which torrents must not be
+// started, or 0 when automatic stopping is off and the shift may start anything.
+func (s *Scheduler) impactTarget(ctx context.Context) float64 {
+	if s.impact == nil {
+		return 0
+	}
+	target, on := s.impact.StopTarget(ctx)
+	if !on {
+		return 0
+	}
+	return target
+}
+
 // peersOnDuty returns the labels of the other configured shifts that are
 // switched on and whose window is open at the given moment. A peer whose
 // enabled state cannot be read counts as on duty: keeping a torrent seeding is
@@ -234,8 +262,10 @@ func (s *Scheduler) peersOnDuty(ctx context.Context, now time.Time) []string {
 // classify splits torrents into those tagged with the given label and the subsets
 // that need starting or stopping given whether the current time is inside the window.
 // Torrents also carrying one of the onDuty labels are never stopped: another shift
-// is running them right now.
-func classify(torrents []transmission.Torrent, label string, inWindow bool, onDuty []string) (tagged, toStart, toStop []int64) {
+// is running them right now. A positive impactTarget holds back torrents that
+// already uploaded that much of what they downloaded — the impact worker stops
+// them, so starting them again would just fight it.
+func classify(torrents []transmission.Torrent, label string, inWindow bool, onDuty []string, impactTarget float64) (tagged, toStart, toStop []int64) {
 	for _, t := range torrents {
 		if !slices.Contains(t.Labels, label) {
 			continue
@@ -245,7 +275,7 @@ func classify(torrents []transmission.Torrent, label string, inWindow bool, onDu
 		// completed (100%) torrents resume seeding inside the window and are
 		// paused outside of it, just like in-progress downloads.
 		switch {
-		case inWindow && t.Status == 0:
+		case inWindow && t.Status == 0 && !impact.Reached(t, impactTarget):
 			toStart = append(toStart, t.ID)
 		case !inWindow && t.Status != 0 && !claimedBy(t, onDuty):
 			toStop = append(toStop, t.ID)

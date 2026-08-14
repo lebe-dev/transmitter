@@ -22,7 +22,8 @@
 		"downloading": "Downloading",
 		"seeding": "Seeding",
 		"paused": "Paused",
-		"done": "Done"
+		"done": "Done",
+		"undergiven": "Not repaid"
 	},
 	"sort": {
 		"label": "Sort:",
@@ -174,8 +175,12 @@
 			"dayShiftEnd": "End of the Day Shift window (HH:MM, 24h). The window may wrap over midnight when end ≤ start.",
 			"dbPath": "Path to the SQLite database file that stores torrent notes.",
 			"noteMaxLength": "Maximum length of a torrent note, in characters.",
-			"noteCleanupInterval": "How often notes of torrents that no longer exist are removed."
-		}
+			"noteCleanupInterval": "How often notes of torrents that no longer exist are removed.",
+			"impactTargetRatio": "Upload ratio counted as a full payback: 1 means the torrent uploaded as much as it downloaded.",
+			"impactInterval": "How often torrents are checked against the target upload ratio."
+		},
+		"impactAutoStop": "Stop seeding once {percent}% is given back",
+		"impactAutoStopHint": "A torrent that uploaded {percent}% of what it downloaded is paused automatically. While this is on, the shifts do not restart such torrents."
 	},
 	"themes": {
 		"yellow": "Yellow",
@@ -205,7 +210,8 @@
 	"card": {
 		"downloadSpeed": "Download speed",
 		"uploadSpeed": "Upload speed",
-		"uploadedTotal": "Uploaded total"
+		"uploadedTotal": "Uploaded total",
+		"impactReached": "You have given back {percent}% of what you downloaded"
 	},
 	"note": {
 		"label": "Note",
@@ -255,6 +261,7 @@
 		"dayShiftOn": "Scheduled for day shift: {name}",
 		"dayShiftOff": "Removed from day shift: {name}",
 		"failDayShift": "Failed to update day shift",
-		"failShiftToggle": "Failed to switch the shift"
+		"failShiftToggle": "Failed to switch the shift",
+		"failImpactToggle": "Failed to switch automatic stopping"
 	}
 }

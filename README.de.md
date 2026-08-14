@@ -7,16 +7,12 @@ Transmitter ist eine moderne, schlanke Alternative zur Standard-Weboberfläche v
 
 ## Funktionen
 
-- **Torrent-Liste** — sortierbare Tabelle: Name, Status, Fortschritt, Größe, Geschwindigkeit, Hinzugefügt, ETA
-- **Statusfilter** — Alle, Lädt herunter, Seeding, Pausiert, Fertig
-- **Suche** — Torrents nach Name filtern (Groß-/Kleinschreibung ignoriert)
-- **Torrents hinzufügen** — Magnet-Links oder .torrent-Datei-Upload
-- **Verwaltung** — Torrents pausieren, fortsetzen, löschen
+- **Grundfunktionen** — sortierbare Liste (Name, Status, Fortschritt, Größe, Geschwindigkeit, Hinzugefügt, ETA) mit Statusfiltern, Suche nach Name ohne Beachtung der Groß-/Kleinschreibung, Hinzufügen per Magnet-Link oder .torrent-Datei sowie Pausieren/Fortsetzen/Löschen
 - **Notizen** — beliebiger Text zu jedem Torrent (serverseitig in SQLite gespeichert, sichtbar in der Liste, im Detailbereich und im Telegram-Bot)
 - **Nachtschicht** — markierte Torrents werden nur im konfigurierten Zeitfenster heruntergeladen und geseedet; außerhalb werden sie pausiert
 - **Tagschicht** — dasselbe mit eigener Markierung, eigenem Fenster und einem Sonnen-Button; die Schichten sind unabhängig, ein Torrent darf beide Markierungen tragen
 - **Schicht-Schalter** — jede konfigurierte Schicht lässt sich unter „Einstellungen → Schichten“ ausschalten; der Zustand liegt serverseitig in SQLite, gilt daher in jedem Browser und bleibt nach einem Neustart erhalten. Solange eine Schicht aus ist, rührt ihr Scheduler nichts an: Torrents behalten ihren Zustand und der Schicht-Button wird ausgegraut
-- **Auto-Aktualisierung** — Live-Updates alle 3–5 Sekunden
+- **Impact** — wie viel ein Torrent von dem zurückgegeben hat, was er genommen hat. Ein Pokal markiert die Torrents, die 100% ihres Downloads hochgeladen haben, der Filter „Nicht zurückgegeben“ zeigt den Rest (der sich sammelweise einer Schicht zuweisen lässt), und ein optionaler Schalter stoppt einen Torrent, sobald er das Ziel erreicht
 - **Unterstützte Sprachen**: en, ru, es, de
 - **Docker images**: linux/amd64, linux/arm/v7, linux/arm64/v8
 
@@ -59,6 +55,8 @@ Alle Einstellungen über Umgebungsvariablen:
 | `DB_PATH` | Nein | `data/transmitter.db` (Docker-Image: `/app/data/transmitter.db`) |
 | `TORRENT_NOTE_MAX_LENGTH` | Nein | `200` |
 | `TORRENT_NOTE_CLEANUP_INTERVAL` | Nein | `1h` |
+| `IMPACT_TARGET_RATIO` | Nein | `1` |
+| `IMPACT_INTERVAL` | Nein | `5m` |
 | `SENTRY_DSN` | Nein | — (deaktiviert) |
 | `SENTRY_ENVIRONMENT` | Bei Verwendung von Sentry | — |
 
