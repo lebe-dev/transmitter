@@ -9,10 +9,12 @@
 	import SettingsIcon from '@lucide/svelte/icons/settings';
 	import HardDriveIcon from '@lucide/svelte/icons/hard-drive';
 	import SunriseIcon from '@lucide/svelte/icons/sunrise';
+	import ArrowDownIcon from '@lucide/svelte/icons/arrow-down';
+	import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
 
 	import { Button } from '$lib/components/ui/button/index.js';
 	import Hint from '$lib/components/Hint.svelte';
-	import { downloadDirStore } from '$lib/stores.svelte.js';
+	import { downloadDirStore, torrentStore } from '$lib/stores.svelte.js';
 	import { settingsStore } from '$lib/settings.svelte.js';
 	import { formatSize } from '$lib/format.js';
 
@@ -21,6 +23,12 @@
 	let { onAdd }: { onAdd: () => void } = $props();
 
 	const onSettingsPage = $derived(page.url.pathname.startsWith('/settings'));
+	const totalDownloadSpeed = $derived(
+		torrentStore.torrents.reduce((sum, t) => sum + t.rateDownload, 0)
+	);
+	const totalUploadSpeed = $derived(
+		torrentStore.torrents.reduce((sum, t) => sum + t.rateUpload, 0)
+	);
 
 	let freeSpaceTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -70,6 +78,22 @@
 					{/if}
 				</Hint>
 			{/if}
+
+			<Hint
+				text={$tt('header.totalDownloadSpeed')}
+				class="inline-flex items-center gap-1.5 rounded-md bg-muted/60 px-2 py-1 text-xs font-medium text-muted-foreground tabular-nums flex-shrink-0"
+			>
+				<ArrowDownIcon class="size-3.5 flex-shrink-0" />
+				<span>{formatSize(totalDownloadSpeed, $tt)}/{$tt('units.perSec')}</span>
+			</Hint>
+
+			<Hint
+				text={$tt('header.totalUploadSpeed')}
+				class="inline-flex items-center gap-1.5 rounded-md bg-muted/60 px-2 py-1 text-xs font-medium text-muted-foreground tabular-nums flex-shrink-0"
+			>
+				<ArrowUpIcon class="size-3.5 flex-shrink-0" />
+				<span>{formatSize(totalUploadSpeed, $tt)}/{$tt('units.perSec')}</span>
+			</Hint>
 		</div>
 
 		<button

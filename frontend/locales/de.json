@@ -12,7 +12,9 @@
 		"settings": "Einstellungen",
 		"freeSpace": "Freier Speicherplatz",
 		"nightShiftActive": "Nachtschicht aktiv",
-		"dayShiftActive": "Tagschicht aktiv"
+		"dayShiftActive": "Tagschicht aktiv",
+		"totalDownloadSpeed": "Gesamte Download-Geschwindigkeit",
+		"totalUploadSpeed": "Gesamte Upload-Geschwindigkeit"
 	},
 	"search": {
 		"placeholder": "Torrents suchen…"

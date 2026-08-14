@@ -12,7 +12,9 @@
 		"settings": "Настройки",
 		"freeSpace": "Свободно на диске",
 		"nightShiftActive": "Ночная смена активна",
-		"dayShiftActive": "Дневная смена активна"
+		"dayShiftActive": "Дневная смена активна",
+		"totalDownloadSpeed": "Суммарная скорость скачивания",
+		"totalUploadSpeed": "Суммарная скорость отдачи"
 	},
 	"search": {
 		"placeholder": "Поиск торрентов…"

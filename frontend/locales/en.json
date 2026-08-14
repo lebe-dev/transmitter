@@ -12,7 +12,9 @@
 		"settings": "Settings",
 		"freeSpace": "Free space on disk",
 		"nightShiftActive": "Night shift active",
-		"dayShiftActive": "Day shift active"
+		"dayShiftActive": "Day shift active",
+		"totalDownloadSpeed": "Total download speed",
+		"totalUploadSpeed": "Total upload speed"
 	},
 	"search": {
 		"placeholder": "Search torrents…"
