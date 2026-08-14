@@ -152,6 +152,18 @@ body,
     background-color: var(--background);
 }
 
+/*
+ * Полоса фильтров прокручивается по горизонтали на узких экранах, но сама
+ * полоса прокрутки под ней только шумит — навигация идёт свайпом.
+ */
+.no-scrollbar {
+    scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
 .font-display {
     font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
 }

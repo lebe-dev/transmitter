@@ -618,46 +618,62 @@
 			/>
 		</div>
 
-		<!-- Filters + Sort -->
-		<div class="flex items-center gap-1 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-			<div class="flex items-center gap-0.5">
-				{#each FILTER_KEYS as f}
-					<button
-						class="relative px-3 py-1.5 text-sm font-medium transition-colors {torrentStore.filterStatus === f.key
-							? 'text-foreground'
-							: 'text-muted-foreground hover:text-foreground'}"
-						onclick={() => (torrentStore.filterStatus = f.key)}
-					>
-						{$tt(f.tKey)}
-						<span class="ml-0.5 text-[11px] opacity-50 tabular-nums">{counts[f.key]}</span>
-						{#if torrentStore.filterStatus === f.key}
-							<span class="absolute bottom-0 left-3 right-3 h-0.5 bg-primary rounded-full"></span>
-						{/if}
-					</button>
-				{/each}
+		<!--
+			Фильтры и панель действий разнесены на две строки: подписи фильтров
+			(«Недоотданные») вместе с сортировкой в одну строку уже не помещаются, а
+			при сжатии текст переносился и счётчик уезжал под название.
+		-->
+		<div class="flex flex-col gap-2">
+			<!-- Filters -->
+			<div class="-mx-4 px-4 sm:mx-0 sm:px-0 border-b border-border/60">
+				<div class="flex items-center gap-0.5 overflow-x-auto no-scrollbar">
+					{#each FILTER_KEYS as f}
+						{@const active = torrentStore.filterStatus === f.key}
+						<button
+							class="relative flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap px-2.5 py-2 text-sm font-medium transition-colors {active
+								? 'text-foreground'
+								: 'text-muted-foreground hover:text-foreground'}"
+							onclick={() => (torrentStore.filterStatus = f.key)}
+						>
+							{$tt(f.tKey)}
+							<span
+								class="rounded-full px-1.5 py-px text-[11px] leading-4 tabular-nums transition-colors {active
+									? 'bg-primary/12 text-primary'
+									: 'bg-muted text-muted-foreground'}"
+							>
+								{counts[f.key]}
+							</span>
+							{#if active}
+								<span class="absolute -bottom-px left-2 right-2 h-0.5 bg-primary rounded-full"></span>
+							{/if}
+						</button>
+					{/each}
+				</div>
 			</div>
 
-			<div class="ml-auto flex items-center gap-1 flex-shrink-0">
+			<!-- Actions + Sort -->
+			<div class="flex items-center gap-2">
 				<BulkActionsMenu />
-				<span class="w-px h-4 bg-border/70 mx-1.5"></span>
-				<span class="text-xs text-muted-foreground">{$tt('sort.label')}</span>
-				<button
-					class="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors px-1.5 py-1 rounded"
-					onclick={() => {
-						const idx = SORT_OPTIONS.findIndex((o) => o.value === sortField);
-						const next = SORT_OPTIONS[(idx + 1) % SORT_OPTIONS.length];
-						sortField = next.value;
-					}}
-				>
-					{$tt(SORT_OPTIONS.find((o) => o.value === sortField)?.key ?? 'sort.added')}
-				</button>
-				<button
-					class="text-xs text-muted-foreground hover:text-foreground transition-colors p-1 rounded"
-					onclick={() => (sortDesc = !sortDesc)}
-					aria-label={$tt('sort.toggleDirection')}
-				>
-					{sortDesc ? '↓' : '↑'}
-				</button>
+				<div class="ml-auto flex items-center gap-1">
+					<span class="text-xs text-muted-foreground">{$tt('sort.label')}</span>
+					<button
+						class="flex items-center gap-1 text-xs font-medium text-foreground/80 hover:text-foreground transition-colors px-1.5 py-1 rounded"
+						onclick={() => {
+							const idx = SORT_OPTIONS.findIndex((o) => o.value === sortField);
+							const next = SORT_OPTIONS[(idx + 1) % SORT_OPTIONS.length];
+							sortField = next.value;
+						}}
+					>
+						{$tt(SORT_OPTIONS.find((o) => o.value === sortField)?.key ?? 'sort.added')}
+					</button>
+					<button
+						class="text-xs text-muted-foreground hover:text-foreground transition-colors p-1 rounded"
+						onclick={() => (sortDesc = !sortDesc)}
+						aria-label={$tt('sort.toggleDirection')}
+					>
+						{sortDesc ? '↓' : '↑'}
+					</button>
+				</div>
 			</div>
 		</div>
 

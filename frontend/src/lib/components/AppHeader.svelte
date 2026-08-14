@@ -45,15 +45,22 @@
 </script>
 
 <header class="border-b border-border/50 bg-background">
-	<div class="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
-		<div class="flex items-center gap-2.5 mr-auto min-w-0">
-			<a href="/" class="flex items-center gap-2.5 min-w-0">
-				<div class="size-7 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-					<span class="text-primary-foreground font-bold text-sm leading-none font-display">T</span>
-				</div>
-				<span class="font-display font-semibold text-[17px] tracking-tight">Transmitter</span>
-			</a>
+	<!--
+		На узком экране название, бейджи и кнопки в одну строку не помещаются и
+		налезают друг на друга, поэтому бейджи переносятся во вторую строку
+		(`order-last w-full`), а с sm возвращаются в общий ряд.
+	-->
+	<div class="max-w-3xl mx-auto px-4 sm:px-6 py-2 sm:py-0 sm:h-14 flex flex-wrap items-center gap-x-3 gap-y-2">
+		<a href="/" class="flex items-center gap-2.5 min-w-0">
+			<div class="size-7 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
+				<span class="text-primary-foreground font-bold text-sm leading-none font-display">T</span>
+			</div>
+			<span class="font-display font-semibold text-[17px] tracking-tight truncate">Transmitter</span>
+		</a>
 
+		<div
+			class="order-last w-full sm:order-none sm:w-auto sm:mr-auto flex items-center gap-2.5 min-w-0 overflow-x-auto no-scrollbar"
+		>
 			{#if settingsStore.showFreeSpace && downloadDirStore.defaultFreeSpace !== null}
 				<Hint
 					text={$tt('header.freeSpace')}
@@ -99,7 +106,7 @@
 		<button
 			onclick={toggleMode}
 			aria-label={$tt('header.toggleTheme')}
-			class="size-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+			class="ml-auto sm:ml-0 size-8 rounded-lg flex flex-shrink-0 items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
 		>
 			{#if mode.current === 'dark'}
 				<SunIcon class="size-4" />
@@ -112,14 +119,14 @@
 			href={onSettingsPage ? '/' : '/settings/general'}
 			aria-label={$tt('header.settings')}
 			aria-current={onSettingsPage ? 'page' : undefined}
-			class="size-8 rounded-lg flex items-center justify-center transition-colors {onSettingsPage
+			class="size-8 rounded-lg flex flex-shrink-0 items-center justify-center transition-colors {onSettingsPage
 				? 'bg-primary/10 text-primary ring-1 ring-primary/30'
 				: 'text-muted-foreground hover:text-foreground hover:bg-accent'}"
 		>
 			<SettingsIcon class="size-4" />
 		</a>
 
-		<Button size="sm" class="font-display font-semibold" onclick={onAdd}>
+		<Button size="sm" class="font-display font-semibold flex-shrink-0" onclick={onAdd}>
 			<PlusIcon class="size-4" />
 			{$tt('header.add')}
 		</Button>
