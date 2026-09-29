@@ -1157,10 +1157,10 @@
 <!-- ── Delete Confirmation Dialog ────────────────────────────────────────── -->
 <AlertDialog.Root bind:open={deleteOpen}>
 	<AlertDialog.Content class="sm:max-w-md">
-		<AlertDialog.Header class="pb-4">
+		<AlertDialog.Header class="min-w-0 pb-4">
 			<AlertDialog.Title class="font-display text-lg font-semibold">{$tt('deleteDialog.title')}</AlertDialog.Title>
-			<AlertDialog.Description>
-				<span class="font-medium text-foreground">{deleteTarget?.name}</span>
+			<AlertDialog.Description class="min-w-0">
+				<span class="font-medium text-foreground [overflow-wrap:anywhere]">{deleteTarget?.name}</span>
 				<br />
 				{$tt('deleteDialog.cannotUndo')}
 			</AlertDialog.Description>
