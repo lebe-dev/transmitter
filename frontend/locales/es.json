@@ -62,6 +62,7 @@
 	},
 	"actions": {
 		"resume": "Reanudar",
+		"resumeNoSpace": "No hay espacio libre suficiente para reanudar",
 		"pause": "Pausar",
 		"delete": "Eliminar",
 		"pin": "Fijar torrent",
@@ -113,7 +114,8 @@
 		"invalidPath": "La ruta debe ser absoluta (comenzar con /)",
 		"torrentSize": "Tamaño del torrent",
 		"freeSpace": "Espacio libre",
-		"notEnoughSpace": "No hay suficiente espacio libre en la carpeta de destino"
+		"notEnoughSpace": "No hay suficiente espacio libre en la carpeta de destino. El torrent se añadirá, pero no se iniciará hasta que haya espacio libre.",
+		"addNoStartButton": "Añadir sin iniciar"
 	},
 	"fileSelectDialog": {
 		"title": "Seleccionar archivos",
@@ -255,11 +257,13 @@
 	},
 	"toast": {
 		"added": "Torrent añadido",
+		"addedNoSpace": "Torrent añadido, esperando espacio libre",
 		"deleted": "Eliminado: {name}",
 		"started": "Iniciado: {name}",
 		"paused": "Pausado: {name}",
 		"failAdd": "Error al añadir torrent",
 		"failStart": "Error al iniciar torrent",
+		"failStartNoSpace": "No hay espacio libre suficiente para iniciar este torrent",
 		"failPause": "Error al pausar torrent",
 		"failDelete": "Error al eliminar torrent",
 		"nightShiftOn": "Programado para turno nocturno: {name}",
@@ -270,5 +274,22 @@
 		"failDayShift": "No se pudo actualizar el turno diurno",
 		"failShiftToggle": "No se pudo cambiar el turno",
 		"failImpactToggle": "No se pudo cambiar la parada automática"
+	},
+	"memo": {
+		"label": "Notas",
+		"placeholder": "Apunta algo…",
+		"saving": "Guardando…",
+		"saved": "Guardado",
+		"failSave": "No se pudieron guardar las notas",
+		"tooLong": "Las notas son demasiado largas"
+	},
+	"globalPause": {
+		"pause": "Pausar todos los torrents",
+		"resume": "Reanudar los torrents pausados globalmente",
+		"active": "Todo está en pausa",
+		"paused": "Torrents pausados: {count}",
+		"resumed": "Torrents reanudados: {count}",
+		"failPause": "No se pudieron pausar todos los torrents",
+		"failResume": "No se pudieron reanudar los torrents"
 	}
 }

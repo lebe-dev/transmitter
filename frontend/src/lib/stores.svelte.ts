@@ -1,4 +1,4 @@
-import { getTorrents, getSession, getNotes, setNote } from './api.js';
+import { getTorrents, getSession, getNotes, setNote, getMemo, setMemo, getGlobalPause, setGlobalPause } from './api.js';
 import { undergiven } from './impact.js';
 import { settingsStore } from './settings.svelte.js';
 import { connectivity } from './connectivity.svelte.js';
@@ -280,6 +280,80 @@ class NoteStore {
 }
 
 export const noteStore = new NoteStore();
+
+// ── Global memo (backend SQLite, shown above the torrent list) ───────────
+
+const MEMO_CACHE_KEY = 'memo';
+
+class MemoStore {
+	text = $state(readCache<string>(MEMO_CACHE_KEY)?.data ?? '');
+	loaded = $state(false);
+
+	constructor() {
+		connectivity.onReconnect(() => {
+			this.loaded = false;
+			void this.init();
+		});
+	}
+
+	async init() {
+		if (this.loaded) return;
+		try {
+			this.text = await getMemo();
+			this.loaded = true;
+			writeCache(MEMO_CACHE_KEY, this.text);
+		} catch {
+			// Заметка вспомогательная: список торрентов работает и без неё.
+		}
+	}
+
+	/** Сохраняет текст как есть (с переводами строк); бросает, если сервер отказал. */
+	async save(text: string) {
+		await setMemo(text);
+		this.text = text;
+		writeCache(MEMO_CACHE_KEY, text);
+	}
+}
+
+export const memoStore = new MemoStore();
+
+// ── Global pause (state lives on the server) ──────────────────────────────
+
+const PAUSE_CACHE_KEY = 'pause';
+
+class PauseStore {
+	paused = $state(readCache<boolean>(PAUSE_CACHE_KEY)?.data ?? false);
+	busy = $state(false);
+
+	constructor() {
+		connectivity.onReconnect(() => void this.init());
+	}
+
+	async init() {
+		try {
+			this.paused = await getGlobalPause();
+			writeCache(PAUSE_CACHE_KEY, this.paused);
+		} catch {
+			// Кнопка просто покажет «не на паузе»; следующий клик синхронизирует состояние.
+		}
+	}
+
+	/** Переключает паузу и возвращает число затронутых раздач. */
+	async toggle(): Promise<number> {
+		this.busy = true;
+		try {
+			const next = !this.paused;
+			const count = await setGlobalPause(next);
+			this.paused = next;
+			writeCache(PAUSE_CACHE_KEY, next);
+			return count;
+		} finally {
+			this.busy = false;
+		}
+	}
+}
+
+export const pauseStore = new PauseStore();
 
 // ── Download directory store (localStorage + session-get) ────────────────
 

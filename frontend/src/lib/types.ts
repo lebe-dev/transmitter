@@ -19,6 +19,8 @@ export interface Torrent {
 	/** uploadedEver / downloadedEver по версии Transmission; отрицательное — соотношение неизвестно. */
 	uploadRatio: number;
 	labels: string[];
+	/** Сколько байт осталось докачать (с учётом снятых файлов). */
+	leftUntilDone?: number;
 }
 
 /** «undergiven» — раздача скачала больше, чем отдала (impact ниже цели). */

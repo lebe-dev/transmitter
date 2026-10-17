@@ -62,6 +62,7 @@
 	},
 	"actions": {
 		"resume": "Fortsetzen",
+		"resumeNoSpace": "Nicht genug freier Speicher zum Fortsetzen",
 		"pause": "Pausieren",
 		"delete": "Löschen",
 		"pin": "Torrent anheften",
@@ -113,7 +114,8 @@
 		"invalidPath": "Pfad muss absolut sein (mit / beginnen)",
 		"torrentSize": "Torrent-Größe",
 		"freeSpace": "Freier Speicher",
-		"notEnoughSpace": "Nicht genügend freier Speicherplatz im Zielordner"
+		"notEnoughSpace": "Nicht genügend freier Speicherplatz im Zielordner. Der Torrent wird hinzugefügt, startet aber erst, wenn Speicher frei ist.",
+		"addNoStartButton": "Hinzufügen ohne Start"
 	},
 	"fileSelectDialog": {
 		"title": "Dateien auswählen",
@@ -255,11 +257,13 @@
 	},
 	"toast": {
 		"added": "Torrent hinzugefügt",
+		"addedNoSpace": "Torrent hinzugefügt, wartet auf freien Speicher",
 		"deleted": "Gelöscht: {name}",
 		"started": "Gestartet: {name}",
 		"paused": "Pausiert: {name}",
 		"failAdd": "Torrent konnte nicht hinzugefügt werden",
 		"failStart": "Torrent konnte nicht gestartet werden",
+		"failStartNoSpace": "Nicht genug freier Speicher, um diesen Torrent zu starten",
 		"failPause": "Torrent konnte nicht pausiert werden",
 		"failDelete": "Torrent konnte nicht gelöscht werden",
 		"nightShiftOn": "Für Nachtschicht eingeplant: {name}",
@@ -270,5 +274,22 @@
 		"failDayShift": "Tagschicht konnte nicht aktualisiert werden",
 		"failShiftToggle": "Schicht konnte nicht umgeschaltet werden",
 		"failImpactToggle": "Automatisches Stoppen konnte nicht umgeschaltet werden"
+	},
+	"memo": {
+		"label": "Notizen",
+		"placeholder": "Notiere etwas…",
+		"saving": "Wird gespeichert…",
+		"saved": "Gespeichert",
+		"failSave": "Notizen konnten nicht gespeichert werden",
+		"tooLong": "Die Notizen sind zu lang"
+	},
+	"globalPause": {
+		"pause": "Alle Torrents pausieren",
+		"resume": "Global pausierte Torrents fortsetzen",
+		"active": "Alles ist pausiert",
+		"paused": "Pausierte Torrents: {count}",
+		"resumed": "Fortgesetzte Torrents: {count}",
+		"failPause": "Torrents konnten nicht pausiert werden",
+		"failResume": "Torrents konnten nicht fortgesetzt werden"
 	}
 }

@@ -13,6 +13,8 @@ Transmitter es una alternativa moderna y ligera a la interfaz web estándar de T
 - **Turno diurno** — lo mismo, con su propia etiqueta, su ventana y un botón con el sol; los turnos son independientes y un torrent puede llevar ambas marcas
 - **Interruptores de turnos** — cualquier turno configurado se puede desactivar en «Ajustes → Turnos»; el estado se guarda en SQLite en el servidor, por lo que se aplica en todos los navegadores y se mantiene tras reiniciar. Mientras un turno está desactivado su planificador no toca nada: los torrents se quedan como están y el botón del turno se ve en gris
 - **Impact** — cuánto ha devuelto un torrent de lo que descargó. Un trofeo marca los que han subido el 100% de su descarga, el filtro «Sin devolver» muestra el resto (se pueden enviar a un turno en bloque) y un interruptor opcional detiene el torrent al alcanzar el objetivo
+- **Pausa global** — un botón en la cabecera pausa todos los torrents activos y recuerda cuáles eran; al reanudar solo se inician esos, así que los que habías detenido siguen detenidos. El estado se guarda en el servidor y sobrevive a un reinicio; los turnos no actúan mientras la pausa está activa
+- **Notas** — un texto libre al principio de la pantalla principal (3 líneas por defecto, crece con el texto), guardado automáticamente en SQLite
 - **Modo sin conexión** — sin conexión la interfaz sigue abriéndose y muestra los torrents, las notas y los ajustes de la última sincronización, con un aviso que lo indica; las acciones que requieren el servidor no están disponibles hasta que vuelva la conexión. Para abrir la página sin red se necesita HTTPS o localhost (service worker)
 - **Idiomas soportados**: en, ru, es, de
 - **Docker images**: linux/amd64, linux/arm/v7, linux/arm64/v8

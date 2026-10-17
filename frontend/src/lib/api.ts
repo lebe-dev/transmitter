@@ -28,6 +28,7 @@ const TORRENT_FIELDS = [
 	'downloadedEver',
 	'uploadRatio',
 	'labels',
+	'leftUntilDone',
 ];
 
 /** fetch, который отличает «сервер недоступен» от ошибок самого сервера. */
@@ -72,9 +73,14 @@ export async function getFreeSpace(path: string): Promise<number> {
 	return data['size-bytes'];
 }
 
-export async function addTorrentMagnet(filename: string, downloadDir?: string): Promise<void> {
+export async function addTorrentMagnet(
+	filename: string,
+	downloadDir?: string,
+	paused?: boolean,
+): Promise<void> {
 	const args: Record<string, unknown> = { filename };
 	if (downloadDir) args['download-dir'] = downloadDir;
+	if (paused) args['paused'] = true;
 	await rpc('torrent-add', args);
 }
 
@@ -208,4 +214,44 @@ export async function setFilePriority(
 		ids: [torrentId],
 		[`priority-${priority}`]: [fileIndex],
 	});
+}
+
+/** Глобальная заметка над списком торрентов. */
+export async function getMemo(): Promise<string> {
+	const res = await request('/api/memo');
+	if (!res.ok) throw new Error(`HTTP ${res.status}`);
+	const data: { text: string } = await res.json();
+	return data.text;
+}
+
+export async function setMemo(text: string): Promise<void> {
+	const res = await request('/api/memo', {
+		method: 'PUT',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ text }),
+	});
+	if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
+export async function getGlobalPause(): Promise<boolean> {
+	const res = await request('/api/pause');
+	if (!res.ok) throw new Error(`HTTP ${res.status}`);
+	const data: { paused: boolean } = await res.json();
+	return data.paused;
+}
+
+/**
+ * Ставит все раздачи на паузу или снимает с неё. Сервер запоминает, какие
+ * раздачи работали до паузы, и при снятии запускает только их.
+ * Возвращает, сколько раздач было остановлено/запущено.
+ */
+export async function setGlobalPause(paused: boolean): Promise<number> {
+	const res = await request('/api/pause', {
+		method: 'PUT',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ paused }),
+	});
+	if (!res.ok) throw new Error(`HTTP ${res.status}`);
+	const data: { count: number } = await res.json();
+	return data.count;
 }

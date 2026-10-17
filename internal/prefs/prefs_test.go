@@ -135,3 +135,50 @@ func TestSetImpactAutoStopEnabled(t *testing.T) {
 		t.Error("ImpactAutoStopEnabled() = false after reopen, want the stored true")
 	}
 }
+
+func TestMemo(t *testing.T) {
+	store := newStore(t, filepath.Join(t.TempDir(), "prefs.db"))
+	ctx := context.Background()
+
+	if got, err := store.Memo(ctx); err != nil || got != "" {
+		t.Fatalf("Memo() = %q, %v; want empty", got, err)
+	}
+	for _, want := range []string{"line 1\nline 2\n", ""} {
+		if err := store.SetMemo(ctx, want); err != nil {
+			t.Fatalf("SetMemo(%q) error = %v", want, err)
+		}
+		got, err := store.Memo(ctx)
+		if err != nil {
+			t.Fatalf("Memo() error = %v", err)
+		}
+		if got != want {
+			t.Errorf("Memo() = %q, want %q", got, want)
+		}
+	}
+}
+
+func TestPauseState(t *testing.T) {
+	store := newStore(t, filepath.Join(t.TempDir(), "prefs.db"))
+	ctx := context.Background()
+
+	paused, hashes, err := store.PauseState(ctx)
+	if err != nil || paused || hashes != nil {
+		t.Fatalf("PauseState() = %v, %v, %v; want not paused", paused, hashes, err)
+	}
+
+	if err := store.SetPauseState(ctx, true, []string{"aa", "bb"}); err != nil {
+		t.Fatalf("SetPauseState() error = %v", err)
+	}
+	paused, hashes, err = store.PauseState(ctx)
+	if err != nil || !paused || len(hashes) != 2 || hashes[0] != "aa" || hashes[1] != "bb" {
+		t.Fatalf("PauseState() = %v, %v, %v; want paused with [aa bb]", paused, hashes, err)
+	}
+
+	if err := store.SetPauseState(ctx, false, nil); err != nil {
+		t.Fatalf("SetPauseState(false) error = %v", err)
+	}
+	paused, hashes, err = store.PauseState(ctx)
+	if err != nil || paused || hashes != nil {
+		t.Fatalf("PauseState() = %v, %v, %v; want cleared", paused, hashes, err)
+	}
+}
