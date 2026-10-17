@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { get } from 'svelte/store';
 	import { toast } from 'svelte-sonner';
+	import { failText } from '$lib/offline.js';
 	import { t as tt, locale, locales } from 'svelte-intl-precompile';
 	import { setTheme, theme } from 'mode-watcher';
 
@@ -39,8 +40,8 @@
 	async function onImpactAutoStopChange(enabled: boolean) {
 		try {
 			await settingsStore.setImpactAutoStopEnabled(enabled);
-		} catch {
-			toast.error(get(tt)('toast.failImpactToggle'));
+		} catch (err) {
+			toast.error(failText(err, get(tt), 'toast.failImpactToggle'));
 		}
 	}
 

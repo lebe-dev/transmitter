@@ -6,6 +6,7 @@
 	import NotebookPenIcon from '@lucide/svelte/icons/notebook-pen';
 
 	import { memoStore } from '$lib/stores.svelte.js';
+	import { failText } from '$lib/offline.js';
 
 	/** Сколько строк показываем, пока текста меньше. */
 	const MIN_ROWS = 3;
@@ -43,7 +44,7 @@
 		} catch (err) {
 			status = 'idle';
 			const msg = err instanceof Error && err.message === 'HTTP 422' ? 'memo.tooLong' : 'memo.failSave';
-			toast.error(get(tt)(msg));
+			toast.error(failText(err, get(tt), msg));
 		}
 	}
 

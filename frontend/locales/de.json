@@ -55,6 +55,11 @@
 	"error": {
 		"connection": "Verbindungsfehler"
 	},
+	"offline": {
+		"banner": "Keine Verbindung. Daten vom {time}",
+		"bannerNoData": "Keine Verbindung. Noch keine gespeicherten Daten",
+		"unavailable": "Ohne Verbindung nicht verfügbar"
+	},
 	"actions": {
 		"resume": "Fortsetzen",
 		"resumeNoSpace": "Nicht genug freier Speicher zum Fortsetzen",

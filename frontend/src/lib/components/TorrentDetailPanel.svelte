@@ -23,6 +23,7 @@
 	import { getTorrentDetails, setFilesWanted, setFilePriority } from '$lib/api.js';
 	import { formatSize, formatSpeed } from '$lib/format.js';
 	import { expandedDirsStore, noteStore } from '$lib/stores.svelte.js';
+	import { OfflineError, errorText, failText, readDetail, writeDetail } from '$lib/offline.js';
 	import type { Torrent, TorrentDetail, TorrentFile, FilePriority } from '$lib/types.js';
 
 	let {
@@ -68,8 +69,8 @@
 		try {
 			await noteStore.save(torrent.hashString, noteDraft);
 			toast.success(get(tt)('note.saved'));
-		} catch {
-			toast.error(get(tt)('note.failSave'));
+		} catch (err) {
+			toast.error(failText(err, get(tt), 'note.failSave'));
 		} finally {
 			noteSaving = false;
 		}
@@ -82,8 +83,12 @@
 		detail = null;
 		try {
 			detail = await getTorrentDetails(torrent.id);
+			if (detail) writeDetail(torrent.hashString, detail);
 		} catch (err) {
-			error = err instanceof Error ? err.message : get(tt)('detail.errorUnknown');
+			// Без связи показываем последние сохранённые детали этого торрента.
+			const cached = err instanceof OfflineError ? readDetail(torrent.hashString) : null;
+			if (cached) detail = cached.data;
+			else error = errorText(err, get(tt), 'detail.errorUnknown');
 		} finally {
 			loading = false;
 		}
@@ -235,6 +240,11 @@
 		}
 	}
 
+	/** Откат переключателя сам по себе молчалив — в офлайне объясняем, почему. */
+	function notifyIfOffline(err: unknown) {
+		if (err instanceof OfflineError) toast.error(get(tt)('offline.unavailable'));
+	}
+
 	function nextPriority(p: FilePriority): { value: FilePriority; level: 'low' | 'normal' | 'high' } {
 		switch (p) {
 			case -1: return { value: 0, level: 'normal' };
@@ -253,8 +263,9 @@
 		try {
 			if (currentlyWanted) await setFilesWanted(torrent.id, [], [fileIndex]);
 			else await setFilesWanted(torrent.id, [fileIndex], []);
-		} catch {
+		} catch (err) {
 			detail.fileStats[fileIndex].wanted = prev;
+			notifyIfOffline(err);
 		} finally {
 			pendingKey = null;
 		}
@@ -275,8 +286,9 @@
 				targetWanted ? indices : [],
 				targetWanted ? [] : indices,
 			);
-		} catch {
+		} catch (err) {
 			indices.forEach((i, k) => (detail!.fileStats[i].wanted = prev[k]));
+			notifyIfOffline(err);
 		} finally {
 			pendingKey = null;
 		}
@@ -290,8 +302,9 @@
 		detail.fileStats.forEach((s) => (s.wanted = wanted));
 		try {
 			await setFilesWanted(torrent.id, wanted ? indices : [], wanted ? [] : indices);
-		} catch {
+		} catch (err) {
 			detail.fileStats.forEach((s, i) => (s.wanted = prev[i]));
+			notifyIfOffline(err);
 		} finally {
 			pendingKey = null;
 		}
@@ -305,8 +318,9 @@
 		detail.fileStats[fileIndex].priority = next.value;
 		try {
 			await setFilePriority(torrent.id, fileIndex, next.level);
-		} catch {
+		} catch (err) {
 			detail.fileStats[fileIndex].priority = prev;
+			notifyIfOffline(err);
 		} finally {
 			pendingKey = null;
 		}

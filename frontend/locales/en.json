@@ -55,6 +55,11 @@
 	"error": {
 		"connection": "Connection error"
 	},
+	"offline": {
+		"banner": "You are offline. Showing data as of {time}",
+		"bannerNoData": "You are offline. No saved data yet",
+		"unavailable": "Not available offline"
+	},
 	"actions": {
 		"resume": "Resume",
 		"resumeNoSpace": "Not enough free space to resume",

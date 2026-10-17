@@ -17,6 +17,7 @@ Transmitter is a modern, lightweight alternative to Transmission's stock UI. Run
 - **Impact** — how much a torrent gave back of what it took. A trophy marks the ones that uploaded 100% of their download, the «Not repaid» filter shows the rest (send them to a shift in bulk), and an optional switch stops a torrent once it reaches the target
 - **Global pause** — one button in the header pauses every running torrent and remembers which ones they were; resuming starts only those, so torrents you had stopped stay stopped. The state is stored server-side and survives a restart; shifts stand still while the pause is on
 - **Scratchpad** — a free-form note at the top of the main screen (3 lines by default, grows with the text), autosaved to SQLite
+- **Offline mode** — without a connection the UI still opens and shows the torrents, notes and settings as of the last sync, with a banner saying so; actions that need the server are unavailable until it is back. Opening the page itself offline requires HTTPS or localhost (service worker)
 - **Support locales**: en, ru, es, de
 - **Docker images**: linux/amd64, linux/arm/v7, linux/arm64/v8
 
