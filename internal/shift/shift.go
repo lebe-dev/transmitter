@@ -14,7 +14,9 @@
 //
 // A scheduler can be switched off from the UI (see [Toggle]). While it is off
 // the scheduler touches nothing at all: torrents keep whatever state they are
-// in, including the ones it paused before.
+// in, including the ones it paused before. The same holds while the global
+// pause is on (see internal/pause): the scheduler must not restart what the
+// user paused.
 package shift
 
 import (
@@ -81,6 +83,11 @@ type Toggle interface {
 	ShiftEnabled(ctx context.Context, shift string) (bool, error)
 }
 
+// Pause reports whether the global pause is on.
+type Pause interface {
+	Active(ctx context.Context) bool
+}
+
 // Scheduler periodically reconciles shift torrent state with the configured time window.
 type Scheduler struct {
 	client *transmission.Client
@@ -93,6 +100,8 @@ type Scheduler struct {
 	// impact keeps the shift from restarting torrents that already paid back;
 	// a nil impact means the rule never applies.
 	impact Impact
+	// pause freezes the scheduler while the global pause is on; nil never does.
+	pause  Pause
 	now    func() time.Time
 	logger *slog.Logger
 	// lastEnabled remembers the previous toggle state so switching a shift on or
@@ -104,8 +113,9 @@ type Scheduler struct {
 // interval, as long as toggle reports the shift as enabled. all lists every
 // configured shift (opts included); the rest become this scheduler's peers.
 // impact may be nil; otherwise it holds back torrents that reached their upload
-// target while automatic stopping is on.
-func New(client *transmission.Client, opts Options, all []Options, toggle Toggle, impact Impact, logger *slog.Logger) *Scheduler {
+// target while automatic stopping is on. pause may be nil; otherwise the
+// scheduler skips every reconcile while it is active.
+func New(client *transmission.Client, opts Options, all []Options, toggle Toggle, impact Impact, pause Pause, logger *slog.Logger) *Scheduler {
 	var peers []Options
 	for _, o := range all {
 		if o.Label != opts.Label {
@@ -119,6 +129,7 @@ func New(client *transmission.Client, opts Options, all []Options, toggle Toggle
 		peers:  peers,
 		toggle: toggle,
 		impact: impact,
+		pause:  pause,
 		now:    time.Now,
 		logger: logger,
 	}
@@ -149,6 +160,10 @@ func (s *Scheduler) Run(ctx context.Context) {
 
 func (s *Scheduler) reconcile(ctx context.Context) {
 	if !s.enabled(ctx) {
+		return
+	}
+	if s.pause != nil && s.pause.Active(ctx) {
+		s.logger.Debug(s.opts.Name + ": global pause is on, skipping reconcile")
 		return
 	}
 

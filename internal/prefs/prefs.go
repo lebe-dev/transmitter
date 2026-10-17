@@ -1,14 +1,16 @@
 // Package prefs stores user preferences that are changed at runtime from the UI.
 //
-// Currently it holds the on/off state of the shift schedulers: the time windows
-// come from the environment, but switching a shift off is a decision made in the
-// web UI, so it is persisted in the local SQLite database (the same file as the
-// torrent notes) and survives a restart.
+// It holds the on/off state of the shift schedulers and the impact auto-stop
+// rule, the global pause and the global note. The time windows come from the
+// environment, but these are decisions made in the web UI, so they are
+// persisted in the local SQLite database (the same file as the torrent notes)
+// and survive a restart.
 package prefs
 
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -93,16 +95,71 @@ func (s *Store) SetImpactAutoStopEnabled(ctx context.Context, enabled bool) erro
 	return s.setBoolPref(ctx, impactAutoStopKey, enabled)
 }
 
+// memoKey holds the free-form note shown at the top of the torrent list.
+const memoKey = "memo.text"
+
+// Memo returns the global note, or an empty string when none was written.
+func (s *Store) Memo(ctx context.Context) (string, error) {
+	text, _, err := s.stringPref(ctx, memoKey)
+	return text, err
+}
+
+// SetMemo stores the global note. An empty text removes it.
+func (s *Store) SetMemo(ctx context.Context, text string) error {
+	if text == "" {
+		return s.deletePref(ctx, memoKey)
+	}
+	return s.setStringPref(ctx, memoKey, text)
+}
+
+// pauseKey holds the global pause: whether it is on and which torrents were
+// running when it was switched on, so resuming restores exactly that set.
+const pauseKey = "pause.state"
+
+type pauseState struct {
+	Paused bool     `json:"paused"`
+	Hashes []string `json:"hashes"`
+}
+
+// PauseState reports whether the global pause is on and the hashes of the
+// torrents it stopped. A missing or unparsable value means "not paused".
+func (s *Store) PauseState(ctx context.Context) (bool, []string, error) {
+	raw, ok, err := s.stringPref(ctx, pauseKey)
+	if err != nil || !ok {
+		return false, nil, err
+	}
+
+	var st pauseState
+	if err := json.Unmarshal([]byte(raw), &st); err != nil {
+		return false, nil, nil
+	}
+	return st.Paused, st.Hashes, nil
+}
+
+// SetPauseState stores the global pause. Switching it off forgets the hashes.
+func (s *Store) SetPauseState(ctx context.Context, paused bool, hashes []string) error {
+	if !paused {
+		return s.deletePref(ctx, pauseKey)
+	}
+	if hashes == nil {
+		hashes = []string{}
+	}
+	raw, err := json.Marshal(pauseState{Paused: true, Hashes: hashes})
+	if err != nil {
+		return fmt.Errorf("marshal pause state: %w", err)
+	}
+	return s.setStringPref(ctx, pauseKey, string(raw))
+}
+
 // boolPref reads a boolean preference, returning def when it was never stored or
 // cannot be parsed.
 func (s *Store) boolPref(ctx context.Context, key string, def bool) (bool, error) {
-	var raw string
-	err := s.db.QueryRowContext(ctx, `SELECT value FROM prefs WHERE key = ?`, key).Scan(&raw)
-	if errors.Is(err, sql.ErrNoRows) {
-		return def, nil
-	}
+	raw, ok, err := s.stringPref(ctx, key)
 	if err != nil {
-		return false, fmt.Errorf("get pref %q: %w", key, err)
+		return false, err
+	}
+	if !ok {
+		return def, nil
 	}
 
 	value, err := strconv.ParseBool(raw)
@@ -114,13 +171,39 @@ func (s *Store) boolPref(ctx context.Context, key string, def bool) (bool, error
 
 // setBoolPref stores a boolean preference.
 func (s *Store) setBoolPref(ctx context.Context, key string, value bool) error {
+	return s.setStringPref(ctx, key, strconv.FormatBool(value))
+}
+
+// stringPref reads a raw preference, reporting false when it was never stored.
+func (s *Store) stringPref(ctx context.Context, key string) (string, bool, error) {
+	var raw string
+	err := s.db.QueryRowContext(ctx, `SELECT value FROM prefs WHERE key = ?`, key).Scan(&raw)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, fmt.Errorf("get pref %q: %w", key, err)
+	}
+	return raw, true, nil
+}
+
+// setStringPref stores a raw preference.
+func (s *Store) setStringPref(ctx context.Context, key, value string) error {
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO prefs (key, value, updated_at) VALUES (?, ?, ?)
 		 ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
-		key, strconv.FormatBool(value), s.now().Unix(),
+		key, value, s.now().Unix(),
 	)
 	if err != nil {
 		return fmt.Errorf("set pref %q: %w", key, err)
+	}
+	return nil
+}
+
+// deletePref removes a preference, which brings back its default.
+func (s *Store) deletePref(ctx context.Context, key string) error {
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM prefs WHERE key = ?`, key); err != nil {
+		return fmt.Errorf("delete pref %q: %w", key, err)
 	}
 	return nil
 }

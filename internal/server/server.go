@@ -19,7 +19,7 @@ type Server struct {
 }
 
 // New creates and configures the HTTP server with all routes.
-func New(cfg *config.Config, client *transmission.Client, noteStore NoteStore, shiftStore ShiftStore, impactStore ImpactStore, version string, staticFS fs.FS, logger *slog.Logger) (*Server, error) {
+func New(cfg *config.Config, client *transmission.Client, noteStore NoteStore, shiftStore ShiftStore, impactStore ImpactStore, memoStore MemoStore, pauser Pauser, version string, staticFS fs.FS, logger *slog.Logger) (*Server, error) {
 	staticHandler, err := StaticHandler(staticFS)
 	if err != nil {
 		return nil, err
@@ -96,6 +96,10 @@ func New(cfg *config.Config, client *transmission.Client, noteStore NoteStore, s
 	mux.Handle("GET /api/config", ConfigHandler(serverConfig))
 	mux.Handle("PUT /api/shifts/{shift}", ShiftToggleHandler(shiftStore, configuredShifts))
 	mux.Handle("PUT /api/impact", ImpactToggleHandler(impactStore))
+	mux.Handle("GET /api/memo", MemoHandler(memoStore))
+	mux.Handle("PUT /api/memo", MemoUpdateHandler(memoStore))
+	mux.Handle("GET /api/pause", PauseStateHandler(pauser))
+	mux.Handle("PUT /api/pause", PauseToggleHandler(pauser))
 	mux.Handle("GET /api/notes", NotesHandler(noteStore))
 	mux.Handle("PUT /api/notes/{hash}", NoteUpdateHandler(noteStore))
 	mux.Handle("DELETE /api/notes/{hash}", NoteDeleteHandler(noteStore))

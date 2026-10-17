@@ -265,5 +265,22 @@
 		"failDayShift": "No se pudo actualizar el turno diurno",
 		"failShiftToggle": "No se pudo cambiar el turno",
 		"failImpactToggle": "No se pudo cambiar la parada automática"
+	},
+	"memo": {
+		"label": "Notas",
+		"placeholder": "Apunta algo…",
+		"saving": "Guardando…",
+		"saved": "Guardado",
+		"failSave": "No se pudieron guardar las notas",
+		"tooLong": "Las notas son demasiado largas"
+	},
+	"globalPause": {
+		"pause": "Pausar todos los torrents",
+		"resume": "Reanudar los torrents pausados globalmente",
+		"active": "Todo está en pausa",
+		"paused": "Torrents pausados: {count}",
+		"resumed": "Torrents reanudados: {count}",
+		"failPause": "No se pudieron pausar todos los torrents",
+		"failResume": "No se pudieron reanudar los torrents"
 	}
 }
