@@ -41,6 +41,7 @@
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import AppHeader from '$lib/components/AppHeader.svelte';
+	import MemoPad from '$lib/components/MemoPad.svelte';
 	import BulkActionsMenu from '$lib/components/BulkActionsMenu.svelte';
 	import Hint from '$lib/components/Hint.svelte';
 	import TorrentDetailPanel from '$lib/components/TorrentDetailPanel.svelte';
@@ -644,6 +645,9 @@
 
 	<!-- Content -->
 	<div class="flex-1 w-full max-w-3xl mx-auto page-surface border-x border-border/50 px-4 sm:px-6 py-4 flex flex-col gap-4">
+
+		<!-- Notes -->
+		<MemoPad />
 
 		<!-- Search -->
 		<div class="relative">

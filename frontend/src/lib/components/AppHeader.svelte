@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { get } from 'svelte/store';
+	import { toast } from 'svelte-sonner';
 	import { page } from '$app/state';
 	import { mode, toggleMode } from 'mode-watcher';
 	import { t as tt } from 'svelte-intl-precompile';
@@ -11,10 +13,12 @@
 	import SunriseIcon from '@lucide/svelte/icons/sunrise';
 	import ArrowDownIcon from '@lucide/svelte/icons/arrow-down';
 	import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
+	import PauseIcon from '@lucide/svelte/icons/pause';
+	import PlayIcon from '@lucide/svelte/icons/play';
 
 	import { Button } from '$lib/components/ui/button/index.js';
 	import Hint from '$lib/components/Hint.svelte';
-	import { downloadDirStore, torrentStore } from '$lib/stores.svelte.js';
+	import { downloadDirStore, pauseStore, torrentStore } from '$lib/stores.svelte.js';
 	import { settingsStore } from '$lib/settings.svelte.js';
 	import { formatSize } from '$lib/format.js';
 
@@ -32,8 +36,21 @@
 
 	let freeSpaceTimer: ReturnType<typeof setInterval> | null = null;
 
+	async function toggleGlobalPause() {
+		const t = get(tt);
+		const pausing = !pauseStore.paused;
+		try {
+			const count = await pauseStore.toggle();
+			toast.success(t(pausing ? 'globalPause.paused' : 'globalPause.resumed', { values: { count } }));
+			await torrentStore.refresh();
+		} catch {
+			toast.error(t(pausing ? 'globalPause.failPause' : 'globalPause.failResume'));
+		}
+	}
+
 	onMount(() => {
 		void downloadDirStore.init();
+		void pauseStore.init();
 		freeSpaceTimer = setInterval(() => {
 			if (!document.hidden) void downloadDirStore.refreshFreeSpace();
 		}, FREE_SPACE_INTERVAL);
@@ -50,7 +67,7 @@
 		налезают друг на друга, поэтому бейджи переносятся во вторую строку
 		(`order-last w-full`), а с sm возвращаются в общий ряд.
 	-->
-	<div class="max-w-3xl mx-auto px-4 sm:px-6 py-2 sm:py-0 sm:h-14 flex flex-wrap items-center gap-x-3 gap-y-2">
+	<div class="max-w-3xl mx-auto px-4 sm:px-6 py-2 sm:py-0 sm:h-14 flex flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-2">
 		<a href="/" class="flex items-center gap-2.5 min-w-0">
 			<div class="size-7 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
 				<span class="text-primary-foreground font-bold text-sm leading-none font-display">T</span>
@@ -103,10 +120,33 @@
 			</Hint>
 		</div>
 
+		<!-- Глобальная пауза: сервер запоминает, что работало, и при снятии запускает только это. -->
+		<Hint text={$tt(pauseStore.paused ? 'globalPause.resume' : 'globalPause.pause')} side="bottom">
+			{#snippet trigger({ props })}
+				<button
+					{...props}
+					onclick={toggleGlobalPause}
+					disabled={pauseStore.busy}
+					aria-label={$tt(pauseStore.paused ? 'globalPause.resume' : 'globalPause.pause')}
+					aria-pressed={pauseStore.paused}
+					class="ml-auto sm:ml-0 h-8 rounded-lg flex flex-shrink-0 items-center justify-center gap-1.5 transition-colors disabled:opacity-50 {pauseStore.paused
+						? 'w-8 sm:w-auto sm:px-2.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/30 hover:bg-amber-500/15'
+						: 'w-8 text-muted-foreground hover:text-foreground hover:bg-accent'}"
+				>
+					{#if pauseStore.paused}
+						<PlayIcon class="size-4" />
+						<span class="hidden sm:inline text-xs font-medium whitespace-nowrap">{$tt('globalPause.active')}</span>
+					{:else}
+						<PauseIcon class="size-4" />
+					{/if}
+				</button>
+			{/snippet}
+		</Hint>
+
 		<button
 			onclick={toggleMode}
 			aria-label={$tt('header.toggleTheme')}
-			class="ml-auto sm:ml-0 size-8 rounded-lg flex flex-shrink-0 items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+			class="size-8 rounded-lg flex flex-shrink-0 items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
 		>
 			{#if mode.current === 'dark'}
 				<SunIcon class="size-4" />

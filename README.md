@@ -15,6 +15,8 @@ Transmitter is a modern, lightweight alternative to Transmission's stock UI. Run
 - **Day Shift** — the same, with its own label, window and a sun button; the two shifts are independent, a torrent may be marked for both
 - **Shift switches** — each configured shift can be turned off in Settings → Shifts or from the Telegram bot (`/shifts`); the state is stored server-side in SQLite, so it applies to every browser and survives a restart. While a shift is off its scheduler touches nothing: torrents keep their current state and the shift button is greyed out
 - **Impact** — how much a torrent gave back of what it took. A trophy marks the ones that uploaded 100% of their download, the «Not repaid» filter shows the rest (send them to a shift in bulk), and an optional switch stops a torrent once it reaches the target
+- **Global pause** — one button in the header pauses every running torrent and remembers which ones they were; resuming starts only those, so torrents you had stopped stay stopped. The state is stored server-side and survives a restart; shifts stand still while the pause is on
+- **Scratchpad** — a free-form note at the top of the main screen (3 lines by default, grows with the text), autosaved to SQLite
 - **Support locales**: en, ru, es, de
 - **Docker images**: linux/amd64, linux/arm/v7, linux/arm64/v8
 

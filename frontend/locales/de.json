@@ -269,5 +269,22 @@
 		"failDayShift": "Tagschicht konnte nicht aktualisiert werden",
 		"failShiftToggle": "Schicht konnte nicht umgeschaltet werden",
 		"failImpactToggle": "Automatisches Stoppen konnte nicht umgeschaltet werden"
+	},
+	"memo": {
+		"label": "Notizen",
+		"placeholder": "Notiere etwas…",
+		"saving": "Wird gespeichert…",
+		"saved": "Gespeichert",
+		"failSave": "Notizen konnten nicht gespeichert werden",
+		"tooLong": "Die Notizen sind zu lang"
+	},
+	"globalPause": {
+		"pause": "Alle Torrents pausieren",
+		"resume": "Global pausierte Torrents fortsetzen",
+		"active": "Alles ist pausiert",
+		"paused": "Pausierte Torrents: {count}",
+		"resumed": "Fortgesetzte Torrents: {count}",
+		"failPause": "Torrents konnten nicht pausiert werden",
+		"failResume": "Torrents konnten nicht fortgesetzt werden"
 	}
 }

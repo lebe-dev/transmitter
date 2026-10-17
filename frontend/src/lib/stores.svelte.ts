@@ -1,4 +1,4 @@
-import { getTorrents, getSession, getNotes, setNote } from './api.js';
+import { getTorrents, getSession, getNotes, setNote, getMemo, setMemo, getGlobalPause, setGlobalPause } from './api.js';
 import { undergiven } from './impact.js';
 import { settingsStore } from './settings.svelte.js';
 import type { Torrent, FilterStatus, TorrentNotes } from './types.js';
@@ -245,6 +245,61 @@ class NoteStore {
 }
 
 export const noteStore = new NoteStore();
+
+// ── Global memo (backend SQLite, shown above the torrent list) ───────────
+
+class MemoStore {
+	text = $state('');
+	loaded = $state(false);
+
+	async init() {
+		if (this.loaded) return;
+		try {
+			this.text = await getMemo();
+			this.loaded = true;
+		} catch {
+			// Заметка вспомогательная: список торрентов работает и без неё.
+		}
+	}
+
+	/** Сохраняет текст как есть (с переводами строк); бросает, если сервер отказал. */
+	async save(text: string) {
+		await setMemo(text);
+		this.text = text;
+	}
+}
+
+export const memoStore = new MemoStore();
+
+// ── Global pause (state lives on the server) ──────────────────────────────
+
+class PauseStore {
+	paused = $state(false);
+	busy = $state(false);
+
+	async init() {
+		try {
+			this.paused = await getGlobalPause();
+		} catch {
+			// Кнопка просто покажет «не на паузе»; следующий клик синхронизирует состояние.
+		}
+	}
+
+	/** Переключает паузу и возвращает число затронутых раздач. */
+	async toggle(): Promise<number> {
+		this.busy = true;
+		try {
+			const next = !this.paused;
+			const count = await setGlobalPause(next);
+			this.paused = next;
+			return count;
+		} finally {
+			this.busy = false;
+		}
+	}
+}
+
+export const pauseStore = new PauseStore();
 
 // ── Download directory store (localStorage + session-get) ────────────────
 

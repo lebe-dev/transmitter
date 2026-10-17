@@ -269,5 +269,22 @@
 		"failDayShift": "Failed to update day shift",
 		"failShiftToggle": "Failed to switch the shift",
 		"failImpactToggle": "Failed to switch automatic stopping"
+	},
+	"memo": {
+		"label": "Notes",
+		"placeholder": "Jot something down…",
+		"saving": "Saving…",
+		"saved": "Saved",
+		"failSave": "Failed to save notes",
+		"tooLong": "Notes are too long"
+	},
+	"globalPause": {
+		"pause": "Pause all torrents",
+		"resume": "Resume torrents paused globally",
+		"active": "Everything is paused",
+		"paused": "Paused all torrents: {count}",
+		"resumed": "Resumed torrents: {count}",
+		"failPause": "Failed to pause all torrents",
+		"failResume": "Failed to resume torrents"
 	}
 }

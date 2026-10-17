@@ -148,7 +148,7 @@ func newSchedulerWithPeers(t *testing.T, rs *recordingServer, opts Options, now 
 	t.Cleanup(srv.Close)
 	client := transmission.NewClient(srv.URL, "u", "p")
 
-	s := New(client, opts, append([]Options{opts}, peers...), toggle, nil, slog.New(slog.NewTextHandler(testWriter{t}, nil)))
+	s := New(client, opts, append([]Options{opts}, peers...), toggle, nil, nil, slog.New(slog.NewTextHandler(testWriter{t}, nil)))
 	s.now = func() time.Time { return now }
 	return s
 }
@@ -427,7 +427,7 @@ func TestNewExcludesOwnShiftFromPeers(t *testing.T) {
 	night := Options{Name: NightLabel, Label: NightLabel}
 	day := Options{Name: DayLabel, Label: DayLabel}
 
-	s := New(nil, night, []Options{night, day}, nil, nil, slog.New(slog.NewTextHandler(testWriter{t}, nil)))
+	s := New(nil, night, []Options{night, day}, nil, nil, nil, slog.New(slog.NewTextHandler(testWriter{t}, nil)))
 
 	if len(s.peers) != 1 || s.peers[0].Label != DayLabel {
 		t.Errorf("peers = %v, want only the day shift", s.peers)
@@ -473,5 +473,25 @@ func TestReconcileStartsPaidBackTorrentsWhenAutoStopOff(t *testing.T) {
 
 	if len(rs.starts) != 1 || !slices.Equal(rs.starts[0], []int64{1}) {
 		t.Fatalf("starts = %v, want one batch [1]", rs.starts)
+	}
+}
+
+type stubPause bool
+
+func (p stubPause) Active(context.Context) bool { return bool(p) }
+
+// While the global pause is on, the scheduler must not restart torrents.
+func TestReconcileSkipsWhileGloballyPaused(t *testing.T) {
+	rs := &recordingServer{torrents: []transmission.Torrent{
+		{ID: 1, Status: 0, PercentDone: 0.2, Labels: []string{NightLabel}},
+	}}
+	s := newSchedulerWithToggle(t, rs, NightLabel, time.Date(2026, 1, 1, 23, 30, 0, 0, time.UTC),
+		config.DayTime{Hour: 23, Minute: 0}, config.DayTime{Hour: 7, Minute: 0}, nil)
+	s.pause = stubPause(true)
+
+	s.reconcile(context.Background())
+
+	if len(rs.starts) != 0 || len(rs.stops) != 0 {
+		t.Errorf("starts = %v, stops = %v; want nothing touched while paused", rs.starts, rs.stops)
 	}
 }
