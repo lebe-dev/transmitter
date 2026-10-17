@@ -57,6 +57,7 @@
 	},
 	"actions": {
 		"resume": "Resume",
+		"resumeNoSpace": "Not enough free space to resume",
 		"pause": "Pause",
 		"delete": "Delete",
 		"pin": "Pin torrent",
@@ -108,7 +109,8 @@
 		"invalidPath": "Path must be absolute (start with /)",
 		"torrentSize": "Torrent size",
 		"freeSpace": "Free space",
-		"notEnoughSpace": "Not enough free space in the destination folder"
+		"notEnoughSpace": "Not enough free space in the destination folder. The torrent will be added but won't start until space is freed.",
+		"addNoStartButton": "Add without starting"
 	},
 	"fileSelectDialog": {
 		"title": "Select Files",
@@ -250,11 +252,13 @@
 	},
 	"toast": {
 		"added": "Torrent added",
+		"addedNoSpace": "Torrent added, waiting for free space",
 		"deleted": "Deleted: {name}",
 		"started": "Started: {name}",
 		"paused": "Paused: {name}",
 		"failAdd": "Failed to add torrent",
 		"failStart": "Failed to start torrent",
+		"failStartNoSpace": "Not enough free space to start this torrent",
 		"failPause": "Failed to pause torrent",
 		"failDelete": "Failed to delete torrent",
 		"nightShiftOn": "Scheduled for night shift: {name}",
