@@ -55,6 +55,11 @@
 	"error": {
 		"connection": "Error de conexión"
 	},
+	"offline": {
+		"banner": "Sin conexión. Se muestran los datos de {time}",
+		"bannerNoData": "Sin conexión. Aún no hay datos guardados",
+		"unavailable": "No disponible sin conexión"
+	},
 	"actions": {
 		"resume": "Reanudar",
 		"pause": "Pausar",

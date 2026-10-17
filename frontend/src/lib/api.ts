@@ -7,6 +7,8 @@ import type {
 	UISettings,
 	ServerConfig,
 } from './types.js';
+import { connectivity } from './connectivity.svelte.js';
+import { OfflineError } from './offline.js';
 
 const TORRENT_FIELDS = [
 	'id',
@@ -28,8 +30,21 @@ const TORRENT_FIELDS = [
 	'labels',
 ];
 
+/** fetch, который отличает «сервер недоступен» от ошибок самого сервера. */
+async function request(input: string, init?: RequestInit): Promise<Response> {
+	let res: Response;
+	try {
+		res = await fetch(input, init);
+	} catch {
+		connectivity.markOffline();
+		throw new OfflineError();
+	}
+	connectivity.markOnline();
+	return res;
+}
+
 async function rpc<T>(method: string, args?: Record<string, unknown>): Promise<T> {
-	const res = await fetch('/api/rpc', {
+	const res = await request('/api/rpc', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({ method, arguments: args }),
@@ -122,20 +137,20 @@ export async function setFilesWanted(
 }
 
 export async function getSettings(): Promise<UISettings> {
-	const res = await fetch('/api/settings');
+	const res = await request('/api/settings');
 	if (!res.ok) throw new Error(`HTTP ${res.status}`);
 	return res.json();
 }
 
 export async function getServerConfig(): Promise<ServerConfig> {
-	const res = await fetch('/api/config');
+	const res = await request('/api/config');
 	if (!res.ok) throw new Error(`HTTP ${res.status}`);
 	return res.json();
 }
 
 /** Включает или выключает планировщик смены; состояние хранится на сервере. */
 export async function setShiftEnabled(shift: ShiftName, enabled: boolean): Promise<void> {
-	const res = await fetch(`/api/shifts/${shift}`, {
+	const res = await request(`/api/shifts/${shift}`, {
 		method: 'PUT',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({ enabled }),
@@ -145,7 +160,7 @@ export async function setShiftEnabled(shift: ShiftName, enabled: boolean): Promi
 
 /** Включает или выключает авто-снятие раздач, отдавших целевой процент. */
 export async function setImpactAutoStop(enabled: boolean): Promise<void> {
-	const res = await fetch('/api/impact', {
+	const res = await request('/api/impact', {
 		method: 'PUT',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({ enabled }),
@@ -154,14 +169,14 @@ export async function setImpactAutoStop(enabled: boolean): Promise<void> {
 }
 
 export async function getNotes(): Promise<TorrentNotes> {
-	const res = await fetch('/api/notes');
+	const res = await request('/api/notes');
 	if (!res.ok) throw new Error(`HTTP ${res.status}`);
 	return res.json();
 }
 
 /** Stores the note of a torrent; an empty text removes it. */
 export async function setNote(hashString: string, text: string): Promise<void> {
-	const res = await fetch(`/api/notes/${hashString}`, {
+	const res = await request(`/api/notes/${hashString}`, {
 		method: 'PUT',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({ text }),
@@ -170,7 +185,7 @@ export async function setNote(hashString: string, text: string): Promise<void> {
 }
 
 export async function deleteNote(hashString: string): Promise<void> {
-	const res = await fetch(`/api/notes/${hashString}`, { method: 'DELETE' });
+	const res = await request(`/api/notes/${hashString}`, { method: 'DELETE' });
 	if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 

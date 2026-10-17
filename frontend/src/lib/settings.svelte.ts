@@ -1,8 +1,12 @@
 import { getSettings, getServerConfig, setImpactAutoStop, setShiftEnabled } from './api.js';
+import { connectivity } from './connectivity.svelte.js';
+import { readCache, writeCache } from './offline.js';
 import type { ServerConfig, ShiftName, UISettings } from './types.js';
 
 const COMPACT_STORAGE_KEY = 'transmitter-compact';
 const FREE_SPACE_STORAGE_KEY = 'transmitter-show-free-space';
+const SETTINGS_CACHE_KEY = 'settings';
+const SERVER_CONFIG_CACHE_KEY = 'server_config';
 
 /**
  * configured — окно смены задано переменными окружения (смена вообще есть);
@@ -82,6 +86,14 @@ class SettingsStore {
 	constructor() {
 		this.compactView = localStorage.getItem(COMPACT_STORAGE_KEY) === '1';
 		this.showFreeSpace = localStorage.getItem(FREE_SPACE_STORAGE_KEY) !== '0';
+		// Последние серверные настройки: нужны в офлайне и до ответа /api/settings.
+		const cached = readCache<UISettings>(SETTINGS_CACHE_KEY);
+		if (cached) this.#apply(cached.data);
+		this.serverConfig = readCache<ServerConfig>(SERVER_CONFIG_CACHE_KEY)?.data ?? null;
+		connectivity.onReconnect(() => {
+			// Без связи load() отдал кэш и сбросил промис — теперь берём свежие.
+			if (this.#settings === null) this.load().catch(() => {});
+		});
 		setInterval(() => {
 			const now = new Date();
 			this.#nowMinutes = now.getHours() * 60 + now.getMinutes();
@@ -102,35 +114,45 @@ class SettingsStore {
 		this.addRequested = true;
 	}
 
-	/** Грузит /api/settings один раз за сессию; повторные вызовы разделяют промис. */
+	/**
+	 * Грузит /api/settings один раз за сессию; повторные вызовы разделяют промис.
+	 * Без связи отдаёт последние сохранённые настройки, если они есть.
+	 */
 	load(): Promise<UISettings> {
 		this.#settings ??= getSettings()
 			.then((s) => {
-				this.version = s.version;
-				this.deleteWithData = s.deleteWithData;
-				this.noteMaxLength = s.noteMaxLength;
-				this.impactTargetRatio = s.impactTargetRatio;
-				this.impactAutoStopEnabled = s.impactAutoStopEnabled;
-				this.day = {
-					configured: s.dayShiftConfigured,
-					enabled: s.dayShiftEnabled,
-					start: s.dayShiftStart,
-					end: s.dayShiftEnd,
-				};
-				this.night = {
-					configured: s.nightShiftConfigured,
-					enabled: s.nightShiftEnabled,
-					start: s.nightShiftStart,
-					end: s.nightShiftEnd,
-				};
+				writeCache(SETTINGS_CACHE_KEY, s);
+				this.#apply(s);
 				return s;
 			})
 			.catch((err) => {
 				// Разрешаем повторную попытку на следующем заходе.
 				this.#settings = null;
+				const cached = readCache<UISettings>(SETTINGS_CACHE_KEY);
+				if (cached) return cached.data;
 				throw err;
 			});
 		return this.#settings;
+	}
+
+	#apply(s: UISettings) {
+		this.version = s.version;
+		this.deleteWithData = s.deleteWithData;
+		this.noteMaxLength = s.noteMaxLength;
+		this.impactTargetRatio = s.impactTargetRatio;
+		this.impactAutoStopEnabled = s.impactAutoStopEnabled;
+		this.day = {
+			configured: s.dayShiftConfigured,
+			enabled: s.dayShiftEnabled,
+			start: s.dayShiftStart,
+			end: s.dayShiftEnd,
+		};
+		this.night = {
+			configured: s.nightShiftConfigured,
+			enabled: s.nightShiftEnabled,
+			start: s.nightShiftStart,
+			end: s.nightShiftEnd,
+		};
 	}
 
 	/** Включает/выключает планировщик смены, откатывая переключатель при ошибке. */
@@ -140,6 +162,7 @@ class SettingsStore {
 		target.enabled = enabled;
 		try {
 			await setShiftEnabled(shift, enabled);
+			this.#patchCache(shift === 'night' ? { nightShiftEnabled: enabled } : { dayShiftEnabled: enabled });
 		} catch (err) {
 			target.enabled = previous;
 			throw err;
@@ -152,20 +175,32 @@ class SettingsStore {
 		this.impactAutoStopEnabled = enabled;
 		try {
 			await setImpactAutoStop(enabled);
+			this.#patchCache({ impactAutoStopEnabled: enabled });
 		} catch (err) {
 			this.impactAutoStopEnabled = previous;
 			throw err;
 		}
 	}
 
+	/** Переключатели меняются без перезагрузки настроек — держим кэш в актуальном виде. */
+	#patchCache(patch: Partial<UISettings>) {
+		const cached = readCache<UISettings>(SETTINGS_CACHE_KEY);
+		if (cached) writeCache(SETTINGS_CACHE_KEY, { ...cached.data, ...patch });
+	}
+
+	#serverConfigFresh = false;
+
 	async loadServerConfig() {
-		if (this.serverConfig !== null || this.serverConfigLoading) return;
-		this.serverConfigLoading = true;
+		if (this.#serverConfigFresh || this.serverConfigLoading) return;
+		// Кэш показываем сразу, без спиннера, и тихо обновляем поверх.
+		this.serverConfigLoading = this.serverConfig === null;
 		this.serverConfigError = false;
 		try {
 			this.serverConfig = await getServerConfig();
+			this.#serverConfigFresh = true;
+			writeCache(SERVER_CONFIG_CACHE_KEY, this.serverConfig);
 		} catch {
-			this.serverConfigError = true;
+			this.serverConfigError = this.serverConfig === null;
 		} finally {
 			this.serverConfigLoading = false;
 		}

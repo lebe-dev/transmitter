@@ -2,7 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/state';
 	import { mode, toggleMode } from 'mode-watcher';
-	import { t as tt } from 'svelte-intl-precompile';
+	import { t as tt, locale } from 'svelte-intl-precompile';
 	import SunIcon from '@lucide/svelte/icons/sun';
 	import MoonIcon from '@lucide/svelte/icons/moon';
 	import PlusIcon from '@lucide/svelte/icons/plus';
@@ -11,12 +11,14 @@
 	import SunriseIcon from '@lucide/svelte/icons/sunrise';
 	import ArrowDownIcon from '@lucide/svelte/icons/arrow-down';
 	import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
+	import WifiOffIcon from '@lucide/svelte/icons/wifi-off';
 
 	import { Button } from '$lib/components/ui/button/index.js';
 	import Hint from '$lib/components/Hint.svelte';
 	import { downloadDirStore, torrentStore } from '$lib/stores.svelte.js';
 	import { settingsStore } from '$lib/settings.svelte.js';
-	import { formatSize } from '$lib/format.js';
+	import { connectivity } from '$lib/connectivity.svelte.js';
+	import { formatSize, formatDateTime } from '$lib/format.js';
 
 	const FREE_SPACE_INTERVAL = 20_000;
 
@@ -126,9 +128,33 @@
 			<SettingsIcon class="size-4" />
 		</a>
 
-		<Button size="sm" class="font-display font-semibold flex-shrink-0" onclick={onAdd}>
+		<Button
+			size="sm"
+			class="font-display font-semibold flex-shrink-0"
+			onclick={onAdd}
+			disabled={connectivity.offline}
+			title={connectivity.offline ? $tt('offline.unavailable') : undefined}
+		>
 			<PlusIcon class="size-4" />
 			{$tt('header.add')}
 		</Button>
 	</div>
+
+	{#if connectivity.offline}
+		<div class="border-t border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300">
+			<div
+				class="max-w-3xl mx-auto px-4 sm:px-6 py-1.5 flex items-center gap-2 text-xs font-medium"
+				role="status"
+			>
+				<WifiOffIcon class="size-3.5 flex-shrink-0" />
+				<span class="min-w-0">
+					{torrentStore.syncedAt !== null
+						? $tt('offline.banner', {
+								values: { time: formatDateTime(torrentStore.syncedAt, $locale) },
+							})
+						: $tt('offline.bannerNoData')}
+				</span>
+			</div>
+		</div>
+	{/if}
 </header>

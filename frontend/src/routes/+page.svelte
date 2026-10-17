@@ -29,6 +29,8 @@
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import { torrentStore, pinStore, downloadDirStore, noteStore } from '$lib/stores.svelte.js';
 	import { settingsStore } from '$lib/settings.svelte.js';
+	import { connectivity } from '$lib/connectivity.svelte.js';
+	import { errorText, failText } from '$lib/offline.js';
 	import { addTorrentMagnet, addTorrentFile, startTorrents, stopTorrents, removeTorrents, getTorrentFiles, setFilesWanted, setTorrentLabels, getFreeSpace } from '$lib/api.js';
 	import { formatSize, formatSpeed, formatEta, formatDate } from '$lib/format.js';
 	import { parseTorrentSize } from '$lib/bencode.js';
@@ -178,7 +180,7 @@
 			fileSelectOpen = false;
 			await torrentStore.refresh();
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : get(tt)('toast.failAdd'));
+			toast.error(errorText(err, get(tt), 'toast.failAdd'));
 		}
 	}
 
@@ -333,7 +335,7 @@
 			await torrentStore.refresh();
 			void downloadDirStore.refreshFreeSpace();
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : get(tt)('toast.failAdd'));
+			toast.error(errorText(err, get(tt), 'toast.failAdd'));
 		} finally {
 			isAdding = false;
 		}
@@ -379,7 +381,7 @@
 			await torrentStore.refresh();
 			void downloadDirStore.refreshFreeSpace();
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : get(tt)('toast.failDelete'));
+			toast.error(errorText(err, get(tt), 'toast.failDelete'));
 		} finally {
 			isDeleting = false;
 		}
@@ -392,8 +394,8 @@
 			await startTorrents([torrent.id]);
 			toast.success(get(tt)('toast.started', { values: { name: torrent.name } }));
 			await torrentStore.refresh();
-		} catch {
-			toast.error(get(tt)('toast.failStart'));
+		} catch (err) {
+			toast.error(failText(err, get(tt), 'toast.failStart'));
 		}
 	}
 
@@ -402,8 +404,8 @@
 			await stopTorrents([torrent.id]);
 			toast.success(get(tt)('toast.paused', { values: { name: torrent.name } }));
 			await torrentStore.refresh();
-		} catch {
-			toast.error(get(tt)('toast.failPause'));
+		} catch (err) {
+			toast.error(failText(err, get(tt), 'toast.failPause'));
 		}
 	}
 
@@ -429,8 +431,8 @@
 			await setTorrentLabels(t.id, next);
 			toast.success(get(tt)(enabled ? toastKeys.off : toastKeys.on, { values: { name: t.name } }));
 			await torrentStore.refresh();
-		} catch {
-			toast.error(get(tt)(toastKeys.fail));
+		} catch (err) {
+			toast.error(failText(err, get(tt), toastKeys.fail));
 		}
 	}
 
@@ -678,7 +680,7 @@
 		</div>
 
 		<!-- Error banner -->
-		{#if torrentStore.error}
+		{#if torrentStore.error && !connectivity.offline}
 			<div class="flex items-start gap-3 rounded-lg border border-destructive/20 bg-destructive/5 p-4">
 				<AlertCircleIcon class="size-4 text-destructive flex-shrink-0 mt-0.5" />
 				<div class="text-sm">
@@ -719,6 +721,7 @@
 					<Button
 						size="sm"
 						class="font-display font-semibold"
+						disabled={connectivity.offline}
 						onclick={() => {
 							resetAddDialog();
 							addOpen = true;

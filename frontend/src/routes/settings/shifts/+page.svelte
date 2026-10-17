@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { get } from 'svelte/store';
 	import { toast } from 'svelte-sonner';
+	import { failText } from '$lib/offline.js';
 	import { t as tt } from 'svelte-intl-precompile';
 
 	import { Switch } from '$lib/components/ui/switch/index.js';
@@ -15,8 +16,8 @@
 	async function onShiftEnabledChange(shift: ShiftName, enabled: boolean) {
 		try {
 			await settingsStore.setShiftEnabled(shift, enabled);
-		} catch {
-			toast.error(get(tt)('toast.failShiftToggle'));
+		} catch (err) {
+			toast.error(failText(err, get(tt), 'toast.failShiftToggle'));
 		}
 	}
 </script>

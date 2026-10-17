@@ -24,6 +24,16 @@ export function formatEta(secs: number, t: Translator): string {
 	return `${s}${t('eta.s')}`;
 }
 
+/** Date and time of a millisecond timestamp, e.g. «17 окт., 14:05». */
+export function formatDateTime(ms: number, locale: string | null | undefined): string {
+	return new Date(ms).toLocaleString(locale ?? undefined, {
+		month: 'short',
+		day: 'numeric',
+		hour: '2-digit',
+		minute: '2-digit',
+	});
+}
+
 export function formatDate(ts: number, locale: string | null | undefined): string {
 	return new Date(ts * 1000).toLocaleDateString(locale ?? undefined, {
 		month: 'short',
