@@ -57,6 +57,7 @@
 	},
 	"actions": {
 		"resume": "Fortsetzen",
+		"resumeNoSpace": "Nicht genug freier Speicher zum Fortsetzen",
 		"pause": "Pausieren",
 		"delete": "Löschen",
 		"pin": "Torrent anheften",
@@ -108,7 +109,8 @@
 		"invalidPath": "Pfad muss absolut sein (mit / beginnen)",
 		"torrentSize": "Torrent-Größe",
 		"freeSpace": "Freier Speicher",
-		"notEnoughSpace": "Nicht genügend freier Speicherplatz im Zielordner"
+		"notEnoughSpace": "Nicht genügend freier Speicherplatz im Zielordner. Der Torrent wird hinzugefügt, startet aber erst, wenn Speicher frei ist.",
+		"addNoStartButton": "Hinzufügen ohne Start"
 	},
 	"fileSelectDialog": {
 		"title": "Dateien auswählen",
@@ -250,11 +252,13 @@
 	},
 	"toast": {
 		"added": "Torrent hinzugefügt",
+		"addedNoSpace": "Torrent hinzugefügt, wartet auf freien Speicher",
 		"deleted": "Gelöscht: {name}",
 		"started": "Gestartet: {name}",
 		"paused": "Pausiert: {name}",
 		"failAdd": "Torrent konnte nicht hinzugefügt werden",
 		"failStart": "Torrent konnte nicht gestartet werden",
+		"failStartNoSpace": "Nicht genug freier Speicher, um diesen Torrent zu starten",
 		"failPause": "Torrent konnte nicht pausiert werden",
 		"failDelete": "Torrent konnte nicht gelöscht werden",
 		"nightShiftOn": "Für Nachtschicht eingeplant: {name}",

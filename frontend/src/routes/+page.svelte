@@ -32,6 +32,7 @@
 	import { addTorrentMagnet, addTorrentFile, startTorrents, stopTorrents, removeTorrents, getTorrentFiles, setFilesWanted, setTorrentLabels, getFreeSpace } from '$lib/api.js';
 	import { formatSize, formatSpeed, formatEta, formatDate } from '$lib/format.js';
 	import { parseTorrentSize } from '$lib/bencode.js';
+	import { blockedBySpace, dirsToCheck } from '$lib/space.js';
 	import { DAY_SHIFT_LABEL, NIGHT_SHIFT_LABEL } from '$lib/bulk.js';
 	import { percent as impactPercent, reached as impactReached, undergiven as impactUndergiven } from '$lib/impact.js';
 	import type { Torrent, FilterStatus } from '$lib/types.js';
@@ -288,13 +289,15 @@
 	}
 
 	async function handleAdd() {
-		if (isAdding || notEnoughSpace) return;
+		if (isAdding) return;
 		isAdding = true;
+		// Without room the torrent is still added, but stays stopped
+		const noStart = notEnoughSpace;
 		try {
 			const dir = downloadDir.trim() || undefined;
 			if (addMode === 'magnet') {
 				if (!magnetUrl.trim()) return;
-				await addTorrentMagnet(magnetUrl.trim(), dir);
+				await addTorrentMagnet(magnetUrl.trim(), dir, noStart);
 			} else {
 				if (!pendingFile) return;
 				const b64 = await readFileAsBase64(pendingFile);
@@ -312,7 +315,9 @@
 
 				const files = await getTorrentFiles(added.id);
 
-				if (files.length <= 1) {
+				if (noStart) {
+					// Nothing to start: the torrent waits for free space
+				} else if (files.length <= 1) {
 					await startTorrents([added.id]);
 				} else {
 					if (dir) downloadDirStore.addDir(dir);
@@ -326,7 +331,7 @@
 				}
 			}
 			if (dir) downloadDirStore.addDir(dir);
-			toast.success(get(tt)('toast.added'));
+			toast.success(get(tt)(noStart ? 'toast.addedNoSpace' : 'toast.added'));
 			addOpen = false;
 			magnetUrl = '';
 			pendingFile = null;
@@ -387,7 +392,40 @@
 
 	// ── Torrent actions ───────────────────────────────────────────────────────
 
+	// Free space per download dir of stopped torrents: those that do not fit can't be started
+	let freeByDir = $state<Record<string, number>>({});
+	let freeByDirBusy = false;
+
+	$effect(() => {
+		const dirs = dirsToCheck(torrentStore.torrents);
+		if (freeByDirBusy) return;
+		if (dirs.length === 0) {
+			if (Object.keys(freeByDir).length > 0) freeByDir = {};
+			return;
+		}
+		freeByDirBusy = true;
+		Promise.all(
+			dirs.map((d) =>
+				getFreeSpace(d)
+					.then((bytes) => [d, bytes] as const)
+					.catch(() => null),
+			),
+		)
+			.then((entries) => {
+				const next: Record<string, number> = {};
+				for (const e of entries) if (e) next[e[0]] = e[1];
+				freeByDir = next;
+			})
+			.finally(() => {
+				freeByDirBusy = false;
+			});
+	});
+
 	async function handleStart(torrent: Torrent) {
+		if (blockedBySpace(torrent, freeByDir)) {
+			toast.error(get(tt)('toast.failStartNoSpace'));
+			return;
+		}
 		try {
 			await startTorrents([torrent.id]);
 			toast.success(get(tt)('toast.started', { values: { name: torrent.name } }));
@@ -827,10 +865,13 @@
 								<!-- Action buttons -->
 								<div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity touch-device:opacity-100">
 									{#if t.status === 0}
+										{@const noSpace = blockedBySpace(t, freeByDir)}
 										<button
 											onclick={(e) => { e.stopPropagation(); handleStart(t); }}
-											aria-label={$tt('actions.resume')}
-											class="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+											disabled={noSpace}
+											aria-label={$tt(noSpace ? 'actions.resumeNoSpace' : 'actions.resume')}
+											title={noSpace ? $tt('actions.resumeNoSpace') : undefined}
+											class="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
 										>
 											<PlayIcon class="size-3.5" />
 										</button>
@@ -942,10 +983,13 @@
 								<!-- Action buttons: visible on hover (desktop), always on touch -->
 								<div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity touch-device:opacity-100">
 									{#if t.status === 0}
+										{@const noSpace = blockedBySpace(t, freeByDir)}
 										<button
 											onclick={(e) => { e.stopPropagation(); handleStart(t); }}
-											aria-label={$tt('actions.resume')}
-											class="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+											disabled={noSpace}
+											aria-label={$tt(noSpace ? 'actions.resumeNoSpace' : 'actions.resume')}
+											title={noSpace ? $tt('actions.resumeNoSpace') : undefined}
+											class="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
 										>
 											<PlayIcon class="size-3.5" />
 										</button>
@@ -1143,12 +1187,12 @@
 			<Button
 				class="font-display font-semibold"
 				onclick={handleAdd}
-				disabled={isAdding || !isDirValid || notEnoughSpace || (addMode === 'magnet' ? !magnetUrl.trim() : !pendingFile)}
+				disabled={isAdding || !isDirValid || (addMode === 'magnet' ? !magnetUrl.trim() : !pendingFile)}
 			>
 				{#if isAdding}
 					<Spinner class="size-4" />
 				{/if}
-				{$tt('addDialog.addButton')}
+				{$tt(notEnoughSpace ? 'addDialog.addNoStartButton' : 'addDialog.addButton')}
 			</Button>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>

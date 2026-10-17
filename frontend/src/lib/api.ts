@@ -26,6 +26,7 @@ const TORRENT_FIELDS = [
 	'downloadedEver',
 	'uploadRatio',
 	'labels',
+	'leftUntilDone',
 ];
 
 async function rpc<T>(method: string, args?: Record<string, unknown>): Promise<T> {
@@ -57,9 +58,14 @@ export async function getFreeSpace(path: string): Promise<number> {
 	return data['size-bytes'];
 }
 
-export async function addTorrentMagnet(filename: string, downloadDir?: string): Promise<void> {
+export async function addTorrentMagnet(
+	filename: string,
+	downloadDir?: string,
+	paused?: boolean,
+): Promise<void> {
 	const args: Record<string, unknown> = { filename };
 	if (downloadDir) args['download-dir'] = downloadDir;
+	if (paused) args['paused'] = true;
 	await rpc('torrent-add', args);
 }
 
