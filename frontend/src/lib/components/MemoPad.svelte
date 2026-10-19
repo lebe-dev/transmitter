@@ -9,7 +9,7 @@
 	import { failText } from '$lib/offline.js';
 
 	/** Сколько строк показываем, пока текста меньше. */
-	const MIN_ROWS = 3;
+	const MIN_ROWS = 1;
 	const SAVE_DELAY = 800;
 
 	let draft = $state('');
@@ -84,6 +84,6 @@
 		oninput={onInput}
 		onblur={save}
 		placeholder={$tt('memo.placeholder')}
-		class="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm leading-5 outline-none transition-colors focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+		class="w-full resize-none rounded-lg border border-input bg-background px-3 py-1.5 text-sm leading-5 outline-none transition-colors focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
 	></textarea>
 </div>

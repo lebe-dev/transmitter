@@ -286,7 +286,6 @@
 	"globalPause": {
 		"pause": "Pausar todos los torrents",
 		"resume": "Reanudar los torrents pausados globalmente",
-		"active": "Todo está en pausa",
 		"paused": "Torrents pausados: {count}",
 		"resumed": "Torrents reanudados: {count}",
 		"failPause": "No se pudieron pausar todos los torrents",

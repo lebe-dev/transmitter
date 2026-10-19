@@ -132,13 +132,12 @@
 					disabled={pauseStore.busy || connectivity.offline}
 					aria-label={$tt(pauseStore.paused ? 'globalPause.resume' : 'globalPause.pause')}
 					aria-pressed={pauseStore.paused}
-					class="ml-auto sm:ml-0 h-8 rounded-lg flex flex-shrink-0 items-center justify-center gap-1.5 transition-colors disabled:opacity-50 {pauseStore.paused
-						? 'w-8 sm:w-auto sm:px-2.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/30 hover:bg-amber-500/15'
+					class="ml-auto sm:ml-0 h-8 rounded-lg flex flex-shrink-0 items-center justify-center transition-colors disabled:opacity-50 {pauseStore.paused
+						? 'w-8 bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/30 hover:bg-amber-500/15'
 						: 'w-8 text-muted-foreground hover:text-foreground hover:bg-accent'}"
 				>
 					{#if pauseStore.paused}
 						<PlayIcon class="size-4" />
-						<span class="hidden sm:inline text-xs font-medium whitespace-nowrap">{$tt('globalPause.active')}</span>
 					{:else}
 						<PauseIcon class="size-4" />
 					{/if}
