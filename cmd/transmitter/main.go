@@ -11,6 +11,7 @@ import (
 	"github.com/lebe-dev/transmitter/internal/bot"
 	"github.com/lebe-dev/transmitter/internal/config"
 	"github.com/lebe-dev/transmitter/internal/impact"
+	"github.com/lebe-dev/transmitter/internal/movie"
 	"github.com/lebe-dev/transmitter/internal/notes"
 	"github.com/lebe-dev/transmitter/internal/pause"
 	"github.com/lebe-dev/transmitter/internal/prefs"
@@ -79,8 +80,11 @@ func main() {
 	// The global pause from the web UI; the shifts stand still while it is on.
 	pauser := pause.New(client, prefStore, logger)
 
+	movies, closeMovies := startMoviePlugin(ctx, cfg, client, logger)
+	defer closeMovies()
+
 	tgBot := startBot(ctx, cfg, client, noteStore, logger, bot.Shifts{Configured: shiftOptions, Store: prefStore})
-	srv := startServer(cfg, client, noteStore, prefStore, pauser, version, logger, stop)
+	srv := startServer(cfg, client, noteStore, prefStore, pauser, movies, version, logger, stop)
 
 	go notes.NewCleaner(noteStore, client, cfg.NoteCleanupInterval, logger).Run(ctx)
 	go impactWorker.Run(ctx)
@@ -142,6 +146,36 @@ func configuredShifts(cfg *config.Config, logger *slog.Logger) []shift.Options {
 	return opts
 }
 
+// startMoviePlugin opens the Movie Plugin store and starts its worker when the
+// plugin is enabled. It returns a nil service (an untyped nil, so the server
+// sees the plugin as absent) and a no-op closer when it is disabled.
+func startMoviePlugin(ctx context.Context, cfg *config.Config, client *transmission.Client, logger *slog.Logger) (server.MovieService, func()) {
+	if !cfg.Movie.Enabled {
+		logger.Info("movie plugin disabled (MOVIE_PLUGIN_ENABLED=false)")
+		return nil, func() {}
+	}
+
+	store, err := movie.OpenStore(cfg.DBPath)
+	if err != nil {
+		logger.Error("movie plugin database init failed", "path", cfg.DBPath, "err", err)
+		os.Exit(1)
+	}
+
+	source := movie.NewTMDB(cfg.Movie.TMDBAPIURL, cfg.Movie.TMDBImageURL, cfg.Movie.TMDBAPIKey, cfg.Movie.Language)
+	svc := movie.NewService(store, source, client, movie.Options{
+		Interval:   cfg.Movie.ScanInterval,
+		Batch:      cfg.Movie.ScanBatch,
+		AutoDetect: cfg.Movie.AutoDetect,
+		Backfill:   cfg.Movie.Backfill,
+		AutoRename: cfg.Movie.AutoRename,
+		Template:   cfg.Movie.Template,
+		PosterDir:  cfg.Movie.PosterDir,
+	}, logger)
+	go svc.Run(ctx)
+
+	return svc, func() { store.Close() } //nolint:errcheck
+}
+
 // startBot initializes and starts the Telegram bot when enabled, returning nil when disabled.
 func startBot(ctx context.Context, cfg *config.Config, client *transmission.Client, noteStore bot.NoteSource, logger *slog.Logger, shifts bot.Shifts) *bot.Bot {
 	if !cfg.TelegramBotEnabled {
@@ -173,13 +207,13 @@ type prefStore interface {
 }
 
 // startServer initializes and starts the HTTP server when enabled, returning nil when disabled.
-func startServer(cfg *config.Config, client *transmission.Client, noteStore server.NoteStore, prefStore prefStore, pauser server.Pauser, version string, logger *slog.Logger, stop context.CancelFunc) *server.Server {
+func startServer(cfg *config.Config, client *transmission.Client, noteStore server.NoteStore, prefStore prefStore, pauser server.Pauser, movies server.MovieService, version string, logger *slog.Logger, stop context.CancelFunc) *server.Server {
 	if !cfg.WebUIEnabled {
 		logger.Info("web UI disabled (WEBUI_ENABLED=false)")
 		return nil
 	}
 
-	srv, err := server.New(cfg, client, noteStore, prefStore, prefStore, prefStore, pauser, version, static.FS, logger)
+	srv, err := server.New(cfg, client, noteStore, prefStore, prefStore, prefStore, pauser, movies, version, static.FS, logger)
 	if err != nil {
 		logger.Error("server init failed", "err", err)
 		os.Exit(1)

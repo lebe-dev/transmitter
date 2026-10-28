@@ -57,6 +57,8 @@ class SettingsStore {
 	impactTargetRatio = $state(1);
 	/** Снимать ли раздачу автоматически, когда она отдала цель. */
 	impactAutoStopEnabled = $state(false);
+	/** Movie Plugin включён на сервере (MOVIE_PLUGIN_ENABLED). */
+	moviePluginEnabled = $state(false);
 
 	day = $state<ShiftState>({ configured: false, enabled: false });
 	night = $state<ShiftState>({ configured: false, enabled: false });
@@ -141,6 +143,7 @@ class SettingsStore {
 		this.noteMaxLength = s.noteMaxLength;
 		this.impactTargetRatio = s.impactTargetRatio;
 		this.impactAutoStopEnabled = s.impactAutoStopEnabled;
+		this.moviePluginEnabled = s.moviePluginEnabled ?? false;
 		this.day = {
 			configured: s.dayShiftConfigured,
 			enabled: s.dayShiftEnabled,

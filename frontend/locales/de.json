@@ -25,7 +25,9 @@
 		"seeding": "Seeden",
 		"paused": "Pausiert",
 		"done": "Fertig",
-		"undergiven": "Nicht zurückgegeben"
+		"undergiven": "Nicht zurückgegeben",
+		"unwatched": "Nicht gesehen",
+		"missingSubs": "Ohne Untertitel"
 	},
 	"sort": {
 		"label": "Sortierung:",
@@ -186,7 +188,20 @@
 			"noteMaxLength": "Maximale Länge einer Torrent-Notiz in Zeichen.",
 			"noteCleanupInterval": "Wie oft Notizen nicht mehr vorhandener Torrents entfernt werden.",
 			"impactTargetRatio": "Upload-Verhältnis, das als vollständige Rückgabe gilt: 1 bedeutet, der Torrent hat so viel hochgeladen wie heruntergeladen.",
-			"impactInterval": "Wie oft Torrents auf das Ziel-Upload-Verhältnis geprüft werden."
+			"impactInterval": "Wie oft Torrents auf das Ziel-Upload-Verhältnis geprüft werden.",
+			"moviePluginEnabled": "Movie Plugin: erkennt Filme und Serien am Torrent-Namen, zeigt Poster, benennt Torrents um und speichert die Markierungen gesehen / Untertitel fehlen.",
+			"movie": {
+				"tmdbApiUrl": "TMDB-API-Endpunkt. Kann durch einen Spiegel ersetzt werden.",
+				"tmdbImageUrl": "TMDB-Bild-Endpunkt für Poster.",
+				"language": "Sprache von Titeln und Beschreibungen (TMDB-Locale, z. B. de-DE, en-US).",
+				"autoDetect": "Torrents erkennen, die nach dem Aktivieren des Plugins hinzugefügt wurden.",
+				"backfill": "Torrents, die schon vor dem Plugin da waren, nach und nach erkennen.",
+				"autoRename": "Neue Torrents direkt nach einer sicheren Zuordnung umbenennen. Torrents von vor dem Plugin werden nie automatisch umbenannt.",
+				"renameTemplate": "Namensvorlage. Platzhalter in geschweiften Klammern: title, original_title, year, season, tmdb_id, imdb_id, type.",
+				"scanInterval": "Wie oft nach neuen Torrents gesucht wird.",
+				"scanBatch": "Wie viele Torrents pro Durchlauf erkannt werden.",
+				"posterDir": "Wo Poster zwischengespeichert werden."
+			}
 		},
 		"impactAutoStop": "Seeding beenden, sobald {percent}% zurückgegeben sind",
 		"impactAutoStopHint": "Ein Torrent, der {percent}% des Heruntergeladenen hochgeladen hat, wird automatisch pausiert. Solange die Option aktiv ist, starten die Schichten solche Torrents nicht neu."
@@ -290,5 +305,70 @@
 		"resumed": "Fortgesetzte Torrents: {count}",
 		"failPause": "Torrents konnten nicht pausiert werden",
 		"failResume": "Torrents konnten nicht fortgesetzt werden"
+	},
+	"movie": {
+		"menu": "Film",
+		"close": "Schließen",
+		"cancel": "Abbrechen",
+		"state": {
+			"unmatched": "Nicht erkannt",
+			"skipped": "Keine Videodateien",
+			"failed": "Suche fehlgeschlagen, wird wiederholt",
+			"pending": "Noch nicht geprüft"
+		},
+		"actions": {
+			"info": "Poster und Details",
+			"markWatched": "Als gesehen markieren",
+			"markUnwatched": "Als nicht gesehen markieren",
+			"missingSubs": "Untertitel fehlen",
+			"hasSubs": "Untertitel gefunden",
+			"rename": "Auf der Festplatte umbenennen…",
+			"detect": "Erneut erkennen",
+			"link": "Link angeben…",
+			"clear": "Zuordnung entfernen"
+		},
+		"toast": {
+			"watched": "Als gesehen markiert",
+			"unwatched": "Als nicht gesehen markiert",
+			"missingSubs": "Markiert: Untertitel fehlen",
+			"hasSubs": "Markierung entfernt: Untertitel gefunden",
+			"failFlags": "Markierung konnte nicht gespeichert werden",
+			"detected": "Erkannt: {title}",
+			"notDetected": "Für „{query}“ wurde nichts gefunden. Bitte einen Link angeben.",
+			"failDetect": "Suche fehlgeschlagen",
+			"cleared": "Zuordnung entfernt",
+			"failClear": "Zuordnung konnte nicht entfernt werden",
+			"linked": "Zugeordnet: {title}",
+			"failLink": "Titel konnte nicht zugeordnet werden",
+			"linkNotFound": "Unter diesem Link wurde nichts gefunden",
+			"linkUnsupported": "Bitte einen TMDB- oder IMDb-Link einfügen",
+			"renamed": "Umbenannt in „{name}“",
+			"failRename": "Umbenennen fehlgeschlagen"
+		},
+		"info": {
+			"posterAlt": "Poster: {title}",
+			"noPoster": "Kein Poster",
+			"tv": "Serie",
+			"movie": "Film",
+			"watched": "Gesehen",
+			"missingSubs": "Untertitel fehlen",
+			"noOverview": "Keine Beschreibung.",
+			"manual": "Manuell angegeben",
+			"detectedFrom": "Erkannt anhand von: {query}",
+			"notConfident": "Jahr oder Titel stimmten nicht genau überein – bitte prüfen, ob es der richtige Titel ist.",
+			"renamedTo": "Auf der Festplatte umbenannt in: {name}"
+		},
+		"link": {
+			"title": "Titel per Link angeben",
+			"description": "Link zur Titelseite auf TMDB oder IMDb einfügen.",
+			"hint": "Zum Beispiel themoviedb.org/movie/157336 oder imdb.com/title/tt0816692. Der Link ersetzt den erkannten Titel.",
+			"submit": "Zuordnen"
+		},
+		"rename": {
+			"title": "Auf der Festplatte umbenennen",
+			"description": "Transmission benennt den Ordner (oder die einzige Datei) des Torrents um; das Seeden läuft weiter.",
+			"same": "Der Torrent hat bereits diesen Namen.",
+			"submit": "Umbenennen"
+		}
 	}
 }

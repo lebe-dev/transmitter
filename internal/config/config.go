@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -23,6 +24,14 @@ const (
 	// defaultImpactInterval is how often the impact worker looks for torrents that
 	// reached the target ratio.
 	defaultImpactInterval = 5 * time.Minute
+	// defaultMovieLanguage is the TMDB locale for titles and descriptions.
+	defaultMovieLanguage = "en-US"
+	// defaultMovieRenameTemplate gives Plex/Jellyfin-friendly names.
+	defaultMovieRenameTemplate = "{title} ({year})"
+	// defaultMovieScanInterval is how often the movie plugin looks for new torrents.
+	defaultMovieScanInterval = time.Minute
+	// defaultMovieScanBatch caps the lookups per round of the movie plugin.
+	defaultMovieScanBatch = 10
 )
 
 // Config holds all application configuration loaded from environment variables.
@@ -58,6 +67,24 @@ type Config struct {
 	NoteCleanupInterval   time.Duration
 	SentryDSN             string
 	SentryEnvironment     string
+	Movie                 MovieConfig
+}
+
+// MovieConfig configures the Movie Plugin: title detection on TMDB, posters,
+// renaming and the watched / missing subtitles marks.
+type MovieConfig struct {
+	Enabled      bool
+	TMDBAPIKey   string
+	TMDBAPIURL   string
+	TMDBImageURL string
+	Language     string
+	AutoDetect   bool
+	Backfill     bool
+	AutoRename   bool
+	Template     string
+	ScanInterval time.Duration
+	ScanBatch    int
+	PosterDir    string
 }
 
 // DayTime represents a wall-clock time of day (hours and minutes, 0..24h-1m).
@@ -122,6 +149,12 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("SENTRY_ENVIRONMENT is required when SENTRY_DSN is set")
 	}
 
+	movie, err := parseMovieConfig(cfg.DBPath)
+	if err != nil {
+		return nil, err
+	}
+	cfg.Movie = movie
+
 	nightStart, nightEnd, nightEnabled, err := parseShiftWindow("NIGHT_SHIFT")
 	if err != nil {
 		return nil, err
@@ -165,6 +198,36 @@ func parseTelegramUsers(usersStr string) []string {
 		users = append(users, part)
 	}
 	return users
+}
+
+// parseMovieConfig reads the MOVIE_* and TMDB_* variables. Posters are cached
+// next to the database unless MOVIE_POSTER_DIR says otherwise.
+func parseMovieConfig(dbPath string) (MovieConfig, error) {
+	mc := MovieConfig{
+		Enabled:      parseBoolDefault(os.Getenv("MOVIE_PLUGIN_ENABLED"), false),
+		TMDBAPIKey:   strings.TrimSpace(os.Getenv("TMDB_API_KEY")),
+		TMDBAPIURL:   envOrDefault("TMDB_API_URL", "https://api.themoviedb.org/3"),
+		TMDBImageURL: envOrDefault("TMDB_IMAGE_URL", "https://image.tmdb.org/t/p"),
+		Language:     envOrDefault("MOVIE_LANGUAGE", defaultMovieLanguage),
+		AutoDetect:   parseBoolDefault(os.Getenv("MOVIE_AUTO_DETECT"), true),
+		Backfill:     parseBoolDefault(os.Getenv("MOVIE_BACKFILL"), true),
+		AutoRename:   parseBoolDefault(os.Getenv("MOVIE_AUTO_RENAME"), true),
+		Template:     envOrDefault("MOVIE_RENAME_TEMPLATE", defaultMovieRenameTemplate),
+		ScanInterval: parseDuration(os.Getenv("MOVIE_SCAN_INTERVAL"), defaultMovieScanInterval),
+		ScanBatch:    parsePositiveInt(os.Getenv("MOVIE_SCAN_BATCH"), defaultMovieScanBatch),
+		PosterDir:    envOrDefault("MOVIE_POSTER_DIR", filepath.Join(filepath.Dir(dbPath), "posters")),
+	}
+	if !mc.Enabled {
+		return mc, nil
+	}
+	if mc.TMDBAPIKey == "" {
+		return MovieConfig{}, fmt.Errorf("TMDB_API_KEY is required when MOVIE_PLUGIN_ENABLED=true")
+	}
+	// A template without the title would give every torrent the same name.
+	if !strings.Contains(mc.Template, "{title}") && !strings.Contains(mc.Template, "{original_title}") {
+		return MovieConfig{}, fmt.Errorf("MOVIE_RENAME_TEMPLATE must contain {title} or {original_title}")
+	}
+	return mc, nil
 }
 
 // parseShiftWindow reads the <prefix>_START/<prefix>_END window, e.g. NIGHT_SHIFT or DAY_SHIFT.

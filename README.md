@@ -17,6 +17,7 @@ Transmitter is a modern, lightweight alternative to Transmission's stock UI. Run
 - **Impact** — how much a torrent gave back of what it took. A trophy marks the ones that uploaded 100% of their download, the «Not repaid» filter shows the rest (send them to a shift in bulk), and an optional switch stops a torrent once it reaches the target
 - **Global pause** — one button in the header pauses every running torrent and remembers which ones they were; resuming starts only those, so torrents you had stopped stay stopped. The state is stored server-side and survives a restart; shifts stand still while the pause is on
 - **Scratchpad** — a free-form note at the top of the main screen (3 lines by default, grows with the text), autosaved to SQLite
+- **Movie Plugin** (off by default, `MOVIE_PLUGIN_ENABLED=true`) — recognizes films, cartoons and series by the torrent name (scene names with dots, "Русское / Original [2014, …]" names), pulls the poster and description from TMDB, renames the torrent folder or file on disk (via Transmission, seeding continues) by a template, and keeps the «watched» and «missing subtitles» marks with their own filters. A wrong or missing match is fixed from the card menu with a TMDB or IMDb link. New torrents are recognized right after they are added, existing ones gradually in the background; only new ones are renamed automatically
 - **Offline mode** — without a connection the UI still opens and shows the torrents, notes and settings as of the last sync, with a banner saying so; actions that need the server are unavailable until it is back. Opening the page itself offline requires HTTPS or localhost (service worker)
 - **Support locales**: en, ru, es, de
 - **Docker images**: linux/amd64, linux/arm/v7, linux/arm64/v8
@@ -64,6 +65,11 @@ All settings via environment variables:
 | `IMPACT_INTERVAL` | No | `5m` |
 | `SENTRY_DSN` | No | — (disabled) |
 | `SENTRY_ENVIRONMENT` | If using Sentry | — |
+| `MOVIE_PLUGIN_ENABLED` | No | `false` |
+| `TMDB_API_KEY` | If using Movie Plugin | — |
+| `MOVIE_LANGUAGE` | No | `en-US` |
+| `MOVIE_RENAME_TEMPLATE` | No | `{title} ({year})` |
+| `MOVIE_AUTO_DETECT` / `MOVIE_BACKFILL` / `MOVIE_AUTO_RENAME` | No | `true` |
 
 For all options, see [.env.example](.env.example).
 
@@ -74,6 +80,5 @@ See [SECURITY.md](docs/SECURITY.md).
 ## Roadmap
 
 - Web UI authentication
-- Video plugin
 - Support multiple Transmission instances
 - RSS feeds for automatic torrent addition

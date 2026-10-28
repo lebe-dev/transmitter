@@ -1,4 +1,6 @@
 import type {
+	MovieRecord,
+	MovieRecords,
 	ShiftName,
 	Torrent,
 	TorrentDetail,
@@ -254,4 +256,68 @@ export async function setGlobalPause(paused: boolean): Promise<number> {
 	if (!res.ok) throw new Error(`HTTP ${res.status}`);
 	const data: { count: number } = await res.json();
 	return data.count;
+}
+
+// ── Movie Plugin ─────────────────────────────────────────────────────────
+
+/** Достаёт текст ошибки из {"error": ...}, иначе — HTTP-статус. */
+async function failure(res: Response): Promise<Error> {
+	try {
+		const data: { error?: string } = await res.json();
+		if (data.error) return new Error(data.error);
+	} catch {
+		// not JSON
+	}
+	return new Error(`HTTP ${res.status}`);
+}
+
+async function movieRequest<T>(path: string, init?: RequestInit): Promise<T> {
+	const res = await request(`/api/movies${path}`, init);
+	if (!res.ok) throw await failure(res);
+	return res.json();
+}
+
+function jsonBody(method: string, body: unknown): RequestInit {
+	return { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+}
+
+export function getMovies(): Promise<MovieRecords> {
+	return movieRequest('');
+}
+
+/** Заново распознаёт фильм по имени раздачи. */
+export function detectMovie(hashString: string): Promise<MovieRecord> {
+	return movieRequest(`/${hashString}/detect`, { method: 'POST' });
+}
+
+/** Привязывает раздачу к фильму по ссылке на TMDB или IMDb. */
+export function linkMovie(hashString: string, url: string): Promise<MovieRecord> {
+	return movieRequest(`/${hashString}/link`, jsonBody('PUT', { url }));
+}
+
+/** Сбрасывает найденный фильм; фон больше не будет искать его сам. */
+export function clearMovie(hashString: string): Promise<MovieRecord> {
+	return movieRequest(`/${hashString}/match`, { method: 'DELETE' });
+}
+
+export function setMovieFlags(
+	hashString: string,
+	flags: { watched?: boolean; missingSubs?: boolean },
+): Promise<MovieRecord> {
+	return movieRequest(`/${hashString}/flags`, jsonBody('PUT', flags));
+}
+
+export function getRenamePreview(hashString: string): Promise<{ current: string; target: string }> {
+	return movieRequest(`/${hashString}/rename`);
+}
+
+/** Переименовывает папку (или единственный файл) раздачи на диске; возвращает новое имя. */
+export async function renameMovie(hashString: string): Promise<string> {
+	const data = await movieRequest<{ name: string }>(`/${hashString}/rename`, { method: 'POST' });
+	return data.name;
+}
+
+/** URL обложки; id фильма в query сбрасывает кэш браузера при смене фильма. */
+export function moviePosterUrl(hashString: string, tmdbId: number | undefined): string {
+	return `/api/movies/${hashString}/poster?v=${tmdbId ?? 0}`;
 }

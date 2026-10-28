@@ -25,7 +25,9 @@
 		"seeding": "Seeding",
 		"paused": "Paused",
 		"done": "Done",
-		"undergiven": "Not repaid"
+		"undergiven": "Not repaid",
+		"unwatched": "Not watched",
+		"missingSubs": "No subtitles"
 	},
 	"sort": {
 		"label": "Sort:",
@@ -186,7 +188,20 @@
 			"noteMaxLength": "Maximum length of a torrent note, in characters.",
 			"noteCleanupInterval": "How often notes of torrents that no longer exist are removed.",
 			"impactTargetRatio": "Upload ratio counted as a full payback: 1 means the torrent uploaded as much as it downloaded.",
-			"impactInterval": "How often torrents are checked against the target upload ratio."
+			"impactInterval": "How often torrents are checked against the target upload ratio.",
+			"moviePluginEnabled": "Movie Plugin: recognizes films and series by the torrent name, shows posters, renames torrents and keeps the watched / missing subtitles marks.",
+			"movie": {
+				"tmdbApiUrl": "TMDB API endpoint. Override it to go through a mirror.",
+				"tmdbImageUrl": "TMDB image endpoint for posters.",
+				"language": "Language of titles and descriptions (TMDB locale, e.g. en-US, ru-RU).",
+				"autoDetect": "Recognize torrents added after the plugin was enabled.",
+				"backfill": "Gradually recognize torrents that were there before the plugin.",
+				"autoRename": "Rename new torrents right after a confident match. Torrents that predate the plugin are never renamed automatically.",
+				"renameTemplate": "Name template. Placeholders in curly braces: title, original_title, year, season, tmdb_id, imdb_id, type.",
+				"scanInterval": "How often new torrents are looked for.",
+				"scanBatch": "How many torrents are looked up per round.",
+				"posterDir": "Where posters are cached."
+			}
 		},
 		"impactAutoStop": "Stop seeding once {percent}% is given back",
 		"impactAutoStopHint": "A torrent that uploaded {percent}% of what it downloaded is paused automatically. While this is on, the shifts do not restart such torrents."
@@ -290,5 +305,70 @@
 		"resumed": "Resumed torrents: {count}",
 		"failPause": "Failed to pause all torrents",
 		"failResume": "Failed to resume torrents"
+	},
+	"movie": {
+		"menu": "Movie",
+		"close": "Close",
+		"cancel": "Cancel",
+		"state": {
+			"unmatched": "Not recognized",
+			"skipped": "No video files",
+			"failed": "Lookup failed, will retry",
+			"pending": "Not checked yet"
+		},
+		"actions": {
+			"info": "Poster and details",
+			"markWatched": "Mark as watched",
+			"markUnwatched": "Mark as not watched",
+			"missingSubs": "Subtitles are missing",
+			"hasSubs": "Subtitles are found",
+			"rename": "Rename on disk…",
+			"detect": "Detect again",
+			"link": "Set link…",
+			"clear": "Clear match"
+		},
+		"toast": {
+			"watched": "Marked as watched",
+			"unwatched": "Marked as not watched",
+			"missingSubs": "Marked: subtitles are missing",
+			"hasSubs": "Mark removed: subtitles are found",
+			"failFlags": "Failed to save the mark",
+			"detected": "Recognized: {title}",
+			"notDetected": "Nothing found for “{query}”. Set a link instead.",
+			"failDetect": "Lookup failed",
+			"cleared": "Match cleared",
+			"failClear": "Failed to clear the match",
+			"linked": "Linked: {title}",
+			"failLink": "Failed to link the title",
+			"linkNotFound": "Nothing found at this link",
+			"linkUnsupported": "Paste a TMDB or IMDb link",
+			"renamed": "Renamed to “{name}”",
+			"failRename": "Failed to rename"
+		},
+		"info": {
+			"posterAlt": "Poster: {title}",
+			"noPoster": "No poster",
+			"tv": "Series",
+			"movie": "Movie",
+			"watched": "Watched",
+			"missingSubs": "Subtitles are missing",
+			"noOverview": "No description.",
+			"manual": "Set manually",
+			"detectedFrom": "Recognized from: {query}",
+			"notConfident": "The year or title did not match exactly — check that this is the right title.",
+			"renamedTo": "Renamed on disk to: {name}"
+		},
+		"link": {
+			"title": "Set the title by link",
+			"description": "Paste a link to the title page on TMDB or IMDb.",
+			"hint": "For example themoviedb.org/movie/157336 or imdb.com/title/tt0816692. The link replaces the recognized title.",
+			"submit": "Link"
+		},
+		"rename": {
+			"title": "Rename on disk",
+			"description": "The folder (or the only file) of the torrent is renamed by Transmission; seeding continues.",
+			"same": "The torrent already has this name.",
+			"submit": "Rename"
+		}
 	}
 }

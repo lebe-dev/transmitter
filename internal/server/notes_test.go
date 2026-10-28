@@ -204,7 +204,7 @@ func TestProxyHandlerDeletesNotesOfRemovedTorrents(t *testing.T) {
 	store.Set(ctx, testOtherHash, "keep") //nolint:errcheck
 
 	client := removeBackend(t, []string{testHash}, "success")
-	h := ProxyHandler(client, AutoPriorityConfig{}, 1024, store)
+	h := ProxyHandler(client, AutoPriorityConfig{}, 1024, store, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/rpc",
 		strings.NewReader(`{"method":"torrent-remove","arguments":{"ids":[7]}}`))
@@ -231,7 +231,7 @@ func TestProxyHandlerKeepsNotesWhenRemoveFails(t *testing.T) {
 	store.Set(ctx, testHash, "still here") //nolint:errcheck
 
 	client := removeBackend(t, []string{testHash}, "failure")
-	h := ProxyHandler(client, AutoPriorityConfig{}, 1024, store)
+	h := ProxyHandler(client, AutoPriorityConfig{}, 1024, store, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/rpc",
 		strings.NewReader(`{"method":"torrent-remove","arguments":{"ids":[7]}}`))
@@ -252,7 +252,7 @@ func TestProxyHandlerSkipsHashLookupWithoutNoteStore(t *testing.T) {
 		return transmission.RPCResponse{Result: "success"}
 	})
 
-	h := ProxyHandler(client, AutoPriorityConfig{}, 1024, nil)
+	h := ProxyHandler(client, AutoPriorityConfig{}, 1024, nil, nil)
 	req := httptest.NewRequest(http.MethodPost, "/api/rpc",
 		strings.NewReader(`{"method":"torrent-remove","arguments":{"ids":[7]}}`))
 	rec := httptest.NewRecorder()
