@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { get } from 'svelte/store';
 	import { toast } from 'svelte-sonner';
 	import { t as tt } from 'svelte-intl-precompile';
@@ -13,7 +14,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { getRenamePreview, moviePosterUrl } from '$lib/api.js';
-	import { imdbUrl, movieLabel, tmdbUrl, type MovieDialogKind } from '$lib/movie.js';
+	import { imdbUrl, movieLabel, previousLink, tmdbUrl, type MovieDialogKind } from '$lib/movie.js';
 	import { movieStore } from '$lib/movies.svelte.js';
 	import { torrentStore } from '$lib/stores.svelte.js';
 	import { errorText } from '$lib/offline.js';
@@ -56,9 +57,19 @@
 	// ── Link ──────────────────────────────────────────────────────────────
 
 	let linkUrl = $state('');
+	let linkInput = $state<HTMLInputElement | null>(null);
 	$effect(() => {
-		if (kind === 'link') linkUrl = '';
+		// Подставляем прошлую ссылку: так видно, чем задано название сейчас.
+		// Только при открытии — обновление списка не должно затирать ввод.
+		if (kind === 'link') linkUrl = untrack(() => previousLink(rec));
 	});
+
+	/** Фокус в поле ссылки вместо первой кнопки; прошлая ссылка выделена, чтобы её сразу заменить вставкой. */
+	function focusLinkInput(e: Event) {
+		e.preventDefault();
+		linkInput?.focus();
+		linkInput?.select();
+	}
 
 	async function submitLink() {
 		if (!torrent || !linkUrl.trim() || busyKinds.link) return;
@@ -222,7 +233,7 @@
 
 <!-- ── Link to TMDB / IMDb ─────────────────────────────────────────────── -->
 <AlertDialog.Root open={kind === 'link'} onOpenChange={(open) => !open && close()}>
-	<AlertDialog.Content class="sm:max-w-md">
+	<AlertDialog.Content class="sm:max-w-md" onOpenAutoFocus={focusLinkInput}>
 		<AlertDialog.Header class="min-w-0 pb-2">
 			<AlertDialog.Title class="font-display text-lg font-semibold">{$tt('movie.link.title')}</AlertDialog.Title>
 			<AlertDialog.Description class="min-w-0">
@@ -237,6 +248,7 @@
 			inputmode="url"
 			placeholder="https://www.themoviedb.org/movie/157336"
 			class="w-full h-10 rounded-lg border border-input bg-background px-3 text-sm outline-none transition-colors focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+			bind:this={linkInput}
 			bind:value={linkUrl}
 			disabled={busyKinds.link}
 			onkeydown={(e) => e.key === 'Enter' && submitLink()}

@@ -19,6 +19,16 @@ export function imdbUrl(rec: MovieRecord): string | null {
 	return rec.imdbId ? `https://www.imdb.com/title/${rec.imdbId}/` : null;
 }
 
+/**
+ * Ссылка, которой задано текущее совпадение: та, что вводил пользователь,
+ * или ссылка на TMDB для распознанного приложением названия.
+ */
+export function previousLink(rec: MovieRecord | undefined): string {
+	if (!rec || rec.state !== 'matched') return '';
+	if (rec.manual && rec.query) return rec.query;
+	return tmdbUrl(rec) ?? '';
+}
+
 /** Раздача с видео: распознана или хотя бы искалась (а не пропущена как не-видео). */
 function isVideo(rec: MovieRecord | undefined): boolean {
 	return rec?.state === 'matched' || rec?.state === 'unmatched';

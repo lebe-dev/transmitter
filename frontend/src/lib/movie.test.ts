@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { imdbUrl, matchesSearch, missingSubs, movieLabel, tmdbUrl, unwatched } from './movie.js';
+import { imdbUrl, matchesSearch, missingSubs, movieLabel, previousLink, tmdbUrl, unwatched } from './movie.js';
 import type { MovieRecord } from './types.js';
 
 function rec(patch: Partial<MovieRecord> = {}): MovieRecord {
@@ -57,5 +57,23 @@ describe('matchesSearch', () => {
 		expect(matchesSearch(r, 'stellar')).toBe(true);
 		expect(matchesSearch(r, 'matrix')).toBe(false);
 		expect(matchesSearch(undefined, 'x')).toBe(false);
+	});
+});
+
+describe('previousLink', () => {
+	it('returns the link the user applied', () => {
+		expect(previousLink(rec({ manual: true, query: 'https://www.imdb.com/title/tt0816692/', tmdbId: 157336, mediaType: 'movie' }))).toBe(
+			'https://www.imdb.com/title/tt0816692/',
+		);
+	});
+	it('builds the TMDB link of a detected title', () => {
+		expect(previousLink(rec({ query: 'Interstellar (2014)', tmdbId: 157336, mediaType: 'movie' }))).toBe(
+			'https://www.themoviedb.org/movie/157336',
+		);
+	});
+	it('is empty for a title that was not matched or was cleared', () => {
+		expect(previousLink(undefined)).toBe('');
+		expect(previousLink(rec({ state: 'unmatched', query: 'Interstellar' }))).toBe('');
+		expect(previousLink(rec({ state: 'unmatched', manual: true, query: '' }))).toBe('');
 	});
 });
