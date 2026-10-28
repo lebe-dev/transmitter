@@ -182,3 +182,24 @@ func TestPauseState(t *testing.T) {
 		t.Fatalf("PauseState() = %v, %v, %v; want cleared", paused, hashes, err)
 	}
 }
+
+func TestMovieAutoRemoveDisabledByDefault(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "prefs.db")
+	ctx := context.Background()
+	store := newStore(t, path)
+
+	enabled, err := store.MovieAutoRemoveEnabled(ctx)
+	if err != nil || enabled {
+		t.Fatalf("MovieAutoRemoveEnabled() = %v, %v, want false until the user switches it on", enabled, err)
+	}
+
+	if err := store.SetMovieAutoRemoveEnabled(ctx, true); err != nil {
+		t.Fatalf("SetMovieAutoRemoveEnabled() error = %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+	if enabled, _ := newStore(t, path).MovieAutoRemoveEnabled(ctx); !enabled {
+		t.Error("MovieAutoRemoveEnabled() = false after reopen, want the stored true")
+	}
+}

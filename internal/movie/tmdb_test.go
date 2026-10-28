@@ -72,22 +72,75 @@ func TestTMDBFindIMDb(t *testing.T) {
 		case "/find/tt0903747":
 			w.Write([]byte(`{"movie_results":[],"tv_results":[{"id":1396}]}`)) //nolint:errcheck
 		case "/tv/1396":
-			if r.URL.Query().Get("append_to_response") != "external_ids" {
-				t.Error("series details must ask for external ids")
+			if r.URL.Query().Get("append_to_response") != "external_ids,translations" {
+				t.Error("series details must ask for external ids and translations")
 			}
-			w.Write([]byte(`{"id":1396,"name":"Во все тяжкие","original_name":"Breaking Bad","first_air_date":"2008-01-20","external_ids":{"imdb_id":"tt0903747"}}`)) //nolint:errcheck
+			w.Write([]byte(`{"id":1396,"name":"Во все тяжкие","original_name":"Breaking Bad","first_air_date":"2008-01-20","external_ids":{"imdb_id":"tt0903747"},` + //nolint:errcheck
+				`"translations":{"translations":[{"iso_639_1":"en","iso_3166_1":"US","data":{"name":"Breaking Bad"}}]}}`))
 		default:
 			http.NotFound(w, r)
 		}
 	})
 
 	m, err := c.FindIMDb(context.Background(), "tt0903747")
-	if err != nil || m.MediaType != MediaTV || m.IMDbID != "tt0903747" || m.Year != 2008 {
+	if err != nil || m.MediaType != MediaTV || m.IMDbID != "tt0903747" || m.Year != 2008 || m.EnglishTitle != "Breaking Bad" {
 		t.Errorf("FindIMDb() = %+v, %v", m, err)
 	}
 
 	if _, err := c.FindIMDb(context.Background(), "tt9999999"); !errors.Is(err, ErrNotFound) {
 		t.Errorf("FindIMDb(unknown) error = %v, want ErrNotFound", err)
+	}
+}
+
+func TestTMDBDetailsEnglishTitle(t *testing.T) {
+	tests := []struct {
+		name     string
+		language string
+		body     string
+		want     string
+	}{
+		{
+			name:     "US translation wins over other English ones",
+			language: "ru-RU",
+			body: `{"id":1,"title":"Амели","original_title":"Le Fabuleux Destin d'Amélie Poulain","original_language":"fr",` +
+				`"translations":{"translations":[{"iso_639_1":"en","iso_3166_1":"GB","data":{"title":"Amelie"}},` +
+				`{"iso_639_1":"en","iso_3166_1":"US","data":{"title":"Amélie"}},{"iso_639_1":"de","iso_3166_1":"DE","data":{"title":"Die fabelhafte Welt der Amélie"}}]}}`,
+			want: "Amélie",
+		},
+		{
+			name:     "English original without a translation",
+			language: "ru-RU",
+			body:     `{"id":2,"title":"Интерстеллар","original_title":"Interstellar","original_language":"en","translations":{"translations":[]}}`,
+			want:     "Interstellar",
+		},
+		{
+			name:     "English client language",
+			language: "en-US",
+			body:     `{"id":3,"title":"Brother","original_title":"Брат","original_language":"ru"}`,
+			want:     "Brother",
+		},
+		{
+			name:     "no English title at all",
+			language: "ru-RU",
+			body:     `{"id":4,"title":"Брат","original_title":"Брат","original_language":"ru"}`,
+			want:     "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Query().Get("append_to_response") != "translations" {
+					t.Errorf("movie details must ask for translations, got %s", r.URL)
+				}
+				w.Write([]byte(tt.body)) //nolint:errcheck
+			}))
+			defer srv.Close()
+
+			m, err := NewTMDB(srv.URL, "", "key", tt.language).Details(context.Background(), MediaMovie, 1)
+			if err != nil || m.EnglishTitle != tt.want {
+				t.Errorf("Details() EnglishTitle = %q, %v, want %q", m.EnglishTitle, err, tt.want)
+			}
+		})
 	}
 }
 

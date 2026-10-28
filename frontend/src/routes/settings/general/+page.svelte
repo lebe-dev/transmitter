@@ -45,6 +45,14 @@
 		}
 	}
 
+	async function onMovieAutoRemoveChange(enabled: boolean) {
+		try {
+			await settingsStore.setMovieAutoRemoveEnabled(enabled);
+		} catch (err) {
+			toast.error(failText(err, get(tt), 'toast.failMovieAutoRemoveToggle'));
+		}
+	}
+
 	function onLocaleChange(loc: string) {
 		locale.set(loc);
 		localStorage.setItem(LOCALE_STORAGE_KEY, loc);
@@ -125,4 +133,24 @@
 			{$tt('settings.impactAutoStopHint', { values: { percent: impactPercent } })}
 		</p>
 	</div>
+
+	{#if settingsStore.moviePluginEnabled}
+		<div class="flex flex-col gap-3">
+			<div class="flex items-center justify-between gap-3">
+				<label for="movie-auto-remove" class="text-sm font-medium cursor-pointer select-none">
+					{$tt('settings.movieAutoRemove', { values: { percent: impactPercent } })}
+				</label>
+				<Switch
+					id="movie-auto-remove"
+					checked={settingsStore.movieAutoRemoveEnabled}
+					onCheckedChange={(v) => onMovieAutoRemoveChange(v)}
+				/>
+			</div>
+			<p class="text-xs text-muted-foreground leading-relaxed">
+				{$tt(settingsStore.deleteWithData ? 'settings.movieAutoRemoveHintWithData' : 'settings.movieAutoRemoveHint', {
+					values: { percent: impactPercent },
+				})}
+			</p>
+		</div>
+	{/if}
 </div>

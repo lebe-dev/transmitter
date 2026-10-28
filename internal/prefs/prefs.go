@@ -1,7 +1,7 @@
 // Package prefs stores user preferences that are changed at runtime from the UI.
 //
-// It holds the on/off state of the shift schedulers and the impact auto-stop
-// rule, the global pause and the global note. The time windows come from the
+// It holds the on/off state of the shift schedulers, the impact auto-stop
+// rule and the Movie Plugin auto-remove rule, the global pause and the global note. The time windows come from the
 // environment, but these are decisions made in the web UI, so they are
 // persisted in the local SQLite database (the same file as the torrent notes)
 // and survive a restart.
@@ -93,6 +93,22 @@ func (s *Store) ImpactAutoStopEnabled(ctx context.Context) (bool, error) {
 // SetImpactAutoStopEnabled switches automatic stopping on or off.
 func (s *Store) SetImpactAutoStopEnabled(ctx context.Context, enabled bool) error {
 	return s.setBoolPref(ctx, impactAutoStopKey, enabled)
+}
+
+// movieAutoRemoveKey holds whether watched torrents that reached the target
+// upload ratio are removed by the Movie Plugin.
+const movieAutoRemoveKey = "movie.autoremove.enabled"
+
+// MovieAutoRemoveEnabled reports whether the Movie Plugin removes watched
+// torrents that gave back everything they took. It is off by default: removing
+// a torrent cannot be undone, so the user opts in.
+func (s *Store) MovieAutoRemoveEnabled(ctx context.Context) (bool, error) {
+	return s.boolPref(ctx, movieAutoRemoveKey, false)
+}
+
+// SetMovieAutoRemoveEnabled switches the removal of watched torrents on or off.
+func (s *Store) SetMovieAutoRemoveEnabled(ctx context.Context, enabled bool) error {
+	return s.setBoolPref(ctx, movieAutoRemoveKey, enabled)
 }
 
 // memoKey holds the free-form note shown at the top of the torrent list.

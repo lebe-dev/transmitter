@@ -9,8 +9,9 @@ import (
 	"unicode"
 )
 
-// DefaultRenameTemplate gives Plex/Jellyfin-friendly names: "Interstellar (2014)".
-const DefaultRenameTemplate = "{title} ({year})"
+// DefaultRenameTemplate gives names such as "Interstellar_(2014)": the English
+// title whatever MOVIE_LANGUAGE is, with spaces turned into underscores.
+const DefaultRenameTemplate = "{english_title} ({year})"
 
 // maxNameBytes keeps a new name within the 255-byte limit of common file
 // systems, leaving room for the extension of a single-file torrent.
@@ -25,11 +26,13 @@ var (
 )
 
 // RenderName fills the template with the matched title. Placeholders:
-// {title}, {original_title}, {year}, {season}, {tmdb_id}, {imdb_id}, {type}.
-// A season pack of a series gets " S02" appended when the template has no
+// {title}, {original_title}, {english_title}, {year}, {season}, {tmdb_id},
+// {imdb_id}, {type}. {english_title} falls back to the original title, then to
+// the localized one, when TMDB knows no English title.
+// A season pack of a series gets "_S02" appended when the template has no
 // {season}, so packs of one show do not collide on the same name.
-// The result is safe to use as a single path component; it is empty when the
-// template yields nothing usable.
+// The result is safe to use as a single path component, with underscores in
+// place of spaces; it is empty when the template yields nothing usable.
 func RenderName(template string, m Match) string {
 	if strings.TrimSpace(template) == "" {
 		template = DefaultRenameTemplate
@@ -51,10 +54,15 @@ func RenderName(template string, m Match) string {
 	if original == "" {
 		original = m.Title
 	}
+	english := m.EnglishTitle
+	if english == "" {
+		english = original
+	}
 
 	name := strings.NewReplacer(
 		"{title}", m.Title,
 		"{original_title}", original,
+		"{english_title}", english,
 		"{year}", year,
 		"{season}", season,
 		"{tmdb_id}", tmdbID,
@@ -64,7 +72,8 @@ func RenderName(template string, m Match) string {
 	return sanitizeName(name)
 }
 
-// sanitizeName turns text into a single, portable path component.
+// sanitizeName turns text into a single, portable path component. Spaces
+// become underscores, so the name needs no quoting in a shell.
 func sanitizeName(name string) string {
 	name = strings.Map(func(r rune) rune {
 		if unicode.IsControl(r) {
@@ -91,7 +100,7 @@ func sanitizeName(name string) string {
 		r := []rune(name)
 		name = strings.TrimRight(string(r[:len(r)-1]), " .-")
 	}
-	return name
+	return strings.ReplaceAll(name, " ", "_")
 }
 
 // TargetName is the new top-level name of a torrent: the rendered name for a

@@ -861,6 +861,7 @@
 					{@const t = row.original}
 					{@const pinned = pinStore.isPinned(t.hashString)}
 				{@const note = noteStore.get(t.hashString)}
+				{@const watched = settingsStore.moviePluginEnabled && !!movieStore.get(t.hashString)?.watched}
 					{#if compactView}
 						<!-- Compact card: same structure, reduced padding, no date -->
 						<div
@@ -875,7 +876,7 @@
 						>
 							<!-- Row 1: Name + Shift toggles + Pin -->
 							<div class="flex items-start justify-between gap-3 mb-1.5">
-								<h3 class="font-display text-[15px] font-semibold leading-snug line-clamp-2 min-w-0">
+								<h3 class="font-display text-[15px] font-semibold leading-snug line-clamp-2 min-w-0 {watched ? 'text-muted-foreground dark:text-zinc-500' : ''}">
 									{t.name}
 								</h3>
 								<div class="flex items-center gap-0.5 flex-shrink-0">
@@ -996,7 +997,7 @@
 						>
 							<!-- Row 1: Name + Shift toggles + Pin -->
 							<div class="flex items-start justify-between gap-3 mb-2">
-								<h3 class="font-display text-[15px] font-semibold leading-snug line-clamp-2 min-w-0">
+								<h3 class="font-display text-[15px] font-semibold leading-snug line-clamp-2 min-w-0 {watched ? 'text-muted-foreground dark:text-zinc-500' : ''}">
 									{t.name}
 								</h3>
 								<div class="flex items-center gap-0.5 flex-shrink-0">

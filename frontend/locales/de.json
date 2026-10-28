@@ -197,14 +197,17 @@
 				"autoDetect": "Torrents erkennen, die nach dem Aktivieren des Plugins hinzugefügt wurden.",
 				"backfill": "Torrents, die schon vor dem Plugin da waren, nach und nach erkennen.",
 				"autoRename": "Neue Torrents direkt nach einer sicheren Zuordnung umbenennen. Torrents von vor dem Plugin werden nie automatisch umbenannt.",
-				"renameTemplate": "Namensvorlage. Platzhalter in geschweiften Klammern: title, original_title, year, season, tmdb_id, imdb_id, type.",
+				"renameTemplate": "Namensvorlage. Platzhalter in geschweiften Klammern: title, original_title, english_title, year, season, tmdb_id, imdb_id, type. Leerzeichen werden zu Unterstrichen.",
 				"scanInterval": "Wie oft nach neuen Torrents gesucht wird.",
 				"scanBatch": "Wie viele Torrents pro Durchlauf erkannt werden.",
 				"posterDir": "Wo Poster zwischengespeichert werden."
 			}
 		},
 		"impactAutoStop": "Seeding beenden, sobald {percent}% zurückgegeben sind",
-		"impactAutoStopHint": "Ein Torrent, der {percent}% des Heruntergeladenen hochgeladen hat, wird automatisch pausiert. Solange die Option aktiv ist, starten die Schichten solche Torrents nicht neu."
+		"impactAutoStopHint": "Ein Torrent, der {percent}% des Heruntergeladenen hochgeladen hat, wird automatisch pausiert. Solange die Option aktiv ist, starten die Schichten solche Torrents nicht neu.",
+		"movieAutoRemove": "Gesehene Filme entfernen, sobald {percent}% zurückgegeben sind",
+		"movieAutoRemoveHint": "Ein als gesehen markierter Torrent wird entfernt, sobald er vollständig heruntergeladen ist und {percent}% des Heruntergeladenen hochgeladen hat. Die Dateien bleiben auf der Festplatte (DELETE_WITH_DATA ist aus).",
+		"movieAutoRemoveHintWithData": "Ein als gesehen markierter Torrent wird samt Dateien entfernt, sobald er vollständig heruntergeladen ist und {percent}% des Heruntergeladenen hochgeladen hat. Das lässt sich nicht rückgängig machen."
 	},
 	"themes": {
 		"yellow": "Gelb",
@@ -288,7 +291,8 @@
 		"dayShiftOff": "Aus Tagschicht entfernt: {name}",
 		"failDayShift": "Tagschicht konnte nicht aktualisiert werden",
 		"failShiftToggle": "Schicht konnte nicht umgeschaltet werden",
-		"failImpactToggle": "Automatisches Stoppen konnte nicht umgeschaltet werden"
+		"failImpactToggle": "Automatisches Stoppen konnte nicht umgeschaltet werden",
+		"failMovieAutoRemoveToggle": "Entfernen gesehener Filme konnte nicht umgeschaltet werden"
 	},
 	"memo": {
 		"label": "Notizen",

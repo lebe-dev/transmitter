@@ -15,7 +15,7 @@ Transmitter ist eine moderne, schlanke Alternative zur Standard-Weboberfläche v
 - **Impact** — wie viel ein Torrent von dem zurückgegeben hat, was er genommen hat. Ein Pokal markiert die Torrents, die 100% ihres Downloads hochgeladen haben, der Filter „Nicht zurückgegeben“ zeigt den Rest (der sich sammelweise einer Schicht zuweisen lässt), und ein optionaler Schalter stoppt einen Torrent, sobald er das Ziel erreicht
 - **Globale Pause** — ein Button in der Kopfzeile pausiert alle laufenden Torrents und merkt sich, welche es waren; beim Fortsetzen werden nur diese gestartet, von dir gestoppte Torrents bleiben gestoppt. Der Zustand wird serverseitig gespeichert und übersteht einen Neustart; Schichten ruhen, solange die Pause aktiv ist
 - **Notizen** — ein freier Text oben auf dem Hauptbildschirm (standardmäßig 3 Zeilen, wächst mit dem Text), automatisch in SQLite gespeichert
-- **Movie Plugin** (standardmäßig aus, `MOVIE_PLUGIN_ENABLED=true`) — erkennt Filme, Zeichentrickfilme und Serien am Torrent-Namen (Szene-Namen mit Punkten, „Русское / Original [2014, …]“), holt Poster und Beschreibung von TMDB, benennt Ordner oder Datei des Torrents nach einer Vorlage auf der Festplatte um (über Transmission, das Seeden läuft weiter) und speichert die Markierungen „gesehen“ und „Untertitel fehlen“ mit eigenen Filtern. Eine falsche oder fehlende Zuordnung wird im Kartenmenü per TMDB- oder IMDb-Link korrigiert. Neue Torrents werden direkt nach dem Hinzufügen erkannt, vorhandene nach und nach im Hintergrund; automatisch umbenannt werden nur neue
+- **Movie Plugin** (standardmäßig aus, `MOVIE_PLUGIN_ENABLED=true`) — erkennt Filme, Zeichentrickfilme und Serien am Torrent-Namen (Szene-Namen mit Punkten, „Русское / Original [2014, …]“), holt Poster und Beschreibung von TMDB, benennt Ordner oder Datei des Torrents nach einer Vorlage auf der Festplatte um (über Transmission, das Seeden läuft weiter) und speichert die Markierungen „gesehen“ und „Untertitel fehlen“ mit eigenen Filtern. Eine falsche oder fehlende Zuordnung wird im Kartenmenü per TMDB- oder IMDb-Link korrigiert. Neue Torrents werden direkt nach dem Hinzufügen erkannt, vorhandene nach und nach im Hintergrund; automatisch umbenannt werden nur neue, nach dem englischen Titel mit Unterstrichen statt Leerzeichen (`Interstellar_(2014)`). Gesehene Filme erscheinen in der Liste abgedunkelt; ein Schalter unter Einstellungen → Allgemein (standardmäßig aus) entfernt einen gesehenen Torrent, sobald er das Impact-Ziel zurückgegeben hat
 - **Offline-Modus** — ohne Verbindung öffnet sich die Oberfläche trotzdem und zeigt Torrents, Notizen und Einstellungen vom letzten Abgleich, ein Banner weist darauf hin; Aktionen, die den Server brauchen, sind bis zur Wiederverbindung nicht verfügbar. Damit sich die Seite selbst ohne Netz öffnet, ist HTTPS oder localhost nötig (Service Worker)
 - **Unterstützte Sprachen**: en, ru, es, de
 - **Docker images**: linux/amd64, linux/arm/v7, linux/arm64/v8
@@ -66,7 +66,7 @@ Alle Einstellungen über Umgebungsvariablen:
 | `MOVIE_PLUGIN_ENABLED` | Nein | `false` |
 | `TMDB_API_KEY` | Bei Verwendung des Movie Plugin | — |
 | `MOVIE_LANGUAGE` | Nein | `en-US` |
-| `MOVIE_RENAME_TEMPLATE` | Nein | `{title} ({year})` |
+| `MOVIE_RENAME_TEMPLATE` | Nein | `{english_title} ({year})` |
 | `MOVIE_AUTO_DETECT` / `MOVIE_BACKFILL` / `MOVIE_AUTO_RENAME` | Nein | `true` |
 
 Alle Optionen siehe [.env.example](.env.example).

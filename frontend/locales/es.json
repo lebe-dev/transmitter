@@ -197,14 +197,17 @@
 				"autoDetect": "Reconocer los torrents añadidos después de activar el plugin.",
 				"backfill": "Reconocer poco a poco los torrents que ya existían antes del plugin.",
 				"autoRename": "Renombrar los torrents nuevos justo después de una coincidencia segura. Los torrents anteriores al plugin nunca se renombran automáticamente.",
-				"renameTemplate": "Plantilla del nombre. Marcadores entre llaves: title, original_title, year, season, tmdb_id, imdb_id, type.",
+				"renameTemplate": "Plantilla del nombre. Marcadores entre llaves: title, original_title, english_title, year, season, tmdb_id, imdb_id, type. Los espacios se convierten en guiones bajos.",
 				"scanInterval": "Con qué frecuencia se buscan torrents nuevos.",
 				"scanBatch": "Cuántos torrents se reconocen por ronda.",
 				"posterDir": "Dónde se guardan en caché los pósteres."
 			}
 		},
 		"impactAutoStop": "Dejar de sembrar al devolver el {percent}%",
-		"impactAutoStopHint": "Un torrent que ha subido el {percent}% de lo que descargó se pausa automáticamente. Mientras la opción esté activa, los turnos no reinician esos torrents."
+		"impactAutoStopHint": "Un torrent que ha subido el {percent}% de lo que descargó se pausa automáticamente. Mientras la opción esté activa, los turnos no reinician esos torrents.",
+		"movieAutoRemove": "Eliminar películas vistas al devolver el {percent}%",
+		"movieAutoRemoveHint": "Un torrent marcado como visto se elimina cuando está descargado por completo y ha subido el {percent}% de lo que descargó. Los archivos se quedan en el disco (DELETE_WITH_DATA está desactivado).",
+		"movieAutoRemoveHintWithData": "Un torrent marcado como visto se elimina junto con sus archivos cuando está descargado por completo y ha subido el {percent}% de lo que descargó. No se puede deshacer."
 	},
 	"themes": {
 		"yellow": "Amarillo",
@@ -288,7 +291,8 @@
 		"dayShiftOff": "Quitado del turno diurno: {name}",
 		"failDayShift": "No se pudo actualizar el turno diurno",
 		"failShiftToggle": "No se pudo cambiar el turno",
-		"failImpactToggle": "No se pudo cambiar la parada automática"
+		"failImpactToggle": "No se pudo cambiar la parada automática",
+		"failMovieAutoRemoveToggle": "No se pudo cambiar la eliminación de películas vistas"
 	},
 	"memo": {
 		"label": "Notas",

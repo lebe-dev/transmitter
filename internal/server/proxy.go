@@ -189,13 +189,16 @@ type UISettings struct {
 	ImpactAutoStopEnabled bool `json:"impactAutoStopEnabled"`
 	// MoviePluginEnabled shows the movie menu, posters and marks in the UI.
 	MoviePluginEnabled bool `json:"moviePluginEnabled"`
+	// MovieAutoRemoveEnabled tells whether watched torrents that reached the
+	// impact target are removed by the Movie Plugin.
+	MovieAutoRemoveEnabled bool `json:"movieAutoRemoveEnabled"`
 }
 
 // SettingsHandler returns UI-relevant server configuration as JSON. The shift
 // toggles and the impact auto-stop toggle are read from the stores on every
 // request, since they change at runtime; a nil store leaves the values of
-// settings untouched.
-func SettingsHandler(settings UISettings, shifts ShiftStore, impact ImpactStore) http.HandlerFunc {
+// settings untouched. movies is nil while the Movie Plugin is disabled.
+func SettingsHandler(settings UISettings, shifts ShiftStore, impact ImpactStore, movies MovieService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		resp := settings
 		if shifts != nil {
@@ -204,6 +207,9 @@ func SettingsHandler(settings UISettings, shifts ShiftStore, impact ImpactStore)
 		}
 		if impact != nil {
 			resp.ImpactAutoStopEnabled = impactAutoStopEnabled(r.Context(), impact)
+		}
+		if movies != nil {
+			resp.MovieAutoRemoveEnabled = movies.AutoRemoveEnabled(r.Context())
 		}
 
 		w.Header().Set(headerContentType, mimeJSON)

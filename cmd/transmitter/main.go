@@ -80,7 +80,7 @@ func main() {
 	// The global pause from the web UI; the shifts stand still while it is on.
 	pauser := pause.New(client, prefStore, logger)
 
-	movies, closeMovies := startMoviePlugin(ctx, cfg, client, logger)
+	movies, closeMovies := startMoviePlugin(ctx, cfg, client, prefStore, logger)
 	defer closeMovies()
 
 	tgBot := startBot(ctx, cfg, client, noteStore, logger, bot.Shifts{Configured: shiftOptions, Store: prefStore})
@@ -149,7 +149,9 @@ func configuredShifts(cfg *config.Config, logger *slog.Logger) []shift.Options {
 // startMoviePlugin opens the Movie Plugin store and starts its worker when the
 // plugin is enabled. It returns a nil service (an untyped nil, so the server
 // sees the plugin as absent) and a no-op closer when it is disabled.
-func startMoviePlugin(ctx context.Context, cfg *config.Config, client *transmission.Client, logger *slog.Logger) (server.MovieService, func()) {
+// Watched torrents are removed by the same rule as the manual removal from the
+// UI: with their data only when DELETE_WITH_DATA is on.
+func startMoviePlugin(ctx context.Context, cfg *config.Config, client *transmission.Client, autoRemove movie.AutoRemovePrefs, logger *slog.Logger) (server.MovieService, func()) {
 	if !cfg.Movie.Enabled {
 		logger.Info("movie plugin disabled (MOVIE_PLUGIN_ENABLED=false)")
 		return nil, func() {}
@@ -163,13 +165,16 @@ func startMoviePlugin(ctx context.Context, cfg *config.Config, client *transmiss
 
 	source := movie.NewTMDB(cfg.Movie.TMDBAPIURL, cfg.Movie.TMDBImageURL, cfg.Movie.TMDBAPIKey, cfg.Movie.Language)
 	svc := movie.NewService(store, source, client, movie.Options{
-		Interval:   cfg.Movie.ScanInterval,
-		Batch:      cfg.Movie.ScanBatch,
-		AutoDetect: cfg.Movie.AutoDetect,
-		Backfill:   cfg.Movie.Backfill,
-		AutoRename: cfg.Movie.AutoRename,
-		Template:   cfg.Movie.Template,
-		PosterDir:  cfg.Movie.PosterDir,
+		Interval:    cfg.Movie.ScanInterval,
+		Batch:       cfg.Movie.ScanBatch,
+		AutoDetect:  cfg.Movie.AutoDetect,
+		Backfill:    cfg.Movie.Backfill,
+		AutoRename:  cfg.Movie.AutoRename,
+		Template:    cfg.Movie.Template,
+		PosterDir:   cfg.Movie.PosterDir,
+		AutoRemove:  autoRemove,
+		TargetRatio: cfg.ImpactTargetRatio,
+		DeleteData:  cfg.DeleteWithData,
 	}, logger)
 	go svc.Run(ctx)
 

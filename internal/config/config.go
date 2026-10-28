@@ -26,8 +26,9 @@ const (
 	defaultImpactInterval = 5 * time.Minute
 	// defaultMovieLanguage is the TMDB locale for titles and descriptions.
 	defaultMovieLanguage = "en-US"
-	// defaultMovieRenameTemplate gives Plex/Jellyfin-friendly names.
-	defaultMovieRenameTemplate = "{title} ({year})"
+	// defaultMovieRenameTemplate names torrents after the English title; spaces
+	// become underscores when the name is rendered.
+	defaultMovieRenameTemplate = "{english_title} ({year})"
 	// defaultMovieScanInterval is how often the movie plugin looks for new torrents.
 	defaultMovieScanInterval = time.Minute
 	// defaultMovieScanBatch caps the lookups per round of the movie plugin.
@@ -224,8 +225,9 @@ func parseMovieConfig(dbPath string) (MovieConfig, error) {
 		return MovieConfig{}, fmt.Errorf("TMDB_API_KEY is required when MOVIE_PLUGIN_ENABLED=true")
 	}
 	// A template without the title would give every torrent the same name.
-	if !strings.Contains(mc.Template, "{title}") && !strings.Contains(mc.Template, "{original_title}") {
-		return MovieConfig{}, fmt.Errorf("MOVIE_RENAME_TEMPLATE must contain {title} or {original_title}")
+	if !strings.Contains(mc.Template, "{title}") && !strings.Contains(mc.Template, "{original_title}") &&
+		!strings.Contains(mc.Template, "{english_title}") {
+		return MovieConfig{}, fmt.Errorf("MOVIE_RENAME_TEMPLATE must contain {title}, {original_title} or {english_title}")
 	}
 	return mc, nil
 }

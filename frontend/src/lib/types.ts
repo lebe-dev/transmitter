@@ -103,6 +103,8 @@ export interface UISettings {
 	impactAutoStopEnabled: boolean;
 	/** Movie Plugin включён переменной MOVIE_PLUGIN_ENABLED. */
 	moviePluginEnabled: boolean;
+	/** Удалять ли просмотренные раздачи, отдавшие цель (только при включённом Movie Plugin). */
+	movieAutoRemoveEnabled?: boolean;
 }
 
 export type ShiftName = 'night' | 'day';
@@ -172,6 +174,8 @@ export interface MovieRecord {
 	imdbId?: string;
 	title?: string;
 	originalTitle?: string;
+	/** Английское название — по нему переименовывается раздача. */
+	englishTitle?: string;
 	year?: number;
 	/** Сезон из имени раздачи сериала (S02); у фильмов нет. */
 	season?: number;

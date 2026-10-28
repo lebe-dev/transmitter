@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS torrent_movies (
 	imdb_id        TEXT    NOT NULL DEFAULT '',
 	title          TEXT    NOT NULL DEFAULT '',
 	original_title TEXT    NOT NULL DEFAULT '',
+	english_title  TEXT    NOT NULL DEFAULT '',
 	year           INTEGER NOT NULL DEFAULT 0,
 	season         INTEGER NOT NULL DEFAULT 0,
 	overview       TEXT    NOT NULL DEFAULT '',
@@ -58,6 +59,12 @@ CREATE TABLE IF NOT EXISTS movie_plugin_meta (
 ) STRICT;
 `
 
+// migrations add the columns that came after the first release of the
+// plugin; a fresh database already has them from schema.
+var migrations = []struct{ column, ddl string }{
+	{column: "english_title", ddl: `ALTER TABLE torrent_movies ADD COLUMN english_title TEXT NOT NULL DEFAULT ''`},
+}
+
 // sinceKey holds the moment the plugin first ran. Torrents added after it are
 // "new" and may be renamed automatically; older ones only on request.
 const sinceKey = "since"
@@ -73,6 +80,7 @@ type Record struct {
 	IMDbID        string  `json:"imdbId,omitempty"`
 	Title         string  `json:"title,omitempty"`
 	OriginalTitle string  `json:"originalTitle,omitempty"`
+	EnglishTitle  string  `json:"englishTitle,omitempty"`
 	Year          int     `json:"year,omitempty"`
 	Season        int     `json:"season,omitempty"`
 	Overview      string  `json:"overview,omitempty"`
@@ -95,6 +103,7 @@ func (r Record) Match() Match {
 		IMDbID:        r.IMDbID,
 		Title:         r.Title,
 		OriginalTitle: r.OriginalTitle,
+		EnglishTitle:  r.EnglishTitle,
 		Year:          r.Year,
 		Season:        r.Season,
 		Overview:      r.Overview,
@@ -119,7 +128,42 @@ func OpenStore(path string) (*Store, error) {
 		db.Close() //nolint:errcheck
 		return nil, fmt.Errorf("apply movie schema: %w", err)
 	}
+	if err := migrate(db); err != nil {
+		db.Close() //nolint:errcheck
+		return nil, err
+	}
 	return &Store{db: db, now: time.Now}, nil
+}
+
+// migrate adds the columns a database created by an older version lacks.
+func migrate(db *sql.DB) error {
+	rows, err := db.Query(`SELECT name FROM pragma_table_info('torrent_movies')`)
+	if err != nil {
+		return fmt.Errorf("read movie columns: %w", err)
+	}
+	existing := map[string]bool{}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			rows.Close() //nolint:errcheck
+			return fmt.Errorf("read movie columns: %w", err)
+		}
+		existing[name] = true
+	}
+	rows.Close() //nolint:errcheck
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("read movie columns: %w", err)
+	}
+
+	for _, m := range migrations {
+		if existing[m.column] {
+			continue
+		}
+		if _, err := db.Exec(m.ddl); err != nil {
+			return fmt.Errorf("add movie column %s: %w", m.column, err)
+		}
+	}
+	return nil
 }
 
 // Close releases the underlying database handle.
@@ -128,7 +172,7 @@ func (s *Store) Close() error {
 }
 
 const recordColumns = `hash, state, manual, confident, media_type, tmdb_id, imdb_id, title,
-	original_title, year, season, overview, poster_path, rating, query, renamed_to, watched,
+	original_title, english_title, year, season, overview, poster_path, rating, query, renamed_to, watched,
 	missing_subs, attempts, checked_at`
 
 type scanner interface {
@@ -138,7 +182,7 @@ type scanner interface {
 func scanRecord(row scanner) (Record, error) {
 	var r Record
 	err := row.Scan(&r.Hash, &r.State, &r.Manual, &r.Confident, &r.MediaType, &r.TMDBID, &r.IMDbID,
-		&r.Title, &r.OriginalTitle, &r.Year, &r.Season, &r.Overview, &r.PosterPath, &r.Rating, &r.Query,
+		&r.Title, &r.OriginalTitle, &r.EnglishTitle, &r.Year, &r.Season, &r.Overview, &r.PosterPath, &r.Rating, &r.Query,
 		&r.RenamedTo, &r.Watched, &r.MissingSubs, &r.Attempts, &r.CheckedAt)
 	r.HasPoster = r.PosterPath != ""
 	return r, err
@@ -192,12 +236,13 @@ func (s *Store) SaveMatch(ctx context.Context, hash string, m Match, manual, con
 	now := s.now().Unix()
 	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO torrent_movies (hash, state, manual, confident, media_type, tmdb_id, imdb_id, title,
-			original_title, year, season, overview, poster_path, rating, query, renamed_to, attempts, checked_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', 0, ?, ?)
+			original_title, english_title, year, season, overview, poster_path, rating, query, renamed_to, attempts, checked_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', 0, ?, ?)
 		ON CONFLICT(hash) DO UPDATE SET
 			state = excluded.state, manual = excluded.manual, confident = excluded.confident,
 			media_type = excluded.media_type, tmdb_id = excluded.tmdb_id, imdb_id = excluded.imdb_id,
-			title = excluded.title, original_title = excluded.original_title, year = excluded.year,
+			title = excluded.title, original_title = excluded.original_title,
+			english_title = excluded.english_title, year = excluded.year,
 			season = excluded.season, overview = excluded.overview, poster_path = excluded.poster_path, rating = excluded.rating,
 			query = excluded.query,
 			renamed_to = CASE WHEN torrent_movies.tmdb_id = excluded.tmdb_id
@@ -205,7 +250,7 @@ func (s *Store) SaveMatch(ctx context.Context, hash string, m Match, manual, con
 				AND torrent_movies.season = excluded.season THEN torrent_movies.renamed_to ELSE '' END,
 			attempts = 0, checked_at = excluded.checked_at, updated_at = excluded.updated_at`,
 		key, StateMatched, manual, confident, m.MediaType, m.TMDBID, m.IMDbID, m.Title,
-		m.OriginalTitle, m.Year, m.Season, m.Overview, m.PosterPath, m.Rating, query, now, now)
+		m.OriginalTitle, m.EnglishTitle, m.Year, m.Season, m.Overview, m.PosterPath, m.Rating, query, now, now)
 	if err != nil {
 		return fmt.Errorf("save movie match: %w", err)
 	}
@@ -229,7 +274,7 @@ func (s *Store) SaveState(ctx context.Context, hash, state, query string, manual
 		VALUES (?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(hash) DO UPDATE SET
 			state = excluded.state, manual = excluded.manual, confident = 0, media_type = '', tmdb_id = 0,
-			imdb_id = '', title = '', original_title = '', year = 0, season = 0, overview = '', poster_path = '',
+			imdb_id = '', title = '', original_title = '', english_title = '', year = 0, season = 0, overview = '', poster_path = '',
 			rating = 0, query = excluded.query, renamed_to = '',
 			attempts = CASE WHEN excluded.state = 'failed' THEN torrent_movies.attempts + 1 ELSE 0 END,
 			checked_at = excluded.checked_at, updated_at = excluded.updated_at`,
@@ -250,6 +295,21 @@ func (s *Store) SetRenamed(ctx context.Context, hash, name string) error {
 		name, s.now().Unix(), key)
 	if err != nil {
 		return fmt.Errorf("save rename: %w", err)
+	}
+	return nil
+}
+
+// SetEnglishTitle stores the English title of a match made before the plugin
+// knew about English titles.
+func (s *Store) SetEnglishTitle(ctx context.Context, hash, title string) error {
+	key, err := normalizeHash(hash)
+	if err != nil {
+		return err
+	}
+	_, err = s.db.ExecContext(ctx, `UPDATE torrent_movies SET english_title = ?, updated_at = ? WHERE hash = ?`,
+		title, s.now().Unix(), key)
+	if err != nil {
+		return fmt.Errorf("save english title: %w", err)
 	}
 	return nil
 }

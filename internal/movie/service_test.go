@@ -36,8 +36,13 @@ func newStore(t *testing.T) *Store {
 // fakeClient is an in-memory Transmission with renames applied to the names.
 type fakeClient struct {
 	torrents map[string]*transmission.TorrentWithFiles
-	renames  []string
-	err      error
+	// stats are the transfer counters reported by GetTorrents, keyed by hash.
+	stats   map[string]transmission.Torrent
+	renames []string
+	removed []int64
+	// removedWithData remembers the deleteLocalData flag of the last removal.
+	removedWithData bool
+	err             error
 }
 
 func (f *fakeClient) GetTorrents(context.Context) ([]transmission.Torrent, error) {
@@ -46,7 +51,9 @@ func (f *fakeClient) GetTorrents(context.Context) ([]transmission.Torrent, error
 	}
 	var list []transmission.Torrent
 	for _, t := range f.torrents {
-		list = append(list, transmission.Torrent{ID: t.ID, HashString: t.HashString, Name: t.Name, AddedDate: t.AddedDate})
+		st := f.stats[t.HashString]
+		list = append(list, transmission.Torrent{ID: t.ID, HashString: t.HashString, Name: t.Name, AddedDate: t.AddedDate,
+			PercentDone: st.PercentDone, UploadRatio: st.UploadRatio, DownloadedEver: st.DownloadedEver, UploadedEver: st.UploadedEver})
 	}
 	return list, nil
 }
@@ -68,6 +75,19 @@ func (f *fakeClient) RenamePath(_ context.Context, id int64, path, name string) 
 		}
 	}
 	return errors.New("invalid argument")
+}
+
+func (f *fakeClient) RemoveTorrents(_ context.Context, ids []int64, deleteLocalData bool) error {
+	f.removed = append(f.removed, ids...)
+	f.removedWithData = deleteLocalData
+	for hash, t := range f.torrents {
+		for _, id := range ids {
+			if t.ID == id {
+				delete(f.torrents, hash)
+			}
+		}
+	}
+	return nil
 }
 
 func (f *fakeClient) add(hash, name string, added int64, files ...string) {
@@ -130,7 +150,7 @@ func (f *fakeSource) Poster(context.Context, string) ([]byte, error) {
 	return []byte("jpeg"), nil
 }
 
-var interstellar = Match{MediaType: MediaMovie, TMDBID: 157336, Title: "Интерстеллар", OriginalTitle: "Interstellar", Year: 2014, PosterPath: "/poster.jpg"}
+var interstellar = Match{MediaType: MediaMovie, TMDBID: 157336, Title: "Интерстеллар", OriginalTitle: "Interstellar", EnglishTitle: "Interstellar", Year: 2014, PosterPath: "/poster.jpg"}
 
 func newService(t *testing.T, client *fakeClient, source *fakeSource, opts Options) (*Service, *Store) {
 	t.Helper()
@@ -160,10 +180,10 @@ func TestScanDetectsAndRenamesNewTorrents(t *testing.T) {
 	if rec.IMDbID == "" {
 		t.Error("IMDb ID must come from the details")
 	}
-	if got := client.torrents[hashA].Name; got != "Интерстеллар (2014)" {
-		t.Errorf("torrent name = %q, want it renamed", got)
+	if got := client.torrents[hashA].Name; got != "Interstellar_(2014)" {
+		t.Errorf("torrent name = %q, want it renamed after the English title", got)
 	}
-	if rec.RenamedTo != "Интерстеллар (2014)" {
+	if rec.RenamedTo != "Interstellar_(2014)" {
 		t.Errorf("RenamedTo = %q", rec.RenamedTo)
 	}
 
@@ -377,7 +397,7 @@ func TestRenameSingleFileKeepsExtension(t *testing.T) {
 
 	store.SaveMatch(ctx, hashA, interstellar, true, true, "") //nolint:errcheck
 	current, target, err := svc.RenamePreview(ctx, hashA)
-	if err != nil || current != "interstellar.2014.mkv" || target != "Interstellar (2014).mkv" {
+	if err != nil || current != "interstellar.2014.mkv" || target != "Interstellar_(2014).mkv" {
 		t.Errorf("RenamePreview() = %q, %q, %v", current, target, err)
 	}
 
@@ -385,7 +405,7 @@ func TestRenameSingleFileKeepsExtension(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Rename() error = %v", err)
 	}
-	if name != "Interstellar (2014).mkv" || client.torrents[hashA].Name != name {
+	if name != "Interstellar_(2014).mkv" || client.torrents[hashA].Name != name {
 		t.Errorf("renamed to %q, torrent is %q", name, client.torrents[hashA].Name)
 	}
 }
@@ -427,3 +447,109 @@ func TestPosterPathCannotEscapeTheCache(t *testing.T) {
 }
 
 func ptr[T any](v T) *T { return &v }
+
+// fakeAutoRemove is the user's auto-remove switch.
+type fakeAutoRemove struct {
+	enabled bool
+	err     error
+}
+
+func (f *fakeAutoRemove) MovieAutoRemoveEnabled(context.Context) (bool, error) {
+	return f.enabled, f.err
+}
+
+func (f *fakeAutoRemove) SetMovieAutoRemoveEnabled(_ context.Context, enabled bool) error {
+	f.enabled = enabled
+	return f.err
+}
+
+func TestScanRemovesWatchedTorrentsThatPaidBack(t *testing.T) {
+	ctx := context.Background()
+	repaid := transmission.Torrent{PercentDone: 1, UploadRatio: 1.2, DownloadedEver: 100, UploadedEver: 120}
+	owing := transmission.Torrent{PercentDone: 1, UploadRatio: 0.5, DownloadedEver: 100, UploadedEver: 50}
+
+	setup := func(t *testing.T, toggle *fakeAutoRemove) (*fakeClient, *Store, *Service) {
+		t.Helper()
+		client := &fakeClient{}
+		svc, store := newService(t, client, &fakeSource{}, Options{AutoRemove: toggle, TargetRatio: 1, DeleteData: true})
+		client.add(hashA, "watched and repaid", 1, "a.mkv")
+		client.add(hashB, "watched but owing", 1, "b.mkv")
+		client.add(hashC, "repaid, not watched", 1, "c.mkv")
+		client.stats = map[string]transmission.Torrent{hashA: repaid, hashB: owing, hashC: repaid}
+		store.SetFlags(ctx, hashA, Flags{Watched: ptr(true)}) //nolint:errcheck
+		store.SetFlags(ctx, hashB, Flags{Watched: ptr(true)}) //nolint:errcheck
+		return client, store, svc
+	}
+
+	t.Run("on", func(t *testing.T) {
+		client, _, svc := setup(t, &fakeAutoRemove{enabled: true})
+		svc.scan(ctx)
+		if len(client.removed) != 1 || client.removed[0] != 1 || !client.removedWithData {
+			t.Errorf("removed = %v (with data %v), want only the watched and repaid torrent with its data", client.removed, client.removedWithData)
+		}
+	})
+
+	t.Run("off by default", func(t *testing.T) {
+		client, _, svc := setup(t, &fakeAutoRemove{})
+		svc.scan(ctx)
+		if len(client.removed) != 0 {
+			t.Errorf("removed = %v, want nothing while the rule is off", client.removed)
+		}
+	})
+
+	t.Run("failed lookup counts as off", func(t *testing.T) {
+		client, _, svc := setup(t, &fakeAutoRemove{enabled: true, err: errors.New("db down")})
+		svc.scan(ctx)
+		if len(client.removed) != 0 {
+			t.Errorf("removed = %v, want nothing when the switch cannot be read", client.removed)
+		}
+	})
+
+	t.Run("incomplete download is kept", func(t *testing.T) {
+		client, _, svc := setup(t, &fakeAutoRemove{enabled: true})
+		client.stats[hashA] = transmission.Torrent{PercentDone: 0.9, UploadRatio: 1.5, DownloadedEver: 100, UploadedEver: 150}
+		svc.scan(ctx)
+		if len(client.removed) != 0 {
+			t.Errorf("removed = %v, want an unfinished torrent kept", client.removed)
+		}
+	})
+}
+
+func TestAutoRemoveSwitch(t *testing.T) {
+	ctx := context.Background()
+	toggle := &fakeAutoRemove{}
+	svc, _ := newService(t, &fakeClient{}, &fakeSource{}, Options{AutoRemove: toggle})
+
+	if svc.AutoRemoveEnabled(ctx) {
+		t.Error("AutoRemoveEnabled() = true, want off by default")
+	}
+	if err := svc.SetAutoRemoveEnabled(ctx, true); err != nil || !svc.AutoRemoveEnabled(ctx) {
+		t.Errorf("SetAutoRemoveEnabled(true) error = %v, enabled = %v", err, svc.AutoRemoveEnabled(ctx))
+	}
+
+	bare, _ := newService(t, &fakeClient{}, &fakeSource{}, Options{})
+	if err := bare.SetAutoRemoveEnabled(ctx, true); !errors.Is(err, ErrAutoRemoveUnavailable) {
+		t.Errorf("SetAutoRemoveEnabled() without a store error = %v", err)
+	}
+}
+
+// A match saved by 1.6.0 has no English title; renaming fetches and keeps it.
+func TestRenameFetchesMissingEnglishTitle(t *testing.T) {
+	client := &fakeClient{}
+	source := &fakeSource{catalogue: []Match{interstellar}}
+	svc, store := newService(t, client, source, Options{})
+	ctx := context.Background()
+	client.add(hashA, "Interstellar.2014.1080p", 1, "Interstellar.2014.1080p/movie.mkv")
+
+	old := interstellar
+	old.EnglishTitle = ""
+	store.SaveMatch(ctx, hashA, old, false, true, "") //nolint:errcheck
+
+	_, target, err := svc.RenamePreview(ctx, hashA)
+	if err != nil || target != "Interstellar_(2014)" {
+		t.Errorf("RenamePreview() target = %q, %v", target, err)
+	}
+	if rec, _, _ := store.Get(ctx, hashA); rec.EnglishTitle != "Interstellar" {
+		t.Errorf("EnglishTitle = %q, want it saved", rec.EnglishTitle)
+	}
+}

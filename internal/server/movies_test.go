@@ -27,6 +27,20 @@ type fakeMovies struct {
 	poster  string
 	renamed string
 	woken   chan struct{}
+	// autoRemove is the state of the auto-remove switch.
+	autoRemove bool
+}
+
+func (f *fakeMovies) AutoRemoveEnabled(context.Context) bool {
+	return f.autoRemove
+}
+
+func (f *fakeMovies) SetAutoRemoveEnabled(_ context.Context, enabled bool) error {
+	if f.err != nil {
+		return f.err
+	}
+	f.autoRemove = enabled
+	return nil
 }
 
 func (f *fakeMovies) All(context.Context) (map[string]movie.Record, error) {
@@ -87,6 +101,30 @@ func TestMoviesHandler(t *testing.T) {
 	var got map[string]movie.Record
 	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil || got[testHash].Title != "Interstellar" {
 		t.Errorf("body = %s, err = %v", rec.Body.String(), err)
+	}
+}
+
+func TestMovieAutoRemoveHandler(t *testing.T) {
+	svc := &fakeMovies{}
+	rec := movieRequest(t, MovieAutoRemoveHandler(svc), http.MethodPut, `{"enabled":true}`)
+	if rec.Code != http.StatusOK || !svc.autoRemove {
+		t.Fatalf("status = %d, autoRemove = %v, want the rule switched on", rec.Code, svc.autoRemove)
+	}
+
+	settings := httptest.NewRecorder()
+	SettingsHandler(UISettings{MoviePluginEnabled: true}, nil, nil, svc).
+		ServeHTTP(settings, httptest.NewRequest(http.MethodGet, "/api/settings", nil))
+	var got UISettings
+	if err := json.Unmarshal(settings.Body.Bytes(), &got); err != nil || !got.MovieAutoRemoveEnabled {
+		t.Errorf("settings = %s, err = %v, want movieAutoRemoveEnabled", settings.Body.String(), err)
+	}
+
+	if rec := movieRequest(t, MovieAutoRemoveHandler(svc), http.MethodPut, `{}`); rec.Code != http.StatusBadRequest {
+		t.Errorf("missing enabled: status = %d, want 400", rec.Code)
+	}
+	failing := &fakeMovies{err: errors.New("db down")}
+	if rec := movieRequest(t, MovieAutoRemoveHandler(failing), http.MethodPut, `{"enabled":true}`); rec.Code != http.StatusInternalServerError {
+		t.Errorf("store failure: status = %d, want 500", rec.Code)
 	}
 }
 

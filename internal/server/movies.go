@@ -29,6 +29,8 @@ type MovieService interface {
 	RenamePreview(ctx context.Context, hash string) (current, target string, err error)
 	Rename(ctx context.Context, hash string) (string, error)
 	PosterFile(ctx context.Context, hash string) (string, error)
+	AutoRemoveEnabled(ctx context.Context) bool
+	SetAutoRemoveEnabled(ctx context.Context, enabled bool) error
 	Wake()
 }
 
@@ -36,6 +38,7 @@ type MovieService interface {
 // while the plugin is disabled.
 func registerMovieRoutes(mux *http.ServeMux, svc MovieService) {
 	mux.Handle("GET /api/movies", MoviesHandler(svc))
+	mux.Handle("PUT /api/movies/autoremove", MovieAutoRemoveHandler(svc))
 	mux.Handle("POST /api/movies/{hash}/detect", MovieDetectHandler(svc))
 	mux.Handle("PUT /api/movies/{hash}/link", MovieLinkHandler(svc))
 	mux.Handle("DELETE /api/movies/{hash}/match", MovieClearHandler(svc))
@@ -55,6 +58,33 @@ func MoviesHandler(svc MovieService) http.HandlerFunc {
 			return
 		}
 		writeJSON(w, all)
+	}
+}
+
+// movieAutoRemoveRequest is the body of PUT /api/movies/autoremove.
+type movieAutoRemoveRequest struct {
+	Enabled *bool `json:"enabled"`
+}
+
+// MovieAutoRemoveHandler switches the removal of watched torrents that reached
+// the target ratio on or off. The state is persisted, so it survives a restart.
+func MovieAutoRemoveHandler(svc MovieService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req movieAutoRemoveRequest
+		if !readMovieBody(w, r, &req) {
+			return
+		}
+		if req.Enabled == nil {
+			writeJSONError(w, http.StatusBadRequest, "invalid json")
+			return
+		}
+		if err := svc.SetAutoRemoveEnabled(r.Context(), *req.Enabled); err != nil {
+			slog.Error("failed to store movie auto-remove state", "err", err)
+			writeJSONError(w, http.StatusInternalServerError, "failed to store auto-remove state")
+			return
+		}
+		slog.Info("movie plugin: auto-remove of watched torrents switched by user", "enabled", *req.Enabled)
+		writeJSON(w, map[string]bool{"enabled": *req.Enabled})
 	}
 }
 

@@ -1,4 +1,4 @@
-import { getSettings, getServerConfig, setImpactAutoStop, setShiftEnabled } from './api.js';
+import { getSettings, getServerConfig, setImpactAutoStop, setMovieAutoRemove, setShiftEnabled } from './api.js';
 import { connectivity } from './connectivity.svelte.js';
 import { readCache, writeCache } from './offline.js';
 import type { ServerConfig, ShiftName, UISettings } from './types.js';
@@ -59,6 +59,8 @@ class SettingsStore {
 	impactAutoStopEnabled = $state(false);
 	/** Movie Plugin включён на сервере (MOVIE_PLUGIN_ENABLED). */
 	moviePluginEnabled = $state(false);
+	/** Удалять ли просмотренные раздачи, отдавшие цель. */
+	movieAutoRemoveEnabled = $state(false);
 
 	day = $state<ShiftState>({ configured: false, enabled: false });
 	night = $state<ShiftState>({ configured: false, enabled: false });
@@ -144,6 +146,7 @@ class SettingsStore {
 		this.impactTargetRatio = s.impactTargetRatio;
 		this.impactAutoStopEnabled = s.impactAutoStopEnabled;
 		this.moviePluginEnabled = s.moviePluginEnabled ?? false;
+		this.movieAutoRemoveEnabled = s.movieAutoRemoveEnabled ?? false;
 		this.day = {
 			configured: s.dayShiftConfigured,
 			enabled: s.dayShiftEnabled,
@@ -181,6 +184,19 @@ class SettingsStore {
 			this.#patchCache({ impactAutoStopEnabled: enabled });
 		} catch (err) {
 			this.impactAutoStopEnabled = previous;
+			throw err;
+		}
+	}
+
+	/** Включает/выключает удаление просмотренных раздач, откатывая переключатель при ошибке. */
+	async setMovieAutoRemoveEnabled(enabled: boolean) {
+		const previous = this.movieAutoRemoveEnabled;
+		this.movieAutoRemoveEnabled = enabled;
+		try {
+			await setMovieAutoRemove(enabled);
+			this.#patchCache({ movieAutoRemoveEnabled: enabled });
+		} catch (err) {
+			this.movieAutoRemoveEnabled = previous;
 			throw err;
 		}
 	}

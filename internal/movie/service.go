@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lebe-dev/transmitter/internal/impact"
 	"github.com/lebe-dev/transmitter/internal/transmission"
 )
 
@@ -31,6 +32,8 @@ const (
 )
 
 var (
+	// ErrAutoRemoveUnavailable is returned when the auto-remove switch has no store behind it.
+	ErrAutoRemoveUnavailable = errors.New("auto-remove is not available")
 	// ErrNotMatched is returned when an action needs a matched title and there is none.
 	ErrNotMatched = errors.New("torrent is not matched to a title")
 	// ErrEmptyName is returned when the rename template yields an empty name.
@@ -47,6 +50,14 @@ type torrentClient interface {
 	GetTorrents(ctx context.Context) ([]transmission.Torrent, error)
 	GetTorrentFilesByHash(ctx context.Context, hash string) (transmission.TorrentWithFiles, error)
 	RenamePath(ctx context.Context, id int64, path, name string) error
+	RemoveTorrents(ctx context.Context, ids []int64, deleteLocalData bool) error
+}
+
+// AutoRemovePrefs holds the user's switch for removing watched torrents that
+// gave back everything they took; internal/prefs implements it.
+type AutoRemovePrefs interface {
+	MovieAutoRemoveEnabled(ctx context.Context) (bool, error)
+	SetMovieAutoRemoveEnabled(ctx context.Context, enabled bool) error
 }
 
 // Source is a movie database; *TMDB implements it.
@@ -70,6 +81,12 @@ type Options struct {
 	AutoRename bool
 	Template   string
 	PosterDir  string
+	// AutoRemove is the switch for removing watched torrents whose upload
+	// ratio reached TargetRatio; nil keeps the rule off.
+	AutoRemove  AutoRemovePrefs
+	TargetRatio float64
+	// DeleteData removes the downloaded files together with the torrent.
+	DeleteData bool
 }
 
 // Service detects titles, keeps the marks and renames torrents. One worker
@@ -159,6 +176,7 @@ func (s *Service) scan(ctx context.Context) {
 		return
 	}
 
+	s.removeWatched(ctx, torrents, records)
 	s.dropOrphans(ctx, torrents, records)
 
 	type candidate struct {
@@ -193,6 +211,58 @@ func (s *Service) scan(ctx context.Context) {
 		}
 		s.autoDetect(ctx, c.hash, c.isNew)
 	}
+}
+
+// removeWatched removes the torrents the user marked as watched once their
+// upload ratio reached the target, while the user has the rule switched on.
+// Records of removed torrents are dropped on the next round, like those of
+// torrents removed by hand.
+func (s *Service) removeWatched(ctx context.Context, torrents []transmission.Torrent, records map[string]Record) {
+	if !s.AutoRemoveEnabled(ctx) {
+		return
+	}
+	var ids []int64
+	var names []string
+	for _, t := range torrents {
+		rec, ok := records[strings.ToLower(t.HashString)]
+		if !ok || !rec.Watched || t.PercentDone < 1 || !impact.Reached(t, s.opts.TargetRatio) {
+			continue
+		}
+		ids = append(ids, t.ID)
+		names = append(names, t.Name)
+	}
+	if len(ids) == 0 {
+		return
+	}
+	if err := s.client.RemoveTorrents(ctx, ids, s.opts.DeleteData); err != nil {
+		s.logger.Warn("movie plugin: failed to remove watched torrents", "ids", ids, "err", err)
+		return
+	}
+	s.logger.Info("movie plugin: removed watched torrents that reached the target ratio",
+		"target_ratio", s.opts.TargetRatio, "delete_data", s.opts.DeleteData, "count", len(ids), "names", names)
+}
+
+// AutoRemoveEnabled reports whether watched torrents that reached the target
+// ratio are removed. A failed lookup reports the rule as off: keeping a torrent
+// is the harmless outcome.
+func (s *Service) AutoRemoveEnabled(ctx context.Context) bool {
+	if s.opts.AutoRemove == nil {
+		return false
+	}
+	enabled, err := s.opts.AutoRemove.MovieAutoRemoveEnabled(ctx)
+	if err != nil {
+		s.logger.Warn("movie plugin: failed to read auto-remove state, assuming off", "err", err)
+		return false
+	}
+	return enabled
+}
+
+// SetAutoRemoveEnabled switches the removal of watched torrents on or off.
+func (s *Service) SetAutoRemoveEnabled(ctx context.Context, enabled bool) error {
+	if s.opts.AutoRemove == nil {
+		return ErrAutoRemoveUnavailable
+	}
+	return s.opts.AutoRemove.SetMovieAutoRemoveEnabled(ctx, enabled)
 }
 
 // due reports whether a torrent with a record should be looked up again:
@@ -526,7 +596,7 @@ func (s *Service) Rename(ctx context.Context, hash string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return s.renameLocked(ctx, t, rec)
+	return s.renameLocked(ctx, t, s.withEnglishTitle(ctx, rec))
 }
 
 // RenamePreview returns the current name of the torrent and the name Rename
@@ -543,7 +613,30 @@ func (s *Service) RenamePreview(ctx context.Context, hash string) (current, targ
 	if err != nil {
 		return "", "", err
 	}
-	return t.Name, s.targetName(t, rec), nil
+	return t.Name, s.targetName(t, s.withEnglishTitle(ctx, rec)), nil
+}
+
+// withEnglishTitle fills in the English title of a match made before the
+// plugin stored one, so such a torrent is not renamed after its localized
+// title. The title is fetched once and saved; a failure only means the
+// rename falls back to the original title.
+func (s *Service) withEnglishTitle(ctx context.Context, rec Record) Record {
+	if rec.EnglishTitle != "" || rec.TMDBID == 0 || !strings.Contains(s.opts.Template, "{english_title}") {
+		return rec
+	}
+	full, err := s.source.Details(ctx, rec.MediaType, rec.TMDBID)
+	if err != nil {
+		s.logger.Debug("movie plugin: failed to fetch the English title", "tmdb_id", rec.TMDBID, "err", err)
+		return rec
+	}
+	if full.EnglishTitle == "" {
+		return rec
+	}
+	if err := s.store.SetEnglishTitle(ctx, rec.Hash, full.EnglishTitle); err != nil {
+		s.logger.Warn("movie plugin: failed to save the English title", "hash", rec.Hash, "err", err)
+	}
+	rec.EnglishTitle = full.EnglishTitle
+	return rec
 }
 
 // targetName renders the new name of a torrent. A single-file torrent has one

@@ -176,6 +176,16 @@ export async function setImpactAutoStop(enabled: boolean): Promise<void> {
 	if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 
+/** Включает или выключает удаление просмотренных раздач, отдавших цель. */
+export async function setMovieAutoRemove(enabled: boolean): Promise<void> {
+	const res = await request('/api/movies/autoremove', {
+		method: 'PUT',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ enabled }),
+	});
+	if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
 export async function getNotes(): Promise<TorrentNotes> {
 	const res = await request('/api/notes');
 	if (!res.ok) throw new Error(`HTTP ${res.status}`);

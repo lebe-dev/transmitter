@@ -197,14 +197,17 @@
 				"autoDetect": "Recognize torrents added after the plugin was enabled.",
 				"backfill": "Gradually recognize torrents that were there before the plugin.",
 				"autoRename": "Rename new torrents right after a confident match. Torrents that predate the plugin are never renamed automatically.",
-				"renameTemplate": "Name template. Placeholders in curly braces: title, original_title, year, season, tmdb_id, imdb_id, type.",
+				"renameTemplate": "Name template. Placeholders in curly braces: title, original_title, english_title, year, season, tmdb_id, imdb_id, type. Spaces become underscores.",
 				"scanInterval": "How often new torrents are looked for.",
 				"scanBatch": "How many torrents are looked up per round.",
 				"posterDir": "Where posters are cached."
 			}
 		},
 		"impactAutoStop": "Stop seeding once {percent}% is given back",
-		"impactAutoStopHint": "A torrent that uploaded {percent}% of what it downloaded is paused automatically. While this is on, the shifts do not restart such torrents."
+		"impactAutoStopHint": "A torrent that uploaded {percent}% of what it downloaded is paused automatically. While this is on, the shifts do not restart such torrents.",
+		"movieAutoRemove": "Remove watched films given back {percent}%",
+		"movieAutoRemoveHint": "A torrent marked as watched is removed once it is fully downloaded and has uploaded {percent}% of what it downloaded. The files stay on disk (DELETE_WITH_DATA is off).",
+		"movieAutoRemoveHintWithData": "A torrent marked as watched is removed together with its files once it is fully downloaded and has uploaded {percent}% of what it downloaded. This cannot be undone."
 	},
 	"themes": {
 		"yellow": "Yellow",
@@ -288,7 +291,8 @@
 		"dayShiftOff": "Removed from day shift: {name}",
 		"failDayShift": "Failed to update day shift",
 		"failShiftToggle": "Failed to switch the shift",
-		"failImpactToggle": "Failed to switch automatic stopping"
+		"failImpactToggle": "Failed to switch automatic stopping",
+		"failMovieAutoRemoveToggle": "Failed to switch removal of watched films"
 	},
 	"memo": {
 		"label": "Notes",

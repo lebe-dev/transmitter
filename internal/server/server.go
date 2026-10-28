@@ -114,7 +114,7 @@ func New(cfg *config.Config, client *transmission.Client, noteStore NoteStore, s
 	mux := http.NewServeMux()
 	mux.Handle("POST /api/rpc", ProxyHandler(client, priorityCfg, cfg.MaxRequestBodyBytes, noteStore, onAdded))
 	mux.Handle("GET /api/health", HealthHandler(client))
-	mux.Handle("GET /api/settings", SettingsHandler(uiSettings, shiftStore, impactStore))
+	mux.Handle("GET /api/settings", SettingsHandler(uiSettings, shiftStore, impactStore, movies))
 	mux.Handle("GET /api/config", ConfigHandler(serverConfig))
 	mux.Handle("PUT /api/shifts/{shift}", ShiftToggleHandler(shiftStore, configuredShifts))
 	mux.Handle("PUT /api/impact", ImpactToggleHandler(impactStore))

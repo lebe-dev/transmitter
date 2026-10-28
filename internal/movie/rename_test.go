@@ -6,22 +6,26 @@ import (
 )
 
 func TestRenderName(t *testing.T) {
-	m := Match{MediaType: MediaMovie, TMDBID: 157336, IMDbID: "tt0816692", Title: "Интерстеллар", OriginalTitle: "Interstellar", Year: 2014}
+	m := Match{MediaType: MediaMovie, TMDBID: 157336, IMDbID: "tt0816692", Title: "Интерстеллар", OriginalTitle: "Interstellar", EnglishTitle: "Interstellar", Year: 2014}
 	tests := []struct {
 		template string
 		match    Match
 		want     string
 	}{
-		{template: "", match: m, want: "Интерстеллар (2014)"},
-		{template: "{original_title} ({year})", match: m, want: "Interstellar (2014)"},
-		{template: "{title} [{imdb_id}] {tmdb_id} {type}", match: m, want: "Интерстеллар [tt0816692] 157336 movie"},
+		{template: "", match: m, want: "Interstellar_(2014)"},
+		{template: "", match: Match{Title: "Амели", OriginalTitle: "Le Fabuleux Destin d'Amélie Poulain", EnglishTitle: "Amélie", Year: 2001}, want: "Amélie_(2001)"},
+		{template: "", match: Match{Title: "Брат", OriginalTitle: "Брат", Year: 1997}, want: "Брат_(1997)"},
+		{template: "{english_title}", match: Match{Title: "Only Title"}, want: "Only_Title"},
+		{template: "{title} ({year})", match: m, want: "Интерстеллар_(2014)"},
+		{template: "{original_title} ({year})", match: m, want: "Interstellar_(2014)"},
+		{template: "{title} [{imdb_id}] {tmdb_id} {type}", match: m, want: "Интерстеллар_[tt0816692]_157336_movie"},
 		{template: "{title} ({year})", match: Match{Title: "Untitled"}, want: "Untitled"},
-		{template: "{title} ({year})", match: Match{Title: "Mission: Impossible / Fallout?", Year: 2018}, want: "Mission Impossible Fallout (2018)"},
-		{template: "{original_title}", match: Match{Title: "Only Title"}, want: "Only Title"},
+		{template: "{title} ({year})", match: Match{Title: "Mission: Impossible / Fallout?", Year: 2018}, want: "Mission_Impossible_Fallout_(2018)"},
+		{template: "{original_title}", match: Match{Title: "Only Title"}, want: "Only_Title"},
 		{template: "{title}...", match: Match{Title: "Ends"}, want: "Ends"},
 		{template: "{year}", match: Match{Title: "X"}, want: ""},
-		{template: "", match: Match{MediaType: MediaTV, Title: "Lost", Year: 2004, Season: 2}, want: "Lost (2004) S02"},
-		{template: "{title} - {season}", match: Match{MediaType: MediaTV, Title: "Lost", Season: 1}, want: "Lost - S01"},
+		{template: "", match: Match{MediaType: MediaTV, Title: "Остаться в живых", EnglishTitle: "Lost", Year: 2004, Season: 2}, want: "Lost_(2004)_S02"},
+		{template: "{title} - {season}", match: Match{MediaType: MediaTV, Title: "Lost", Season: 1}, want: "Lost_-_S01"},
 		{template: "{title} {season}", match: Match{MediaType: MediaTV, Title: "Lost"}, want: "Lost"},
 		{template: "{title} {season}", match: Match{MediaType: MediaMovie, Title: "Up", Season: 3}, want: "Up"},
 	}
@@ -37,8 +41,8 @@ func TestRenderNameIsBounded(t *testing.T) {
 	if len(got) > maxNameBytes {
 		t.Errorf("len = %d, want at most %d", len(got), maxNameBytes)
 	}
-	if strings.HasSuffix(got, " ") {
-		t.Errorf("name %q ends with a space", got)
+	if strings.HasSuffix(got, "_") || strings.Contains(got, " ") {
+		t.Errorf("name %q has a space or ends with an underscore", got)
 	}
 }
 

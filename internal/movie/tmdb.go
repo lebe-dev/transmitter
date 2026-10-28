@@ -45,10 +45,13 @@ type Match struct {
 	IMDbID        string
 	Title         string
 	OriginalTitle string
-	Year          int
-	Overview      string
-	PosterPath    string
-	Rating        float64
+	// EnglishTitle is the English title whatever MOVIE_LANGUAGE is; empty when
+	// TMDB knows none. Torrents are renamed after it.
+	EnglishTitle string
+	Year         int
+	Overview     string
+	PosterPath   string
+	Rating       float64
 	// Season is the season of a series release ("S02"), taken from the torrent
 	// name rather than TMDB; 0 for movies and whole-series torrents.
 	Season int
@@ -97,12 +100,28 @@ type tmdbResult struct {
 	PosterPath    string  `json:"poster_path"`
 	VoteAverage   float64 `json:"vote_average"`
 	IMDbID        string  `json:"imdb_id"`
-	ExternalIDs   struct {
+	// OriginalLanguage is an ISO 639-1 code; "en" means the original title is English.
+	OriginalLanguage string `json:"original_language"`
+	ExternalIDs      struct {
 		IMDbID string `json:"imdb_id"`
 	} `json:"external_ids"`
+	// Translations come only with the details (append_to_response=translations).
+	Translations struct {
+		Translations []tmdbTranslation `json:"translations"`
+	} `json:"translations"`
 }
 
-func (r tmdbResult) match(mediaType string) Match {
+// tmdbTranslation is one localized version of a title.
+type tmdbTranslation struct {
+	Language string `json:"iso_639_1"`
+	Country  string `json:"iso_3166_1"`
+	Data     struct {
+		Title string `json:"title"`
+		Name  string `json:"name"`
+	} `json:"data"`
+}
+
+func (r tmdbResult) match(mediaType, language string) Match {
 	m := Match{
 		MediaType:  mediaType,
 		TMDBID:     r.ID,
@@ -123,7 +142,48 @@ func (r tmdbResult) match(mediaType string) Match {
 	if len(date) >= 4 {
 		m.Year, _ = strconv.Atoi(date[:4])
 	}
+	m.EnglishTitle = r.englishTitle(m, language)
 	return m
+}
+
+// englishTitle picks the English title of a hit: the localized title when the
+// client already asks for English, then the English translation (US first),
+// then the original title of an English-language release.
+func (r tmdbResult) englishTitle(m Match, language string) string {
+	if isEnglish(language) && m.Title != "" {
+		return m.Title
+	}
+	var best string
+	for _, tr := range r.Translations.Translations {
+		if tr.Language != "en" {
+			continue
+		}
+		title := tr.Data.Title
+		if title == "" {
+			title = tr.Data.Name
+		}
+		if title == "" {
+			continue
+		}
+		if tr.Country == "US" {
+			return title
+		}
+		if best == "" {
+			best = title
+		}
+	}
+	if best != "" {
+		return best
+	}
+	if r.OriginalLanguage == "en" {
+		return m.OriginalTitle
+	}
+	return ""
+}
+
+// isEnglish reports whether a TMDB locale ("en-US", "en") is English.
+func isEnglish(language string) bool {
+	return language == "en" || strings.HasPrefix(language, "en-")
 }
 
 // Search looks a title up among movies or series, optionally narrowed by year.
@@ -147,22 +207,23 @@ func (c *TMDB) Search(ctx context.Context, mediaType, query string, year int) ([
 
 	matches := make([]Match, 0, len(resp.Results))
 	for _, r := range resp.Results {
-		matches = append(matches, r.match(mediaType))
+		matches = append(matches, r.match(mediaType, c.language))
 	}
 	return matches, nil
 }
 
-// Details fetches a movie or series by its TMDB ID, including the IMDb ID.
+// Details fetches a movie or series by its TMDB ID, including the IMDb ID and
+// the English title.
 func (c *TMDB) Details(ctx context.Context, mediaType string, id int64) (Match, error) {
 	var r tmdbResult
-	params := url.Values{}
+	params := url.Values{"append_to_response": {"translations"}}
 	if mediaType == MediaTV {
-		params.Set("append_to_response", "external_ids")
+		params.Set("append_to_response", "external_ids,translations")
 	}
 	if err := c.get(ctx, fmt.Sprintf("/%s/%d", mediaType, id), params, &r); err != nil {
 		return Match{}, err
 	}
-	return r.match(mediaType), nil
+	return r.match(mediaType, c.language), nil
 }
 
 // FindIMDb resolves an IMDb ID (tt1234567) to a movie or series.

@@ -3,8 +3,12 @@ package movie
 import (
 	"context"
 	"errors"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/lebe-dev/transmitter/internal/sqlitedb"
 )
 
 func TestStoreFlagsSurviveMatchChanges(t *testing.T) {
@@ -102,5 +106,41 @@ func TestStoreRejectsInvalidHash(t *testing.T) {
 	store := newStore(t)
 	if err := store.SetFlags(context.Background(), "nope", Flags{}); !errors.Is(err, ErrInvalidHash) {
 		t.Errorf("SetFlags() error = %v, want ErrInvalidHash", err)
+	}
+}
+
+// A database created by 1.6.0 has no english_title column; opening it must add
+// the column and keep the rows.
+func TestStoreMigratesOldSchema(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "old.db")
+	db, err := sqlitedb.Open(path)
+	if err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+	oldSchema := strings.Replace(schema, "\tenglish_title  TEXT    NOT NULL DEFAULT '',\n", "", 1)
+	if oldSchema == schema {
+		t.Fatal("the test could not build the old schema")
+	}
+	if _, err := db.Exec(oldSchema); err != nil {
+		t.Fatalf("create old schema: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO torrent_movies (hash, state, title) VALUES (?, ?, ?)`, hashA, StateMatched, "Брат"); err != nil {
+		t.Fatalf("insert old row: %v", err)
+	}
+	db.Close() //nolint:errcheck
+
+	store, err := OpenStore(path)
+	if err != nil {
+		t.Fatalf("OpenStore() error = %v", err)
+	}
+	defer store.Close() //nolint:errcheck
+	ctx := context.Background()
+
+	if err := store.SetEnglishTitle(ctx, hashA, "Brother"); err != nil {
+		t.Fatalf("SetEnglishTitle() error = %v", err)
+	}
+	rec, ok, err := store.Get(ctx, hashA)
+	if err != nil || !ok || rec.Title != "Брат" || rec.EnglishTitle != "Brother" {
+		t.Errorf("Get() = %+v, %v, %v", rec, ok, err)
 	}
 }

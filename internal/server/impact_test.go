@@ -75,7 +75,7 @@ func TestImpactToggleHandlerReportsStoreFailure(t *testing.T) {
 }
 
 func TestSettingsHandlerReportsImpactState(t *testing.T) {
-	h := SettingsHandler(UISettings{ImpactTargetRatio: 1.5}, nil, &fakeImpactStore{enabled: true})
+	h := SettingsHandler(UISettings{ImpactTargetRatio: 1.5}, nil, &fakeImpactStore{enabled: true}, nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/settings", nil))
 
@@ -93,7 +93,7 @@ func TestSettingsHandlerReportsImpactState(t *testing.T) {
 
 // A store that cannot be read must not promise a stop that never happens.
 func TestSettingsHandlerReportsImpactOffOnStoreFailure(t *testing.T) {
-	h := SettingsHandler(UISettings{}, nil, &fakeImpactStore{enabled: true, err: errors.New("db down")})
+	h := SettingsHandler(UISettings{}, nil, &fakeImpactStore{enabled: true, err: errors.New("db down")}, nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/settings", nil))
 
