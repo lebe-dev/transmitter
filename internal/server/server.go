@@ -19,7 +19,8 @@ type Server struct {
 }
 
 // New creates and configures the HTTP server with all routes.
-func New(cfg *config.Config, client *transmission.Client, staticFS fs.FS, logger *slog.Logger) (*Server, error) {
+// movies is nil while the Movie Plugin is disabled.
+func New(cfg *config.Config, client *transmission.Client, noteStore NoteStore, shiftStore ShiftStore, impactStore ImpactStore, memoStore MemoStore, pauser Pauser, movies MovieService, version string, staticFS fs.FS, logger *slog.Logger) (*Server, error) {
 	staticHandler, err := StaticHandler(staticFS)
 	if err != nil {
 		return nil, err
@@ -30,8 +31,29 @@ func New(cfg *config.Config, client *transmission.Client, staticFS fs.FS, logger
 		HighCount: cfg.FilePriorityHighCount,
 	}
 
+	configuredShifts := ConfiguredShifts{
+		Night: cfg.NightShiftEnabled,
+		Day:   cfg.DayShiftEnabled,
+	}
+
 	uiSettings := UISettings{
-		DeleteWithData: cfg.DeleteWithData,
+		Version:              version,
+		DeleteWithData:       cfg.DeleteWithData,
+		NightShiftConfigured: cfg.NightShiftEnabled,
+		NightShiftEnabled:    cfg.NightShiftEnabled,
+		DayShiftConfigured:   cfg.DayShiftEnabled,
+		DayShiftEnabled:      cfg.DayShiftEnabled,
+		NoteMaxLength:        noteStore.MaxLength(),
+		ImpactTargetRatio:    cfg.ImpactTargetRatio,
+		MoviePluginEnabled:   movies != nil,
+	}
+	if cfg.NightShiftEnabled {
+		uiSettings.NightShiftStart = cfg.NightShiftStart.String()
+		uiSettings.NightShiftEnd = cfg.NightShiftEnd.String()
+	}
+	if cfg.DayShiftEnabled {
+		uiSettings.DayShiftStart = cfg.DayShiftStart.String()
+		uiSettings.DayShiftEnd = cfg.DayShiftEnd.String()
 	}
 
 	telegramUsers := cfg.TelegramUsers
@@ -52,13 +74,60 @@ func New(cfg *config.Config, client *transmission.Client, staticFS fs.FS, logger
 		DeleteWithData:        cfg.DeleteWithData,
 		MonitorInterval:       cfg.MonitorInterval.String(),
 		FileSelectTimeout:     cfg.FileSelectTimeout.String(),
+		NightShiftConfigured:  cfg.NightShiftEnabled,
+		DayShiftConfigured:    cfg.DayShiftEnabled,
+		DBPath:                cfg.DBPath,
+		NoteMaxLength:         cfg.NoteMaxLength,
+		NoteCleanupInterval:   cfg.NoteCleanupInterval.String(),
+		ImpactTargetRatio:     cfg.ImpactTargetRatio,
+		ImpactInterval:        cfg.ImpactInterval.String(),
+		MoviePluginEnabled:    movies != nil,
+	}
+	if movies != nil {
+		serverConfig.Movie = &MovieServerConfig{
+			TMDBAPIURL:   cfg.Movie.TMDBAPIURL,
+			TMDBImageURL: cfg.Movie.TMDBImageURL,
+			Language:     cfg.Movie.Language,
+			AutoDetect:   cfg.Movie.AutoDetect,
+			Backfill:     cfg.Movie.Backfill,
+			AutoRename:   cfg.Movie.AutoRename,
+			Template:     cfg.Movie.Template,
+			ScanInterval: cfg.Movie.ScanInterval.String(),
+			ScanBatch:    cfg.Movie.ScanBatch,
+			PosterDir:    cfg.Movie.PosterDir,
+		}
+	}
+	if cfg.NightShiftEnabled {
+		serverConfig.NightShiftStart = cfg.NightShiftStart.String()
+		serverConfig.NightShiftEnd = cfg.NightShiftEnd.String()
+	}
+	if cfg.DayShiftEnabled {
+		serverConfig.DayShiftStart = cfg.DayShiftStart.String()
+		serverConfig.DayShiftEnd = cfg.DayShiftEnd.String()
+	}
+
+	var onAdded func()
+	if movies != nil {
+		onAdded = movies.Wake
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("POST /api/rpc", ProxyHandler(client, priorityCfg, cfg.MaxRequestBodyBytes))
+	mux.Handle("POST /api/rpc", ProxyHandler(client, priorityCfg, cfg.MaxRequestBodyBytes, noteStore, onAdded))
 	mux.Handle("GET /api/health", HealthHandler(client))
-	mux.Handle("GET /api/settings", SettingsHandler(uiSettings))
+	mux.Handle("GET /api/settings", SettingsHandler(uiSettings, shiftStore, impactStore))
 	mux.Handle("GET /api/config", ConfigHandler(serverConfig))
+	mux.Handle("PUT /api/shifts/{shift}", ShiftToggleHandler(shiftStore, configuredShifts))
+	mux.Handle("PUT /api/impact", ImpactToggleHandler(impactStore))
+	mux.Handle("GET /api/memo", MemoHandler(memoStore))
+	mux.Handle("PUT /api/memo", MemoUpdateHandler(memoStore))
+	mux.Handle("GET /api/pause", PauseStateHandler(pauser))
+	mux.Handle("PUT /api/pause", PauseToggleHandler(pauser))
+	mux.Handle("GET /api/notes", NotesHandler(noteStore))
+	mux.Handle("PUT /api/notes/{hash}", NoteUpdateHandler(noteStore))
+	mux.Handle("DELETE /api/notes/{hash}", NoteDeleteHandler(noteStore))
+	if movies != nil {
+		registerMovieRoutes(mux, movies)
+	}
 	mux.Handle("/", staticHandler)
 
 	handler := CORSMiddleware(cfg.CORSOrigin, mux)

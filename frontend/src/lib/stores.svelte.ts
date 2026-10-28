@@ -1,5 +1,11 @@
-import { getTorrents, getSession } from './api.js';
-import type { Torrent, FilterStatus } from './types.js';
+import { getTorrents, getSession, getNotes, setNote, getMemo, setMemo, getGlobalPause, setGlobalPause } from './api.js';
+import { undergiven } from './impact.js';
+import { matchesSearch, missingSubs, unwatched } from './movie.js';
+import { movieStore } from './movies.svelte.js';
+import { settingsStore } from './settings.svelte.js';
+import { connectivity } from './connectivity.svelte.js';
+import { OfflineError, readCache, writeCache } from './offline.js';
+import type { Torrent, FilterStatus, TorrentNotes } from './types.js';
 
 const POLL_ACTIVE = 5_000;
 const POLL_HIDDEN = 30_000;
@@ -7,6 +13,7 @@ const STALE_MS = 4_000;
 const LEADER_KEY = 'tx_leader';
 const HB_KEY = 'tx_heartbeat';
 const CHANNEL_NAME = 'transmitter';
+const TORRENTS_CACHE_KEY = 'torrents';
 
 class TorrentStore {
 	torrents = $state<Torrent[]>([]);
@@ -14,18 +21,34 @@ class TorrentStore {
 	error = $state<string | null>(null);
 	filterStatus = $state<FilterStatus>('all');
 	search = $state('');
+	/** Когда список последний раз пришёл с сервера (ms); показывается в офлайне. */
+	syncedAt = $state<number | null>(null);
 
 	readonly #id = crypto.randomUUID();
 	#timer: ReturnType<typeof setTimeout> | null = null;
 	#channel: BroadcastChannel | null = null;
 	#leader = false;
 
+	constructor() {
+		// Последний известный список: виден сразу при старте и остаётся в офлайне.
+		const cached = readCache<Torrent[]>(TORRENTS_CACHE_KEY);
+		if (cached) {
+			this.torrents = cached.data;
+			this.syncedAt = cached.savedAt;
+			this.loading = false;
+		}
+	}
+
 	get filtered(): Torrent[] {
 		let list = this.torrents;
 
 		if (this.search) {
 			const q = this.search.toLowerCase();
-			list = list.filter((t) => t.name.toLowerCase().includes(q));
+			list = list.filter(
+				(t) =>
+					t.name.toLowerCase().includes(q) ||
+					(movieStore.enabled && matchesSearch(movieStore.get(t.hashString), q)),
+			);
 		}
 
 		switch (this.filterStatus) {
@@ -44,6 +67,15 @@ class TorrentStore {
 						t.percentDone === 1 && (t.status === 0 || t.status === 5 || t.status === 6)
 				);
 				break;
+			case 'undergiven':
+				list = list.filter((t) => undergiven(t, settingsStore.impactTargetRatio));
+				break;
+			case 'unwatched':
+				list = list.filter((t) => unwatched(movieStore.get(t.hashString)));
+				break;
+			case 'missingSubs':
+				list = list.filter((t) => missingSubs(movieStore.get(t.hashString)));
+				break;
 		}
 
 		return list;
@@ -54,6 +86,7 @@ class TorrentStore {
 		this.#channel.onmessage = (ev: MessageEvent) => {
 			if (ev.data?.type === 'data') {
 				this.torrents = ev.data.torrents;
+				this.syncedAt = ev.data.syncedAt ?? Date.now();
 				this.loading = false;
 				this.error = null;
 				if (!this.#leader) {
@@ -64,6 +97,7 @@ class TorrentStore {
 		};
 
 		window.addEventListener('beforeunload', this.#onUnload);
+		window.addEventListener('online', this.#onOnline);
 		document.addEventListener('visibilitychange', this.#onVisibilityChange);
 
 		this.#tryLead();
@@ -73,6 +107,7 @@ class TorrentStore {
 		this.#clearTimer();
 		this.#channel?.close();
 		window.removeEventListener('beforeunload', this.#onUnload);
+		window.removeEventListener('online', this.#onOnline);
 		document.removeEventListener('visibilitychange', this.#onVisibilityChange);
 		if (this.#leader) {
 			localStorage.removeItem(LEADER_KEY);
@@ -103,14 +138,18 @@ class TorrentStore {
 		this.#fetch().then(() => this.#scheduleNext());
 	}
 
-	#onUnload = () => {
+	readonly #onUnload = () => {
 		if (this.#leader) {
 			localStorage.removeItem(LEADER_KEY);
 			localStorage.removeItem(HB_KEY);
 		}
 	};
 
-	#onVisibilityChange = () => {
+	readonly #onOnline = () => {
+		void this.refresh();
+	};
+
+	readonly #onVisibilityChange = () => {
 		if (document.hidden) return;
 		if (this.#leader) {
 			this.#clearTimer();
@@ -126,12 +165,17 @@ class TorrentStore {
 		localStorage.setItem(HB_KEY, String(Date.now()));
 		try {
 			const torrents = await getTorrents();
+			const syncedAt = Date.now();
 			this.torrents = torrents;
+			this.syncedAt = syncedAt;
 			this.loading = false;
 			this.error = null;
-			this.#channel?.postMessage({ type: 'data', torrents });
+			writeCache(TORRENTS_CACHE_KEY, torrents, syncedAt);
+			this.#channel?.postMessage({ type: 'data', torrents, syncedAt });
 		} catch (err) {
-			this.error = err instanceof Error ? err.message : 'Connection error';
+			// В офлайне список остаётся последним известным, об этом говорит баннер.
+			if (err instanceof OfflineError) this.error = null;
+			else this.error = err instanceof Error ? err.message : 'Connection error';
 			this.loading = false;
 		}
 	}
@@ -202,12 +246,137 @@ class PinStore {
 
 export const pinStore = new PinStore();
 
+// ── Torrent notes (backend SQLite, keyed by torrent hash) ────────────────
+
+const NOTES_CACHE_KEY = 'notes';
+
+class NoteStore {
+	/** Character limit reported by the server via /api/settings. */
+	maxLength = $state(0);
+
+	#notes = $state<TorrentNotes>(readCache<TorrentNotes>(NOTES_CACHE_KEY)?.data ?? {});
+
+	constructor() {
+		connectivity.onReconnect(() => void this.reload());
+	}
+
+	get(hashString: string): string {
+		return this.#notes[hashString] ?? '';
+	}
+
+	async init(maxLength: number) {
+		this.maxLength = maxLength;
+		await this.reload();
+	}
+
+	async reload() {
+		try {
+			this.#notes = await getNotes();
+			writeCache(NOTES_CACHE_KEY, this.#notes);
+		} catch {
+			// Notes are supplementary: keep the torrent list usable without them.
+		}
+	}
+
+	/** Persists a note. An empty text removes it. Throws if the server rejects it. */
+	async save(hashString: string, text: string) {
+		const trimmed = text.trim();
+		await setNote(hashString, trimmed);
+
+		const next = { ...this.#notes };
+		if (trimmed) next[hashString] = trimmed;
+		else delete next[hashString];
+		this.#notes = next;
+		writeCache(NOTES_CACHE_KEY, next);
+	}
+}
+
+export const noteStore = new NoteStore();
+
+// ── Global memo (backend SQLite, shown above the torrent list) ───────────
+
+const MEMO_CACHE_KEY = 'memo';
+
+class MemoStore {
+	text = $state(readCache<string>(MEMO_CACHE_KEY)?.data ?? '');
+	loaded = $state(false);
+
+	constructor() {
+		connectivity.onReconnect(() => {
+			this.loaded = false;
+			void this.init();
+		});
+	}
+
+	async init() {
+		if (this.loaded) return;
+		try {
+			this.text = await getMemo();
+			this.loaded = true;
+			writeCache(MEMO_CACHE_KEY, this.text);
+		} catch {
+			// Заметка вспомогательная: список торрентов работает и без неё.
+		}
+	}
+
+	/** Сохраняет текст как есть (с переводами строк); бросает, если сервер отказал. */
+	async save(text: string) {
+		await setMemo(text);
+		this.text = text;
+		writeCache(MEMO_CACHE_KEY, text);
+	}
+}
+
+export const memoStore = new MemoStore();
+
+// ── Global pause (state lives on the server) ──────────────────────────────
+
+const PAUSE_CACHE_KEY = 'pause';
+
+class PauseStore {
+	paused = $state(readCache<boolean>(PAUSE_CACHE_KEY)?.data ?? false);
+	busy = $state(false);
+
+	constructor() {
+		connectivity.onReconnect(() => void this.init());
+	}
+
+	async init() {
+		try {
+			this.paused = await getGlobalPause();
+			writeCache(PAUSE_CACHE_KEY, this.paused);
+		} catch {
+			// Кнопка просто покажет «не на паузе»; следующий клик синхронизирует состояние.
+		}
+	}
+
+	/** Переключает паузу и возвращает число затронутых раздач. */
+	async toggle(): Promise<number> {
+		this.busy = true;
+		try {
+			const next = !this.paused;
+			const count = await setGlobalPause(next);
+			this.paused = next;
+			writeCache(PAUSE_CACHE_KEY, next);
+			return count;
+		} finally {
+			this.busy = false;
+		}
+	}
+}
+
+export const pauseStore = new PauseStore();
+
 // ── Download directory store (localStorage + session-get) ────────────────
 
 const DIR_KEY = 'tx_download_dirs';
+const SESSION_CACHE_KEY = 'session';
+
+type SessionInfo = { defaultDir: string; defaultFreeSpace: number | null };
 
 class DownloadDirStore {
 	defaultDir = $state('');
+	defaultFreeSpace = $state<number | null>(null);
 	savedDirs = $state<string[]>([]);
 	selectedDir = $state('');
 
@@ -225,15 +394,42 @@ class DownloadDirStore {
 		} catch {
 			// ignore corrupt data
 		}
+		const cached = readCache<SessionInfo>(SESSION_CACHE_KEY);
+		if (cached) {
+			this.defaultDir = cached.data.defaultDir;
+			this.defaultFreeSpace = cached.data.defaultFreeSpace;
+			this.selectedDir = this.defaultDir;
+		}
+		connectivity.onReconnect(() => void this.refreshFreeSpace());
 	}
 
+	#inited = false;
+
+	/** Идемпотентно: и главная, и шапка настроек вызывают init() при монтировании. */
 	async init() {
+		if (this.#inited) return;
+		this.#inited = true;
 		try {
 			const session = await getSession();
+			const prevDefault = this.defaultDir;
 			this.defaultDir = session['download-dir'] ?? '';
-			if (!this.selectedDir) this.selectedDir = this.defaultDir;
+			this.defaultFreeSpace = session['download-dir-free-space'] ?? null;
+			// selectedDir мог прийти из кэша вместе со старым путём по умолчанию.
+			if (!this.selectedDir || this.selectedDir === prevDefault) this.selectedDir = this.defaultDir;
+			this.#cacheSession();
 		} catch {
 			// session-get may fail if server is unreachable
+		}
+	}
+
+	async refreshFreeSpace() {
+		try {
+			const session = await getSession();
+			if (session['download-dir']) this.defaultDir = session['download-dir'];
+			this.defaultFreeSpace = session['download-dir-free-space'] ?? null;
+			this.#cacheSession();
+		} catch {
+			// leave the last known value in place on transient failures
 		}
 	}
 
@@ -256,6 +452,13 @@ class DownloadDirStore {
 
 	#persist() {
 		localStorage.setItem(DIR_KEY, JSON.stringify(this.savedDirs));
+	}
+
+	#cacheSession() {
+		writeCache<SessionInfo>(SESSION_CACHE_KEY, {
+			defaultDir: this.defaultDir,
+			defaultFreeSpace: this.defaultFreeSpace,
+		});
 	}
 }
 

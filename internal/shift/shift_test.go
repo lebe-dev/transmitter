@@ -1,0 +1,497 @@
+package shift
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"slices"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/lebe-dev/transmitter/internal/config"
+	"github.com/lebe-dev/transmitter/internal/transmission"
+)
+
+func TestInWindow(t *testing.T) {
+	dt := func(h, m int) config.DayTime { return config.DayTime{Hour: h, Minute: m} }
+	at := func(h, m int) time.Time { return time.Date(2026, 1, 1, h, m, 0, 0, time.UTC) }
+
+	cases := []struct {
+		name       string
+		now        time.Time
+		start, end config.DayTime
+		want       bool
+	}{
+		{"linear inside", at(2, 0), dt(1, 0), dt(3, 0), true},
+		{"linear before", at(0, 30), dt(1, 0), dt(3, 0), false},
+		{"linear after", at(3, 0), dt(1, 0), dt(3, 0), false},
+		{"linear exactly start", at(1, 0), dt(1, 0), dt(3, 0), true},
+		{"wrap inside late evening", at(23, 30), dt(23, 0), dt(7, 0), true},
+		{"wrap inside early morning", at(3, 0), dt(23, 0), dt(7, 0), true},
+		{"wrap outside daytime", at(12, 0), dt(23, 0), dt(7, 0), false},
+		{"wrap at end (excluded)", at(7, 0), dt(23, 0), dt(7, 0), false},
+		{"equal start/end never matches", at(5, 0), dt(5, 0), dt(5, 0), false},
+		{"minute precision", at(23, 29), dt(23, 30), dt(7, 0), false},
+		{"minute precision inside", at(23, 30), dt(23, 30), dt(7, 0), true},
+		{"day window inside", at(12, 0), dt(8, 0), dt(22, 0), true},
+		{"day window before", at(7, 59), dt(8, 0), dt(22, 0), false},
+		{"day window at end (excluded)", at(22, 0), dt(8, 0), dt(22, 0), false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := InWindow(tc.now, tc.start, tc.end); got != tc.want {
+				t.Errorf("InWindow(%v, %s, %s) = %v, want %v", tc.now, tc.start, tc.end, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestNightOptions(t *testing.T) {
+	cfg := &config.Config{
+		NightShiftStart:    config.DayTime{Hour: 23, Minute: 0},
+		NightShiftEnd:      config.DayTime{Hour: 7, Minute: 0},
+		NightShiftInterval: 2 * time.Minute,
+	}
+	opts := NightOptions(cfg)
+	if opts.Label != NightLabel || opts.Name != NightLabel {
+		t.Errorf("label/name = %q/%q, want %q", opts.Label, opts.Name, NightLabel)
+	}
+	if opts.Start != cfg.NightShiftStart || opts.End != cfg.NightShiftEnd || opts.Interval != cfg.NightShiftInterval {
+		t.Errorf("window = %s-%s/%s, want 23:00-07:00/2m0s", opts.Start, opts.End, opts.Interval)
+	}
+}
+
+func TestDayOptions(t *testing.T) {
+	cfg := &config.Config{
+		DayShiftStart:    config.DayTime{Hour: 8, Minute: 0},
+		DayShiftEnd:      config.DayTime{Hour: 22, Minute: 0},
+		DayShiftInterval: 30 * time.Second,
+	}
+	opts := DayOptions(cfg)
+	if opts.Label != DayLabel || opts.Name != DayLabel {
+		t.Errorf("label/name = %q/%q, want %q", opts.Label, opts.Name, DayLabel)
+	}
+	if opts.Start != cfg.DayShiftStart || opts.End != cfg.DayShiftEnd || opts.Interval != cfg.DayShiftInterval {
+		t.Errorf("window = %s-%s/%s, want 08:00-22:00/30s", opts.Start, opts.End, opts.Interval)
+	}
+}
+
+type recordingServer struct {
+	mu       sync.Mutex
+	torrents []transmission.Torrent
+	starts   [][]int64
+	stops    [][]int64
+}
+
+func (rs *recordingServer) handle(t *testing.T) http.HandlerFunc {
+	t.Helper()
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Transmission-Session-Id", "test")
+
+		var req transmission.RPCRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+
+		rs.mu.Lock()
+		defer rs.mu.Unlock()
+
+		switch req.Method {
+		case "torrent-get":
+			args, _ := json.Marshal(transmission.TorrentGetResult{Torrents: rs.torrents})
+			json.NewEncoder(w).Encode(transmission.RPCResponse{Result: "success", Arguments: args}) //nolint:errcheck
+		case "torrent-start":
+			var a transmission.TorrentActionArgs
+			_ = json.Unmarshal(req.Arguments, &a)
+			ids := append([]int64(nil), a.IDs...)
+			slices.Sort(ids)
+			rs.starts = append(rs.starts, ids)
+			json.NewEncoder(w).Encode(transmission.RPCResponse{Result: "success"}) //nolint:errcheck
+		case "torrent-stop":
+			var a transmission.TorrentActionArgs
+			_ = json.Unmarshal(req.Arguments, &a)
+			ids := append([]int64(nil), a.IDs...)
+			slices.Sort(ids)
+			rs.stops = append(rs.stops, ids)
+			json.NewEncoder(w).Encode(transmission.RPCResponse{Result: "success"}) //nolint:errcheck
+		default:
+			t.Fatalf("unexpected method %q", req.Method)
+		}
+	}
+}
+
+func newScheduler(t *testing.T, rs *recordingServer, label string, now time.Time, start, end config.DayTime) *Scheduler {
+	t.Helper()
+	return newSchedulerWithToggle(t, rs, label, now, start, end, nil)
+}
+
+func newSchedulerWithToggle(t *testing.T, rs *recordingServer, label string, now time.Time, start, end config.DayTime, toggle Toggle) *Scheduler {
+	t.Helper()
+	opts := Options{
+		Name:     label,
+		Label:    label,
+		Start:    start,
+		End:      end,
+		Interval: time.Minute,
+	}
+	return newSchedulerWithPeers(t, rs, opts, now, nil, toggle)
+}
+
+func newSchedulerWithPeers(t *testing.T, rs *recordingServer, opts Options, now time.Time, peers []Options, toggle Toggle) *Scheduler {
+	t.Helper()
+	srv := httptest.NewServer(rs.handle(t))
+	t.Cleanup(srv.Close)
+	client := transmission.NewClient(srv.URL, "u", "p")
+
+	s := New(client, opts, append([]Options{opts}, peers...), toggle, nil, nil, slog.New(slog.NewTextHandler(testWriter{t}, nil)))
+	s.now = func() time.Time { return now }
+	return s
+}
+
+// stubToggle answers the enabled lookup with a fixed value or error.
+type stubToggle struct {
+	enabled bool
+	err     error
+	shift   string
+}
+
+func (s *stubToggle) ShiftEnabled(_ context.Context, shift string) (bool, error) {
+	s.shift = shift
+	return s.enabled, s.err
+}
+
+// perShiftToggle answers the enabled lookup per shift name; a missing entry is enabled.
+type perShiftToggle struct {
+	enabled map[string]bool
+	err     error
+}
+
+func (p *perShiftToggle) ShiftEnabled(_ context.Context, shift string) (bool, error) {
+	if p.err != nil {
+		return false, p.err
+	}
+	enabled, ok := p.enabled[shift]
+	return !ok || enabled, nil
+}
+
+type testWriter struct{ t *testing.T }
+
+func (w testWriter) Write(p []byte) (int, error) { w.t.Log(string(p)); return len(p), nil }
+
+func TestReconcileStartsTaggedDuringWindow(t *testing.T) {
+	rs := &recordingServer{torrents: []transmission.Torrent{
+		{ID: 1, Status: 0, PercentDone: 0.2, Labels: []string{NightLabel}}, // start downloading
+		{ID: 2, Status: 0, PercentDone: 0.5, Labels: []string{"other"}},    // wrong label
+		{ID: 3, Status: 4, PercentDone: 0.3, Labels: []string{NightLabel}}, // already running
+		{ID: 4, Status: 0, PercentDone: 1.0, Labels: []string{NightLabel}}, // completed, start seeding
+	}}
+	s := newScheduler(t, rs, NightLabel, time.Date(2026, 1, 1, 23, 30, 0, 0, time.UTC),
+		config.DayTime{Hour: 23, Minute: 0}, config.DayTime{Hour: 7, Minute: 0})
+
+	s.reconcile(context.Background())
+
+	if len(rs.starts) != 1 {
+		t.Fatalf("starts = %v, want one batch", rs.starts)
+	}
+	got := rs.starts[0]
+	if len(got) != 2 || got[0] != 1 || got[1] != 4 {
+		t.Errorf("start ids = %v, want [1 4]", got)
+	}
+	if len(rs.stops) != 0 {
+		t.Errorf("stops = %v, want none", rs.stops)
+	}
+}
+
+func TestReconcileStopsTaggedOutsideWindow(t *testing.T) {
+	rs := &recordingServer{torrents: []transmission.Torrent{
+		{ID: 1, Status: 4, PercentDone: 0.2, Labels: []string{NightLabel}}, // stop downloading
+		{ID: 2, Status: 3, PercentDone: 0.5, Labels: []string{NightLabel}}, // stop queued
+		{ID: 3, Status: 0, PercentDone: 0.3, Labels: []string{NightLabel}}, // already stopped
+		{ID: 4, Status: 4, PercentDone: 0.5, Labels: []string{}},           // untagged, untouched
+		{ID: 5, Status: 6, PercentDone: 1.0, Labels: []string{NightLabel}}, // stop seeding (completed)
+	}}
+	s := newScheduler(t, rs, NightLabel, time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC),
+		config.DayTime{Hour: 23, Minute: 0}, config.DayTime{Hour: 7, Minute: 0})
+
+	s.reconcile(context.Background())
+
+	if len(rs.starts) != 0 {
+		t.Errorf("starts = %v, want none", rs.starts)
+	}
+	if len(rs.stops) != 1 {
+		t.Fatalf("stops = %v, want one batch", rs.stops)
+	}
+	got := rs.stops[0]
+	if len(got) != 3 || got[0] != 1 || got[1] != 2 || got[2] != 5 {
+		t.Errorf("stop ids = %v, want [1 2 5]", got)
+	}
+}
+
+func TestReconcileNoOpWhenNothingTagged(t *testing.T) {
+	rs := &recordingServer{torrents: []transmission.Torrent{
+		{ID: 1, Status: 4, PercentDone: 0.2, Labels: []string{}},
+	}}
+	s := newScheduler(t, rs, NightLabel, time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC),
+		config.DayTime{Hour: 23, Minute: 0}, config.DayTime{Hour: 7, Minute: 0})
+
+	s.reconcile(context.Background())
+
+	if len(rs.starts) != 0 || len(rs.stops) != 0 {
+		t.Errorf("expected no calls, starts=%v stops=%v", rs.starts, rs.stops)
+	}
+}
+
+func TestReconcileDayShiftIgnoresNightLabel(t *testing.T) {
+	rs := &recordingServer{torrents: []transmission.Torrent{
+		{ID: 1, Status: 0, PercentDone: 0.2, Labels: []string{DayLabel}},   // start, day-tagged
+		{ID: 2, Status: 0, PercentDone: 0.2, Labels: []string{NightLabel}}, // other shift, untouched
+	}}
+	s := newScheduler(t, rs, DayLabel, time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC),
+		config.DayTime{Hour: 8, Minute: 0}, config.DayTime{Hour: 22, Minute: 0})
+
+	s.reconcile(context.Background())
+
+	if len(rs.starts) != 1 || len(rs.starts[0]) != 1 || rs.starts[0][0] != 1 {
+		t.Errorf("starts = %v, want [[1]]", rs.starts)
+	}
+	if len(rs.stops) != 0 {
+		t.Errorf("stops = %v, want none", rs.stops)
+	}
+}
+
+// A shift switched off in the UI must not touch torrents at all: the ones it
+// paused earlier stay paused until the user resumes them.
+func TestReconcileSkippedWhenShiftDisabled(t *testing.T) {
+	rs := &recordingServer{torrents: []transmission.Torrent{
+		{ID: 1, Status: 0, PercentDone: 0.2, Labels: []string{NightLabel}},
+		{ID: 2, Status: 4, PercentDone: 0.2, Labels: []string{NightLabel}},
+	}}
+	toggle := &stubToggle{enabled: false}
+	s := newSchedulerWithToggle(t, rs, NightLabel, time.Date(2026, 1, 1, 23, 30, 0, 0, time.UTC),
+		config.DayTime{Hour: 23, Minute: 0}, config.DayTime{Hour: 7, Minute: 0}, toggle)
+
+	s.reconcile(context.Background())
+
+	if len(rs.starts) != 0 || len(rs.stops) != 0 {
+		t.Errorf("expected no calls while disabled, starts=%v stops=%v", rs.starts, rs.stops)
+	}
+	if toggle.shift != NightLabel {
+		t.Errorf("toggle queried with %q, want %q", toggle.shift, NightLabel)
+	}
+}
+
+func TestReconcileRunsWhenShiftEnabled(t *testing.T) {
+	rs := &recordingServer{torrents: []transmission.Torrent{
+		{ID: 1, Status: 0, PercentDone: 0.2, Labels: []string{NightLabel}},
+	}}
+	s := newSchedulerWithToggle(t, rs, NightLabel, time.Date(2026, 1, 1, 23, 30, 0, 0, time.UTC),
+		config.DayTime{Hour: 23, Minute: 0}, config.DayTime{Hour: 7, Minute: 0}, &stubToggle{enabled: true})
+
+	s.reconcile(context.Background())
+
+	if len(rs.starts) != 1 || len(rs.starts[0]) != 1 || rs.starts[0][0] != 1 {
+		t.Errorf("starts = %v, want [[1]]", rs.starts)
+	}
+}
+
+// A failing preference lookup must not leave tagged torrents unmanaged.
+func TestReconcileRunsWhenToggleLookupFails(t *testing.T) {
+	rs := &recordingServer{torrents: []transmission.Torrent{
+		{ID: 1, Status: 0, PercentDone: 0.2, Labels: []string{NightLabel}},
+	}}
+	s := newSchedulerWithToggle(t, rs, NightLabel, time.Date(2026, 1, 1, 23, 30, 0, 0, time.UTC),
+		config.DayTime{Hour: 23, Minute: 0}, config.DayTime{Hour: 7, Minute: 0},
+		&stubToggle{err: errors.New("db down")})
+
+	s.reconcile(context.Background())
+
+	if len(rs.starts) != 1 {
+		t.Errorf("starts = %v, want the shift to keep running on a lookup error", rs.starts)
+	}
+}
+
+// A torrent carrying both labels belongs to both shifts; inside its own window
+// each scheduler starts it.
+func TestClassifyTorrentWithBothLabels(t *testing.T) {
+	torrents := []transmission.Torrent{
+		{ID: 7, Status: 0, PercentDone: 0.5, Labels: []string{NightLabel, DayLabel}},
+	}
+
+	for _, label := range []string{NightLabel, DayLabel} {
+		tagged, toStart, toStop := classify(torrents, label, true, nil, 0)
+		if len(tagged) != 1 || tagged[0] != 7 {
+			t.Errorf("%s: tagged = %v, want [7]", label, tagged)
+		}
+		if len(toStart) != 1 || toStart[0] != 7 {
+			t.Errorf("%s: toStart = %v, want [7]", label, toStart)
+		}
+		if len(toStop) != 0 {
+			t.Errorf("%s: toStop = %v, want none", label, toStop)
+		}
+	}
+}
+
+// Outside the window a torrent that also belongs to a shift currently on duty
+// must be left running; one tagged only by this shift is still stopped.
+func TestClassifySkipsTorrentsClaimedByShiftOnDuty(t *testing.T) {
+	torrents := []transmission.Torrent{
+		{ID: 1, Status: 6, PercentDone: 1.0, Labels: []string{NightLabel, DayLabel}},
+		{ID: 2, Status: 6, PercentDone: 1.0, Labels: []string{NightLabel}},
+	}
+
+	tagged, toStart, toStop := classify(torrents, NightLabel, false, []string{DayLabel}, 0)
+
+	if len(tagged) != 2 {
+		t.Errorf("tagged = %v, want both torrents", tagged)
+	}
+	if len(toStart) != 0 {
+		t.Errorf("toStart = %v, want none", toStart)
+	}
+	if len(toStop) != 1 || toStop[0] != 2 {
+		t.Errorf("toStop = %v, want [2]", toStop)
+	}
+}
+
+// The reported bug: a torrent labelled for both shifts got paused by the night
+// scheduler while the day shift was on duty.
+func TestReconcileKeepsTorrentRunningForOtherShift(t *testing.T) {
+	rs := &recordingServer{torrents: []transmission.Torrent{
+		{ID: 1, Status: 6, PercentDone: 1.0, Labels: []string{NightLabel, DayLabel}},
+		{ID: 2, Status: 6, PercentDone: 1.0, Labels: []string{NightLabel}},
+	}}
+	night := Options{Name: NightLabel, Label: NightLabel, Interval: time.Minute,
+		Start: config.DayTime{Hour: 23, Minute: 0}, End: config.DayTime{Hour: 7, Minute: 0}}
+	day := Options{Name: DayLabel, Label: DayLabel, Interval: time.Minute,
+		Start: config.DayTime{Hour: 8, Minute: 0}, End: config.DayTime{Hour: 22, Minute: 0}}
+
+	s := newSchedulerWithPeers(t, rs, night, time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC),
+		[]Options{day}, &perShiftToggle{})
+
+	s.reconcile(context.Background())
+
+	if len(rs.starts) != 0 {
+		t.Errorf("starts = %v, want none", rs.starts)
+	}
+	if len(rs.stops) != 1 || len(rs.stops[0]) != 1 || rs.stops[0][0] != 2 {
+		t.Errorf("stops = %v, want [[2]] — the day-shift torrent must keep seeding", rs.stops)
+	}
+}
+
+// A peer that the user switched off is not on duty: its torrents get stopped.
+func TestReconcileStopsTorrentWhenOtherShiftDisabled(t *testing.T) {
+	rs := &recordingServer{torrents: []transmission.Torrent{
+		{ID: 1, Status: 6, PercentDone: 1.0, Labels: []string{NightLabel, DayLabel}},
+	}}
+	night := Options{Name: NightLabel, Label: NightLabel, Interval: time.Minute,
+		Start: config.DayTime{Hour: 23, Minute: 0}, End: config.DayTime{Hour: 7, Minute: 0}}
+	day := Options{Name: DayLabel, Label: DayLabel, Interval: time.Minute,
+		Start: config.DayTime{Hour: 8, Minute: 0}, End: config.DayTime{Hour: 22, Minute: 0}}
+
+	s := newSchedulerWithPeers(t, rs, night, time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC),
+		[]Options{day}, &perShiftToggle{enabled: map[string]bool{DayLabel: false}})
+
+	s.reconcile(context.Background())
+
+	if len(rs.stops) != 1 || len(rs.stops[0]) != 1 || rs.stops[0][0] != 1 {
+		t.Errorf("stops = %v, want [[1]]", rs.stops)
+	}
+}
+
+// A peer whose window is closed too does not hold the torrent open.
+func TestReconcileStopsTorrentWhenNoShiftOnDuty(t *testing.T) {
+	rs := &recordingServer{torrents: []transmission.Torrent{
+		{ID: 1, Status: 6, PercentDone: 1.0, Labels: []string{NightLabel, DayLabel}},
+	}}
+	night := Options{Name: NightLabel, Label: NightLabel, Interval: time.Minute,
+		Start: config.DayTime{Hour: 23, Minute: 0}, End: config.DayTime{Hour: 7, Minute: 0}}
+	day := Options{Name: DayLabel, Label: DayLabel, Interval: time.Minute,
+		Start: config.DayTime{Hour: 8, Minute: 0}, End: config.DayTime{Hour: 22, Minute: 0}}
+
+	s := newSchedulerWithPeers(t, rs, night, time.Date(2026, 1, 1, 22, 30, 0, 0, time.UTC),
+		[]Options{day}, &perShiftToggle{})
+
+	s.reconcile(context.Background())
+
+	if len(rs.stops) != 1 || len(rs.stops[0]) != 1 || rs.stops[0][0] != 1 {
+		t.Errorf("stops = %v, want [[1]] — both windows are closed at 22:30", rs.stops)
+	}
+}
+
+// New must not treat the scheduler's own shift as a peer.
+func TestNewExcludesOwnShiftFromPeers(t *testing.T) {
+	night := Options{Name: NightLabel, Label: NightLabel}
+	day := Options{Name: DayLabel, Label: DayLabel}
+
+	s := New(nil, night, []Options{night, day}, nil, nil, nil, slog.New(slog.NewTextHandler(testWriter{t}, nil)))
+
+	if len(s.peers) != 1 || s.peers[0].Label != DayLabel {
+		t.Errorf("peers = %v, want only the day shift", s.peers)
+	}
+}
+
+// stubImpact answers the auto-stop lookup with a fixed target and state.
+type stubImpact struct {
+	target float64
+	on     bool
+}
+
+func (s stubImpact) StopTarget(context.Context) (float64, bool) { return s.target, s.on }
+
+// Inside the window a torrent that already paid back its download must stay
+// paused while automatic stopping is on: the impact worker stopped it on purpose.
+func TestReconcileSkipsStartOfTorrentsThatPaidBack(t *testing.T) {
+	rs := &recordingServer{torrents: []transmission.Torrent{
+		{ID: 1, Status: 0, PercentDone: 1.0, UploadRatio: 1.2, DownloadedEver: 100, Labels: []string{NightLabel}},
+		{ID: 2, Status: 0, PercentDone: 1.0, UploadRatio: 0.3, DownloadedEver: 100, Labels: []string{NightLabel}},
+	}}
+	s := newScheduler(t, rs, NightLabel, time.Date(2026, 1, 1, 23, 30, 0, 0, time.UTC),
+		config.DayTime{Hour: 23, Minute: 0}, config.DayTime{Hour: 7, Minute: 0})
+	s.impact = stubImpact{target: 1.0, on: true}
+
+	s.reconcile(context.Background())
+
+	if len(rs.starts) != 1 || !slices.Equal(rs.starts[0], []int64{2}) {
+		t.Fatalf("starts = %v, want one batch [2]", rs.starts)
+	}
+}
+
+// With automatic stopping off the ratio means nothing to the shift.
+func TestReconcileStartsPaidBackTorrentsWhenAutoStopOff(t *testing.T) {
+	rs := &recordingServer{torrents: []transmission.Torrent{
+		{ID: 1, Status: 0, PercentDone: 1.0, UploadRatio: 5.0, DownloadedEver: 100, Labels: []string{NightLabel}},
+	}}
+	s := newScheduler(t, rs, NightLabel, time.Date(2026, 1, 1, 23, 30, 0, 0, time.UTC),
+		config.DayTime{Hour: 23, Minute: 0}, config.DayTime{Hour: 7, Minute: 0})
+	s.impact = stubImpact{target: 1.0, on: false}
+
+	s.reconcile(context.Background())
+
+	if len(rs.starts) != 1 || !slices.Equal(rs.starts[0], []int64{1}) {
+		t.Fatalf("starts = %v, want one batch [1]", rs.starts)
+	}
+}
+
+type stubPause bool
+
+func (p stubPause) Active(context.Context) bool { return bool(p) }
+
+// While the global pause is on, the scheduler must not restart torrents.
+func TestReconcileSkipsWhileGloballyPaused(t *testing.T) {
+	rs := &recordingServer{torrents: []transmission.Torrent{
+		{ID: 1, Status: 0, PercentDone: 0.2, Labels: []string{NightLabel}},
+	}}
+	s := newSchedulerWithToggle(t, rs, NightLabel, time.Date(2026, 1, 1, 23, 30, 0, 0, time.UTC),
+		config.DayTime{Hour: 23, Minute: 0}, config.DayTime{Hour: 7, Minute: 0}, nil)
+	s.pause = stubPause(true)
+
+	s.reconcile(context.Background())
+
+	if len(rs.starts) != 0 || len(rs.stops) != 0 {
+		t.Errorf("starts = %v, stops = %v; want nothing touched while paused", rs.starts, rs.stops)
+	}
+}

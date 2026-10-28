@@ -2,11 +2,11 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { get } from 'svelte/store';
 	import { toast } from 'svelte-sonner';
-	import { mode, toggleMode, setTheme, theme } from 'mode-watcher';
+	import { setTheme, theme } from 'mode-watcher';
 	import { getCoreRowModel, getSortedRowModel, type ColumnDef, type SortingState } from '@tanstack/table-core';
-	import { t as tt, locale, locales } from 'svelte-intl-precompile';
+	import { mergeProps } from 'bits-ui';
+	import { t as tt, locale } from 'svelte-intl-precompile';
 	import SunIcon from '@lucide/svelte/icons/sun';
-	import MoonIcon from '@lucide/svelte/icons/moon';
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import PlayIcon from '@lucide/svelte/icons/play';
 	import PauseIcon from '@lucide/svelte/icons/pause';
@@ -18,29 +18,43 @@
 	import AlertCircleIcon from '@lucide/svelte/icons/alert-circle';
 	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 	import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
-	import SettingsIcon from '@lucide/svelte/icons/settings';
 	import PinIcon from '@lucide/svelte/icons/pin';
+	import MoonStarIcon from '@lucide/svelte/icons/moon-star';
+	import NotebookPenIcon from '@lucide/svelte/icons/notebook-pen';
+	import TrophyIcon from '@lucide/svelte/icons/trophy';
+	import ClapperboardIcon from '@lucide/svelte/icons/clapperboard';
+	import EyeIcon from '@lucide/svelte/icons/eye';
+	import CaptionsOffIcon from '@lucide/svelte/icons/captions-off';
 
 	import XIcon from '@lucide/svelte/icons/x';
 	import FolderIcon from '@lucide/svelte/icons/folder';
 
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
-	import { torrentStore, pinStore, downloadDirStore } from '$lib/stores.svelte.js';
-	import { addTorrentMagnet, addTorrentFile, startTorrents, stopTorrents, removeTorrents, getTorrentFiles, setFilesWanted, getSettings, getServerConfig } from '$lib/api.js';
+	import { torrentStore, pinStore, downloadDirStore, noteStore } from '$lib/stores.svelte.js';
+	import { settingsStore } from '$lib/settings.svelte.js';
+	import { movieStore } from '$lib/movies.svelte.js';
+	import { movieLabel, missingSubs as movieMissingSubs, unwatched as movieUnwatched, type MovieDialogKind } from '$lib/movie.js';
+	import { connectivity } from '$lib/connectivity.svelte.js';
+	import { errorText, failText } from '$lib/offline.js';
+	import { addTorrentMagnet, addTorrentFile, startTorrents, stopTorrents, removeTorrents, getTorrentFiles, setFilesWanted, setTorrentLabels, getFreeSpace } from '$lib/api.js';
 	import { formatSize, formatSpeed, formatEta, formatDate } from '$lib/format.js';
-	import type { Torrent, FilterStatus, ServerConfig } from '$lib/types.js';
+	import { parseTorrentSize } from '$lib/bencode.js';
+	import { blockedBySpace, dirsToCheck } from '$lib/space.js';
+	import { DAY_SHIFT_LABEL, NIGHT_SHIFT_LABEL } from '$lib/bulk.js';
+	import { percent as impactPercent, reached as impactReached, undergiven as impactUndergiven } from '$lib/impact.js';
+	import type { Torrent, FilterStatus } from '$lib/types.js';
 	import { createSvelteTable } from '$lib/components/ui/data-table/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import * as Tabs from '$lib/components/ui/tabs/index.js';
-	import * as Table from '$lib/components/ui/table/index.js';
-	import * as HoverCard from '$lib/components/ui/hover-card/index.js';
-	import InfoIcon from '@lucide/svelte/icons/info';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import AppHeader from '$lib/components/AppHeader.svelte';
+	import MemoPad from '$lib/components/MemoPad.svelte';
+	import BulkActionsMenu from '$lib/components/BulkActionsMenu.svelte';
+	import Hint from '$lib/components/Hint.svelte';
 	import TorrentDetailPanel from '$lib/components/TorrentDetailPanel.svelte';
 	import FileSelectDialog from '$lib/components/FileSelectDialog.svelte';
-
-	const LOCALE_STORAGE_KEY = 'transmitter-locale';
+	import MovieMenu from '$lib/components/MovieMenu.svelte';
+	import MovieDialogs from '$lib/components/MovieDialogs.svelte';
 
 	// ── Status ────────────────────────────────────────────────────────────────
 
@@ -146,15 +160,29 @@
 		done: torrentStore.torrents.filter(
 			(t) => t.percentDone === 1 && (t.status === 0 || t.status === 5 || t.status === 6)
 		).length,
+		undergiven: torrentStore.torrents.filter((t) => impactUndergiven(t, settingsStore.impactTargetRatio))
+			.length,
+		unwatched: torrentStore.torrents.filter((t) => movieUnwatched(movieStore.get(t.hashString))).length,
+		missingSubs: torrentStore.torrents.filter((t) => movieMissingSubs(movieStore.get(t.hashString))).length,
 	});
 
-	const FILTER_KEYS: { key: FilterStatus; tKey: string }[] = [
+	const BASE_FILTER_KEYS: { key: FilterStatus; tKey: string }[] = [
 		{ key: 'all', tKey: 'filters.all' },
 		{ key: 'downloading', tKey: 'filters.downloading' },
 		{ key: 'seeding', tKey: 'filters.seeding' },
 		{ key: 'paused', tKey: 'filters.paused' },
 		{ key: 'done', tKey: 'filters.done' },
+		{ key: 'undergiven', tKey: 'filters.undergiven' },
 	];
+
+	const MOVIE_FILTER_KEYS: { key: FilterStatus; tKey: string }[] = [
+		{ key: 'unwatched', tKey: 'filters.unwatched' },
+		{ key: 'missingSubs', tKey: 'filters.missingSubs' },
+	];
+
+	const FILTER_KEYS = $derived(
+		settingsStore.moviePluginEnabled ? [...BASE_FILTER_KEYS, ...MOVIE_FILTER_KEYS] : BASE_FILTER_KEYS,
+	);
 
 	// ── File selection dialog ─────────────────────────────────────────────────
 
@@ -172,7 +200,7 @@
 			fileSelectOpen = false;
 			await torrentStore.refresh();
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : get(tt)('toast.failAdd'));
+			toast.error(errorText(err, get(tt), 'toast.failAdd'));
 		}
 	}
 
@@ -198,7 +226,61 @@
 	let downloadDir = $state('');
 	let showDirDropdown = $state(false);
 
+	// Free-space guard for the destination folder
+	let pendingFileSize = $state<number | null>(null);
+	let destFreeSpace = $state<number | null>(null);
+	let freeSpaceTimer: ReturnType<typeof setTimeout> | null = null;
+
 	const isDirValid = $derived(!downloadDir.trim() || downloadDir.trim().startsWith('/'));
+
+	// Not enough space only when we know both the torrent size and free space
+	const notEnoughSpace = $derived(
+		pendingFileSize !== null && destFreeSpace !== null && pendingFileSize > destFreeSpace,
+	);
+
+	// Parse the selected .torrent client-side to learn its total size
+	$effect(() => {
+		const file = pendingFile;
+		if (!file) {
+			pendingFileSize = null;
+			return;
+		}
+		let cancelled = false;
+		file
+			.arrayBuffer()
+			.then((buf) => {
+				if (!cancelled) pendingFileSize = parseTorrentSize(buf);
+			})
+			.catch(() => {
+				if (!cancelled) pendingFileSize = null;
+			});
+		return () => {
+			cancelled = true;
+		};
+	});
+
+	// Fetch free space for the chosen destination (debounced while typing)
+	$effect(() => {
+		if (!addOpen) return;
+		const path = downloadDir.trim() || downloadDirStore.defaultDir;
+		if (freeSpaceTimer) clearTimeout(freeSpaceTimer);
+		if (!path || !path.startsWith('/')) {
+			destFreeSpace = null;
+			return;
+		}
+		freeSpaceTimer = setTimeout(() => {
+			getFreeSpace(path)
+				.then((bytes) => {
+					destFreeSpace = bytes;
+				})
+				.catch(() => {
+					destFreeSpace = null;
+				});
+		}, 350);
+		return () => {
+			if (freeSpaceTimer) clearTimeout(freeSpaceTimer);
+		};
+	});
 
 	function readFileAsBase64(file: File): Promise<string> {
 		return new Promise((resolve, reject) => {
@@ -230,11 +312,13 @@
 	async function handleAdd() {
 		if (isAdding) return;
 		isAdding = true;
+		// Without room the torrent is still added, but stays stopped
+		const noStart = notEnoughSpace;
 		try {
 			const dir = downloadDir.trim() || undefined;
 			if (addMode === 'magnet') {
 				if (!magnetUrl.trim()) return;
-				await addTorrentMagnet(magnetUrl.trim(), dir);
+				await addTorrentMagnet(magnetUrl.trim(), dir, noStart);
 			} else {
 				if (!pendingFile) return;
 				const b64 = await readFileAsBase64(pendingFile);
@@ -252,7 +336,9 @@
 
 				const files = await getTorrentFiles(added.id);
 
-				if (files.length <= 1) {
+				if (noStart) {
+					// Nothing to start: the torrent waits for free space
+				} else if (files.length <= 1) {
 					await startTorrents([added.id]);
 				} else {
 					if (dir) downloadDirStore.addDir(dir);
@@ -266,13 +352,14 @@
 				}
 			}
 			if (dir) downloadDirStore.addDir(dir);
-			toast.success(get(tt)('toast.added'));
+			toast.success(get(tt)(noStart ? 'toast.addedNoSpace' : 'toast.added'));
 			addOpen = false;
 			magnetUrl = '';
 			pendingFile = null;
 			await torrentStore.refresh();
+			void downloadDirStore.refreshFreeSpace();
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : get(tt)('toast.failAdd'));
+			toast.error(errorText(err, get(tt), 'toast.failAdd'));
 		} finally {
 			isAdding = false;
 		}
@@ -281,10 +368,16 @@
 	function resetAddDialog() {
 		magnetUrl = '';
 		pendingFile = null;
+		pendingFileSize = null;
 		addMode = 'file';
 		isAdding = false;
 		dragOver = false;
 		downloadDir = downloadDirStore.selectedDir || downloadDirStore.defaultDir;
+		// Seed with the cached free space for the default dir so the info row is
+		// present on the first frame — the debounced fetch then refreshes it in
+		// place instead of appearing late and shifting the dialog.
+		destFreeSpace =
+			downloadDir === downloadDirStore.defaultDir ? downloadDirStore.defaultFreeSpace : null;
 		showDirDropdown = false;
 	}
 
@@ -292,13 +385,12 @@
 
 	let deleteOpen = $state(false);
 	let deleteTarget = $state<Torrent | null>(null);
-	let defaultDeleteWithData = $state(false);
 	let deleteWithData = $state(false);
 	let isDeleting = $state(false);
 
 	function openDeleteDialog(t: Torrent) {
 		deleteTarget = t;
-		deleteWithData = defaultDeleteWithData;
+		deleteWithData = settingsStore.deleteWithData;
 		deleteOpen = true;
 	}
 
@@ -311,8 +403,9 @@
 			deleteOpen = false;
 			deleteTarget = null;
 			await torrentStore.refresh();
+			void downloadDirStore.refreshFreeSpace();
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : get(tt)('toast.failDelete'));
+			toast.error(errorText(err, get(tt), 'toast.failDelete'));
 		} finally {
 			isDeleting = false;
 		}
@@ -320,13 +413,46 @@
 
 	// ── Torrent actions ───────────────────────────────────────────────────────
 
+	// Free space per download dir of stopped torrents: those that do not fit can't be started
+	let freeByDir = $state<Record<string, number>>({});
+	let freeByDirBusy = false;
+
+	$effect(() => {
+		const dirs = dirsToCheck(torrentStore.torrents);
+		if (freeByDirBusy) return;
+		if (dirs.length === 0) {
+			if (Object.keys(freeByDir).length > 0) freeByDir = {};
+			return;
+		}
+		freeByDirBusy = true;
+		Promise.all(
+			dirs.map((d) =>
+				getFreeSpace(d)
+					.then((bytes) => [d, bytes] as const)
+					.catch(() => null),
+			),
+		)
+			.then((entries) => {
+				const next: Record<string, number> = {};
+				for (const e of entries) if (e) next[e[0]] = e[1];
+				freeByDir = next;
+			})
+			.finally(() => {
+				freeByDirBusy = false;
+			});
+	});
+
 	async function handleStart(torrent: Torrent) {
+		if (blockedBySpace(torrent, freeByDir)) {
+			toast.error(get(tt)('toast.failStartNoSpace'));
+			return;
+		}
 		try {
 			await startTorrents([torrent.id]);
 			toast.success(get(tt)('toast.started', { values: { name: torrent.name } }));
 			await torrentStore.refresh();
-		} catch {
-			toast.error(get(tt)('toast.failStart'));
+		} catch (err) {
+			toast.error(failText(err, get(tt), 'toast.failStart'));
 		}
 	}
 
@@ -335,71 +461,52 @@
 			await stopTorrents([torrent.id]);
 			toast.success(get(tt)('toast.paused', { values: { name: torrent.name } }));
 			await torrentStore.refresh();
-		} catch {
-			toast.error(get(tt)('toast.failPause'));
+		} catch (err) {
+			toast.error(failText(err, get(tt), 'toast.failPause'));
 		}
 	}
 
-	// ── Settings dialog ──────────────────────────────────────────────────────
+	// ── Shifts (night / day) ─────────────────────────────────────────────────
 
-	let settingsOpen = $state(false);
-	let settingsTab = $state('general');
-	let serverConfig = $state<ServerConfig | null>(null);
-	let serverConfigLoading = $state(false);
-	let serverConfigError = $state(false);
+	const nightShift = $derived(settingsStore.night);
+	const dayShift = $derived(settingsStore.day);
 
-	async function loadServerConfig() {
-		if (serverConfig !== null) return;
-		serverConfigLoading = true;
-		serverConfigError = false;
+	function hasShiftLabel(t: Torrent, label: string): boolean {
+		return Array.isArray(t.labels) && t.labels.includes(label);
+	}
+
+	/** Toggles a shift label on the torrent, leaving its other labels untouched. */
+	async function toggleShiftLabel(
+		t: Torrent,
+		label: string,
+		toastKeys: { on: string; off: string; fail: string },
+	) {
+		const enabled = hasShiftLabel(t, label);
+		const current = t.labels ?? [];
+		const next = enabled ? current.filter((l) => l !== label) : [...current, label];
 		try {
-			serverConfig = await getServerConfig();
-		} catch {
-			serverConfigError = true;
-		} finally {
-			serverConfigLoading = false;
+			await setTorrentLabels(t.id, next);
+			toast.success(get(tt)(enabled ? toastKeys.off : toastKeys.on, { values: { name: t.name } }));
+			await torrentStore.refresh();
+		} catch (err) {
+			toast.error(failText(err, get(tt), toastKeys.fail));
 		}
 	}
 
-	const CONFIG_ROWS: { envVar: string; key: keyof ServerConfig }[] = [
-		{ envVar: 'TRANSMISSION_URL',         key: 'transmissionUrl' },
-		{ envVar: 'LISTEN_ADDR',              key: 'listenAddr' },
-		{ envVar: 'CORS_ORIGIN',              key: 'corsOrigin' },
-		{ envVar: 'LOG_LEVEL',                key: 'logLevel' },
-		{ envVar: 'WEBUI_ENABLED',            key: 'webUiEnabled' },
-		{ envVar: 'TELEGRAM_BOT_ENABLED',     key: 'telegramBotEnabled' },
-		{ envVar: 'TELEGRAM_USERS',           key: 'telegramUsers' },
-		{ envVar: 'FILE_PRIORITY_ENABLED',    key: 'filePriorityEnabled' },
-		{ envVar: 'FILE_PRIORITY_HIGH_COUNT', key: 'filePriorityHighCount' },
-		{ envVar: 'DELETE_WITH_DATA',         key: 'deleteWithData' },
-		{ envVar: 'MONITOR_INTERVAL',         key: 'monitorInterval' },
-		{ envVar: 'FILE_SELECT_TIMEOUT',      key: 'fileSelectTimeout' },
-		{ envVar: 'MAX_REQUEST_BODY_BYTES',   key: 'maxRequestBodyBytes' },
-	] as const;
-
-	function formatConfigValue(v: unknown): string {
-		if (Array.isArray(v)) return v.length === 0 ? '—' : v.join(', ');
-		if (typeof v === 'boolean') return v ? 'true' : 'false';
-		return String(v ?? '—');
-	}
-
-	$effect(() => {
-		if (!settingsOpen) settingsTab = 'general';
-	});
-
-	$effect(() => {
-		if (settingsTab === 'server') loadServerConfig();
-	});
+	const NIGHT_SHIFT_TOASTS = {
+		on: 'toast.nightShiftOn',
+		off: 'toast.nightShiftOff',
+		fail: 'toast.failNightShift',
+	};
+	const DAY_SHIFT_TOASTS = {
+		on: 'toast.dayShiftOn',
+		off: 'toast.dayShiftOff',
+		fail: 'toast.failDayShift',
+	};
 
 	// ── Compact view ─────────────────────────────────────────────────────────
 
-	const COMPACT_STORAGE_KEY = 'transmitter-compact';
-	let compactView = $state(false);
-
-	function onCompactViewChange(checked: boolean) {
-		compactView = checked;
-		localStorage.setItem(COMPACT_STORAGE_KEY, checked ? '1' : '0');
-	}
+	const compactView = $derived(settingsStore.compactView);
 
 	// ── Detail panel ─────────────────────────────────────────────────────────
 
@@ -411,36 +518,21 @@
 		detailOpen = true;
 	}
 
-	// ── Color theme ───────────────────────────────────────────────────────────
+	// ── Movie Plugin ─────────────────────────────────────────────────────────
 
-	const COLOR_THEME_KEYS = [
-		{ value: 'green', tKey: 'themes.green' },
-		{ value: 'blue', tKey: 'themes.blue' },
-		{ value: 'yellow', tKey: 'themes.yellow' },
-		{ value: 'default', tKey: 'themes.default' },
-		{ value: 'orange', tKey: 'themes.orange' },
-		{ value: 'red', tKey: 'themes.red' },
-		{ value: 'rose', tKey: 'themes.rose' },
-		{ value: 'violet', tKey: 'themes.violet' },
-	] as const;
+	let movieDialogKind = $state<MovieDialogKind | null>(null);
+	let movieDialogTorrent = $state<Torrent | null>(null);
+
+	function openMovieDialog(t: Torrent, kind: MovieDialogKind) {
+		movieDialogTorrent = t;
+		movieDialogKind = kind;
+	}
+
+	// ── Color theme ───────────────────────────────────────────────────────────
 
 	// mode-watcher manages data-theme attr & localStorage ('mode-watcher-theme')
 	// green = "" (default, no data-theme attr), others = theme name
-	const toMwTheme = (t: string) => (t === 'green' ? '' : t);
-	const fromMwTheme = (t: string) => (t || 'green');
-
-	let colorTheme = $derived(fromMwTheme(theme.current ?? ''));
-
-	function onColorThemeChange(value: string) {
-		if (value) setTheme(toMwTheme(value));
-	}
-
-	// ── Language ──────────────────────────────────────────────────────────────
-
-	function onLocaleChange(loc: string) {
-		locale.set(loc);
-		localStorage.setItem(LOCALE_STORAGE_KEY, loc);
-	}
+	const colorTheme = $derived(theme.current || 'green');
 
 	// ── Scroll to top ─────────────────────────────────────────────────────────
 
@@ -457,87 +549,183 @@
 	// ── Lifecycle ─────────────────────────────────────────────────────────────
 
 	onMount(() => {
-		// migrate: old code stored 'yellow' literally, mode-watcher uses '' for no theme (now green)
-		const stored = localStorage.getItem('transmitter-color-theme');
-		if (stored === 'yellow') {
-			localStorage.removeItem('transmitter-color-theme');
-			setTheme('yellow');
-		}
-
-		compactView = localStorage.getItem(COMPACT_STORAGE_KEY) === '1';
-
-		// Restore saved locale, or detect from browser language
-		const supported = get(locales);
-		const saved = localStorage.getItem(LOCALE_STORAGE_KEY);
-		if (saved && supported.includes(saved)) {
-			locale.set(saved);
-		} else {
-			const browserLang = navigator.language.split('-')[0];
-			locale.set(supported.includes(browserLang) ? browserLang : 'en');
-		}
-
 		torrentStore.init();
-		downloadDirStore.init();
-		getSettings()
-			.then((s) => { defaultDeleteWithData = s.deleteWithData; })
+		void downloadDirStore.init();
+		settingsStore
+			.load()
+			.then((s) => {
+				void movieStore.init(s.moviePluginEnabled ?? false);
+				return noteStore.init(s.noteMaxLength);
+			})
 			.catch(() => {});
 		window.addEventListener('scroll', onScroll, { passive: true });
 	});
 	onDestroy(() => {
 		torrentStore.destroy();
+		movieStore.destroy();
 		window.removeEventListener('scroll', onScroll);
+	});
+
+	// Кнопка «Добавить» в шапке страницы настроек уводит сюда с этим флагом.
+	$effect(() => {
+		if (!settingsStore.addRequested) return;
+		settingsStore.addRequested = false;
+		resetAddDialog();
+		addOpen = true;
 	});
 </script>
 
-<!-- ── Layout ──────────────────────────────────────────────────────────────── -->
-<div class="min-h-screen bg-background text-foreground">
+{#snippet impactBadge(t: Torrent)}
+	{#if impactReached(t, settingsStore.impactTargetRatio)}
+		<Hint text={$tt('card.impactReached', { values: { percent: impactPercent(t) } })}>
+			{#snippet trigger({ props })}
+				<span
+					{...props}
+					class="text-primary flex items-center flex-shrink-0"
+					aria-label={$tt('card.impactReached', { values: { percent: impactPercent(t) } })}
+				>
+					<TrophyIcon class="size-3.5" />
+				</span>
+			{/snippet}
+		</Hint>
+	{/if}
+{/snippet}
 
-	<!-- Header -->
-	<header class="border-b border-border/50">
-		<div class="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
-			<div class="flex items-center gap-2.5 mr-auto">
-				<div class="size-7 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-					<span class="text-primary-foreground font-bold text-sm leading-none font-display">T</span>
-				</div>
-				<span class="font-display font-semibold text-[17px] tracking-tight">Transmitter</span>
-			</div>
-
-			<button
-				onclick={toggleMode}
-				aria-label={$tt('header.toggleTheme')}
-				class="size-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-			>
-				{#if mode.current === 'dark'}
-					<SunIcon class="size-4" />
-				{:else}
-					<MoonIcon class="size-4" />
+<!--
+	Строка Movie Plugin под названием: распознанный фильм (открывает обложку) и
+	отметки «просмотрено» / «нет субтитров».
+-->
+{#snippet movieLine(t: Torrent, spacing: string)}
+	{#if settingsStore.moviePluginEnabled}
+		{@const rec = movieStore.get(t.hashString)}
+		{@const label = movieLabel(rec)}
+		{#if label || rec?.watched || rec?.missingSubs}
+			<div class="flex items-center gap-2 {spacing} text-xs min-w-0">
+				{#if label}
+					<button
+						class="flex items-center gap-1.5 min-w-0 text-primary hover:underline"
+						onclick={(e) => { e.stopPropagation(); openMovieDialog(t, 'info'); }}
+						onkeydown={(e) => e.stopPropagation()}
+						aria-label={$tt('movie.actions.info')}
+					>
+						<ClapperboardIcon class="size-3 flex-shrink-0" />
+						<span class="truncate">{label}</span>
+					</button>
 				{/if}
-			</button>
+				{#if rec?.watched}
+					<Hint text={$tt('movie.info.watched')}>
+						{#snippet trigger({ props })}
+							<span {...props} class="flex-shrink-0 text-muted-foreground" aria-label={$tt('movie.info.watched')}>
+								<EyeIcon class="size-3.5" />
+							</span>
+						{/snippet}
+					</Hint>
+				{/if}
+				{#if rec?.missingSubs}
+					<Hint text={$tt('movie.info.missingSubs')}>
+						{#snippet trigger({ props })}
+							<span {...props} class="flex-shrink-0 text-amber-600 dark:text-amber-400" aria-label={$tt('movie.info.missingSubs')}>
+								<CaptionsOffIcon class="size-3.5" />
+							</span>
+						{/snippet}
+					</Hint>
+				{/if}
+			</div>
+		{/if}
+	{/if}
+{/snippet}
 
-			<button
-				onclick={() => (settingsOpen = true)}
-				aria-label={$tt('header.settings')}
-				class="size-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-			>
-				<SettingsIcon class="size-4" />
-			</button>
+<!--
+	Кнопки смен в шапке карточки торрента (обычный и компактный вид).
+	Смена без окна в переменных окружения не показывается вовсе; выключенная
+	смена показывается серой, отжатой и не реагирует на клик.
+-->
+{#snippet shiftToggles(t: Torrent)}
+	{#if dayShift.configured}
+		{@const onDS = dayShift.enabled && hasShiftLabel(t, DAY_SHIFT_LABEL)}
+		<Hint
+			text={!dayShift.enabled
+				? $tt('actions.dayShiftDisabled')
+				: dayShift.start && dayShift.end
+					? $tt('actions.dayShiftWindow', { values: { start: dayShift.start, end: dayShift.end } })
+					: onDS ? $tt('actions.dayShiftOff') : $tt('actions.dayShiftOn')}
+		>
+			{#snippet trigger({ props })}
+				<button
+					{...mergeProps(props, {
+						onclick: (e: MouseEvent) => {
+							e.stopPropagation();
+							if (dayShift.enabled) toggleShiftLabel(t, DAY_SHIFT_LABEL, DAY_SHIFT_TOASTS);
+						}
+					})}
+					aria-disabled={!dayShift.enabled}
+					aria-pressed={onDS}
+					aria-label={!dayShift.enabled
+						? $tt('actions.dayShiftDisabled')
+						: onDS ? $tt('actions.dayShiftOff') : $tt('actions.dayShiftOn')}
+					class="size-7 rounded-md flex items-center justify-center transition-colors {!dayShift.enabled
+						? 'text-muted-foreground/25 cursor-not-allowed'
+						: onDS
+							? 'bg-amber-500/10 text-amber-600 dark:text-amber-300'
+							: 'text-muted-foreground/40 hover:text-muted-foreground'}"
+				>
+					<SunIcon class="size-3.5" />
+				</button>
+			{/snippet}
+		</Hint>
+	{/if}
+	{#if nightShift.configured}
+		{@const onNS = nightShift.enabled && hasShiftLabel(t, NIGHT_SHIFT_LABEL)}
+		<Hint
+			text={!nightShift.enabled
+				? $tt('actions.nightShiftDisabled')
+				: nightShift.start && nightShift.end
+					? $tt('actions.nightShiftWindow', { values: { start: nightShift.start, end: nightShift.end } })
+					: onNS ? $tt('actions.nightShiftOff') : $tt('actions.nightShiftOn')}
+		>
+			{#snippet trigger({ props })}
+				<button
+					{...mergeProps(props, {
+						onclick: (e: MouseEvent) => {
+							e.stopPropagation();
+							if (nightShift.enabled) toggleShiftLabel(t, NIGHT_SHIFT_LABEL, NIGHT_SHIFT_TOASTS);
+						}
+					})}
+					aria-disabled={!nightShift.enabled}
+					aria-pressed={onNS}
+					aria-label={!nightShift.enabled
+						? $tt('actions.nightShiftDisabled')
+						: onNS ? $tt('actions.nightShiftOff') : $tt('actions.nightShiftOn')}
+					class="size-7 rounded-md flex items-center justify-center transition-colors {!nightShift.enabled
+						? 'text-muted-foreground/25 cursor-not-allowed'
+						: onNS
+							? 'bg-indigo-600/10 text-indigo-600 dark:text-indigo-300'
+							: 'text-muted-foreground/40 hover:text-muted-foreground'}"
+				>
+					<MoonStarIcon class="size-3.5" />
+				</button>
+			{/snippet}
+		</Hint>
+	{/if}
+{/snippet}
 
-			<Button
-				size="sm"
-				class="font-display font-semibold"
-				onclick={() => {
-					resetAddDialog();
-					addOpen = true;
-				}}
-			>
-				<PlusIcon class="size-4" />
-				{$tt('header.add')}
-			</Button>
-		</div>
-	</header>
+<svelte:head><title>Transmitter</title></svelte:head>
+
+<!-- ── Layout ──────────────────────────────────────────────────────────────── -->
+<div class="min-h-screen page-shell text-foreground flex flex-col">
+
+	<AppHeader
+		onAdd={() => {
+			resetAddDialog();
+			addOpen = true;
+		}}
+	/>
 
 	<!-- Content -->
-	<div class="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex flex-col gap-4">
+	<div class="flex-1 w-full max-w-3xl mx-auto page-surface border-x border-border/50 px-4 sm:px-6 py-4 flex flex-col gap-4">
+
+		<!-- Notes -->
+		<MemoPad />
 
 		<!-- Search -->
 		<div class="relative">
@@ -550,49 +738,67 @@
 			/>
 		</div>
 
-		<!-- Filters + Sort -->
-		<div class="flex items-center gap-1 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-			<div class="flex items-center gap-0.5">
-				{#each FILTER_KEYS as f}
-					<button
-						class="relative px-3 py-1.5 text-sm font-medium transition-colors {torrentStore.filterStatus === f.key
-							? 'text-foreground'
-							: 'text-muted-foreground hover:text-foreground'}"
-						onclick={() => (torrentStore.filterStatus = f.key)}
-					>
-						{$tt(f.tKey)}
-						<span class="ml-0.5 text-[11px] opacity-50 tabular-nums">{counts[f.key]}</span>
-						{#if torrentStore.filterStatus === f.key}
-							<span class="absolute bottom-0 left-3 right-3 h-0.5 bg-primary rounded-full"></span>
-						{/if}
-					</button>
-				{/each}
+		<!--
+			Фильтры и панель действий разнесены на две строки: подписи фильтров
+			(«Недоотданные») вместе с сортировкой в одну строку уже не помещаются, а
+			при сжатии текст переносился и счётчик уезжал под название.
+		-->
+		<div class="flex flex-col gap-2">
+			<!-- Filters -->
+			<div class="-mx-4 px-4 sm:mx-0 sm:px-0 border-b border-border/60">
+				<div class="flex items-center gap-0.5 overflow-x-auto no-scrollbar">
+					{#each FILTER_KEYS as f}
+						{@const active = torrentStore.filterStatus === f.key}
+						<button
+							class="relative flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap px-2.5 py-2 text-sm font-medium transition-colors {active
+								? 'text-foreground'
+								: 'text-muted-foreground hover:text-foreground'}"
+							onclick={() => (torrentStore.filterStatus = f.key)}
+						>
+							{$tt(f.tKey)}
+							<span
+								class="rounded-full px-1.5 py-px text-[11px] leading-4 tabular-nums transition-colors {active
+									? 'bg-primary/12 text-primary'
+									: 'bg-muted text-muted-foreground'}"
+							>
+								{counts[f.key]}
+							</span>
+							{#if active}
+								<span class="absolute -bottom-px left-2 right-2 h-0.5 bg-primary rounded-full"></span>
+							{/if}
+						</button>
+					{/each}
+				</div>
 			</div>
 
-			<div class="ml-auto flex items-center gap-1 flex-shrink-0">
-				<span class="text-xs text-muted-foreground">{$tt('sort.label')}</span>
-				<button
-					class="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors px-1.5 py-1 rounded"
-					onclick={() => {
-						const idx = SORT_OPTIONS.findIndex((o) => o.value === sortField);
-						const next = SORT_OPTIONS[(idx + 1) % SORT_OPTIONS.length];
-						sortField = next.value;
-					}}
-				>
-					{$tt(SORT_OPTIONS.find((o) => o.value === sortField)?.key ?? 'sort.added')}
-				</button>
-				<button
-					class="text-xs text-muted-foreground hover:text-foreground transition-colors p-1 rounded"
-					onclick={() => (sortDesc = !sortDesc)}
-					aria-label={$tt('sort.toggleDirection')}
-				>
-					{sortDesc ? '↓' : '↑'}
-				</button>
+			<!-- Actions + Sort -->
+			<div class="flex items-center gap-2">
+				<BulkActionsMenu />
+				<div class="ml-auto flex items-center gap-1">
+					<span class="text-xs text-muted-foreground">{$tt('sort.label')}</span>
+					<button
+						class="flex items-center gap-1 text-xs font-medium text-foreground/80 hover:text-foreground transition-colors px-1.5 py-1 rounded"
+						onclick={() => {
+							const idx = SORT_OPTIONS.findIndex((o) => o.value === sortField);
+							const next = SORT_OPTIONS[(idx + 1) % SORT_OPTIONS.length];
+							sortField = next.value;
+						}}
+					>
+						{$tt(SORT_OPTIONS.find((o) => o.value === sortField)?.key ?? 'sort.added')}
+					</button>
+					<button
+						class="text-xs text-muted-foreground hover:text-foreground transition-colors p-1 rounded"
+						onclick={() => (sortDesc = !sortDesc)}
+						aria-label={$tt('sort.toggleDirection')}
+					>
+						{sortDesc ? '↓' : '↑'}
+					</button>
+				</div>
 			</div>
 		</div>
 
 		<!-- Error banner -->
-		{#if torrentStore.error}
+		{#if torrentStore.error && !connectivity.offline}
 			<div class="flex items-start gap-3 rounded-lg border border-destructive/20 bg-destructive/5 p-4">
 				<AlertCircleIcon class="size-4 text-destructive flex-shrink-0 mt-0.5" />
 				<div class="text-sm">
@@ -633,6 +839,7 @@
 					<Button
 						size="sm"
 						class="font-display font-semibold"
+						disabled={connectivity.offline}
 						onclick={() => {
 							resetAddDialog();
 							addOpen = true;
@@ -653,6 +860,7 @@
 				{#each sortedRows as row, i (row.id)}
 					{@const t = row.original}
 					{@const pinned = pinStore.isPinned(t.hashString)}
+				{@const note = noteStore.get(t.hashString)}
 					{#if compactView}
 						<!-- Compact card: same structure, reduced padding, no date -->
 						<div
@@ -665,23 +873,39 @@
 							role="button"
 							tabindex="0"
 						>
-							<!-- Row 1: Name + Pin -->
+							<!-- Row 1: Name + Shift toggles + Pin -->
 							<div class="flex items-start justify-between gap-3 mb-1.5">
 								<h3 class="font-display text-[15px] font-semibold leading-snug line-clamp-2 min-w-0">
 									{t.name}
 								</h3>
-								<button
-									onclick={(e) => { e.stopPropagation(); pinStore.toggle(t.hashString); }}
-									aria-label={pinned ? $tt('actions.unpin') : $tt('actions.pin')}
-									class="size-7 rounded-md flex items-center justify-center flex-shrink-0 transition-colors {pinned
-										? 'bg-primary/10 text-primary'
-										: 'text-muted-foreground/40 hover:text-muted-foreground'}"
-								>
-									<PinIcon class="size-3.5" />
-								</button>
+								<div class="flex items-center gap-0.5 flex-shrink-0">
+									{#if settingsStore.moviePluginEnabled}
+										<MovieMenu torrent={t} onOpen={(kind) => openMovieDialog(t, kind)} />
+									{/if}
+									{@render shiftToggles(t)}
+									<button
+										onclick={(e) => { e.stopPropagation(); pinStore.toggle(t.hashString); }}
+										aria-label={pinned ? $tt('actions.unpin') : $tt('actions.pin')}
+										class="size-7 rounded-md flex items-center justify-center transition-colors {pinned
+											? 'bg-primary/10 text-primary'
+											: 'text-muted-foreground/40 hover:text-muted-foreground'}"
+									>
+										<PinIcon class="size-3.5" />
+									</button>
+								</div>
 							</div>
 
-							<!-- Row 2: Status + Progress + Size -->
+							{@render movieLine(t, 'mb-1.5')}
+
+							<!-- Note -->
+						{#if note}
+							<div class="flex items-start gap-1.5 mb-2.5 text-xs text-muted-foreground">
+								<NotebookPenIcon class="size-3 mt-0.5 flex-shrink-0" />
+								<span class="min-w-0 break-words">{note}</span>
+							</div>
+						{/if}
+
+						<!-- Row 2: Status + Progress + Size -->
 							<div class="flex items-center gap-2.5 mb-1.5">
 								<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium flex-shrink-0 {statusPillClass(t.status)}">
 									{$tt(STATUS_KEYS[t.status] ?? 'status.stopped')}
@@ -703,8 +927,9 @@
 								<div class="flex items-center gap-2 flex-shrink-0">
 								<span class="text-xs text-muted-foreground tabular-nums">{formatSize(t.totalSize, $tt)}</span>
 								{#if t.uploadedEver > 0}
-									<span class="text-xs text-primary tabular-nums" title={$tt('card.uploadedTotal')}>⬆ {formatSize(t.uploadedEver, $tt)}</span>
+									<Hint text={$tt('card.uploadedTotal')} class="text-xs text-primary tabular-nums">⬆ {formatSize(t.uploadedEver, $tt)}</Hint>
 								{/if}
+								{@render impactBadge(t)}
 							</div>
 							</div>
 
@@ -712,10 +937,10 @@
 							<div class="flex items-center justify-between gap-2">
 								<div class="flex items-center gap-2 text-xs text-muted-foreground tabular-nums min-w-0 overflow-hidden">
 									{#if formatSpeed(t.rateDownload, $tt)}
-										<span class="text-primary" title={$tt('card.downloadSpeed')}>↓ {formatSpeed(t.rateDownload, $tt)}</span>
+										<Hint text={$tt('card.downloadSpeed')} class="text-primary">↓ {formatSpeed(t.rateDownload, $tt)}</Hint>
 									{/if}
 									{#if formatSpeed(t.rateUpload, $tt)}
-										<span class="text-primary" title={$tt('card.uploadSpeed')}>↑ {formatSpeed(t.rateUpload, $tt)}</span>
+										<Hint text={$tt('card.uploadSpeed')} class="text-primary">↑ {formatSpeed(t.rateUpload, $tt)}</Hint>
 									{/if}
 									{#if t.status !== 0 && t.status !== 6 && t.status !== 5 && formatEta(t.eta, $tt)}
 										<span>{$tt('eta.prefix')} {formatEta(t.eta, $tt)}</span>
@@ -728,10 +953,13 @@
 								<!-- Action buttons -->
 								<div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity touch-device:opacity-100">
 									{#if t.status === 0}
+										{@const noSpace = blockedBySpace(t, freeByDir)}
 										<button
 											onclick={(e) => { e.stopPropagation(); handleStart(t); }}
-											aria-label={$tt('actions.resume')}
-											class="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+											disabled={noSpace}
+											aria-label={$tt(noSpace ? 'actions.resumeNoSpace' : 'actions.resume')}
+											title={noSpace ? $tt('actions.resumeNoSpace') : undefined}
+											class="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
 										>
 											<PlayIcon class="size-3.5" />
 										</button>
@@ -766,23 +994,39 @@
 							role="button"
 							tabindex="0"
 						>
-							<!-- Row 1: Name + Pin -->
+							<!-- Row 1: Name + Shift toggles + Pin -->
 							<div class="flex items-start justify-between gap-3 mb-2">
 								<h3 class="font-display text-[15px] font-semibold leading-snug line-clamp-2 min-w-0">
 									{t.name}
 								</h3>
-								<button
-									onclick={(e) => { e.stopPropagation(); pinStore.toggle(t.hashString); }}
-									aria-label={pinned ? $tt('actions.unpin') : $tt('actions.pin')}
-									class="size-7 rounded-md flex items-center justify-center flex-shrink-0 transition-colors {pinned
-										? 'bg-primary/10 text-primary'
-										: 'text-muted-foreground/40 hover:text-muted-foreground'}"
-								>
-									<PinIcon class="size-3.5" />
-								</button>
+								<div class="flex items-center gap-0.5 flex-shrink-0">
+									{#if settingsStore.moviePluginEnabled}
+										<MovieMenu torrent={t} onOpen={(kind) => openMovieDialog(t, kind)} />
+									{/if}
+									{@render shiftToggles(t)}
+									<button
+										onclick={(e) => { e.stopPropagation(); pinStore.toggle(t.hashString); }}
+										aria-label={pinned ? $tt('actions.unpin') : $tt('actions.pin')}
+										class="size-7 rounded-md flex items-center justify-center transition-colors {pinned
+											? 'bg-primary/10 text-primary'
+											: 'text-muted-foreground/40 hover:text-muted-foreground'}"
+									>
+										<PinIcon class="size-3.5" />
+									</button>
+								</div>
 							</div>
 
-							<!-- Row 2: Status + Progress + Size -->
+							{@render movieLine(t, 'mb-2')}
+
+							<!-- Note -->
+						{#if note}
+							<div class="flex items-start gap-1.5 mb-3 text-xs text-muted-foreground">
+								<NotebookPenIcon class="size-3 mt-0.5 flex-shrink-0" />
+								<span class="min-w-0 break-words">{note}</span>
+							</div>
+						{/if}
+
+						<!-- Row 2: Status + Progress + Size -->
 							<div class="flex items-center gap-2.5 mb-2">
 								<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium flex-shrink-0 {statusPillClass(t.status)}">
 									{$tt(STATUS_KEYS[t.status] ?? 'status.stopped')}
@@ -804,8 +1048,9 @@
 								<div class="flex items-center gap-2 flex-shrink-0">
 								<span class="text-xs text-muted-foreground tabular-nums">{formatSize(t.totalSize, $tt)}</span>
 								{#if t.uploadedEver > 0}
-									<span class="text-xs text-primary tabular-nums" title={$tt('card.uploadedTotal')}>⬆ {formatSize(t.uploadedEver, $tt)}</span>
+									<Hint text={$tt('card.uploadedTotal')} class="text-xs text-primary tabular-nums">⬆ {formatSize(t.uploadedEver, $tt)}</Hint>
 								{/if}
+								{@render impactBadge(t)}
 							</div>
 							</div>
 
@@ -813,10 +1058,10 @@
 							<div class="flex items-center justify-between gap-2">
 								<div class="flex items-center gap-2 text-xs text-muted-foreground tabular-nums min-w-0 overflow-hidden">
 									{#if formatSpeed(t.rateDownload, $tt)}
-										<span class="text-primary" title={$tt('card.downloadSpeed')}>↓ {formatSpeed(t.rateDownload, $tt)}</span>
+										<Hint text={$tt('card.downloadSpeed')} class="text-primary">↓ {formatSpeed(t.rateDownload, $tt)}</Hint>
 									{/if}
 									{#if formatSpeed(t.rateUpload, $tt)}
-										<span class="text-primary" title={$tt('card.uploadSpeed')}>↑ {formatSpeed(t.rateUpload, $tt)}</span>
+										<Hint text={$tt('card.uploadSpeed')} class="text-primary">↑ {formatSpeed(t.rateUpload, $tt)}</Hint>
 									{/if}
 									{#if t.status !== 0 && t.status !== 6 && t.status !== 5 && formatEta(t.eta, $tt)}
 										<span>{$tt('eta.prefix')} {formatEta(t.eta, $tt)}</span>
@@ -831,10 +1076,13 @@
 								<!-- Action buttons: visible on hover (desktop), always on touch -->
 								<div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity touch-device:opacity-100">
 									{#if t.status === 0}
+										{@const noSpace = blockedBySpace(t, freeByDir)}
 										<button
 											onclick={(e) => { e.stopPropagation(); handleStart(t); }}
-											aria-label={$tt('actions.resume')}
-											class="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+											disabled={noSpace}
+											aria-label={$tt(noSpace ? 'actions.resumeNoSpace' : 'actions.resume')}
+											title={noSpace ? $tt('actions.resumeNoSpace') : undefined}
+											class="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
 										>
 											<PlayIcon class="size-3.5" />
 										</button>
@@ -872,127 +1120,6 @@
 >
 	<ArrowUpIcon class="size-4" />
 </button>
-
-<!-- ── Settings Dialog ────────────────────────────────────────────────────── -->
-<AlertDialog.Root bind:open={settingsOpen}>
-	<AlertDialog.Content class="sm:max-w-lg">
-		<AlertDialog.Header class="pb-3">
-			<AlertDialog.Title class="font-display text-lg font-semibold">{$tt('settings.title')}</AlertDialog.Title>
-		</AlertDialog.Header>
-
-		<Tabs.Root bind:value={settingsTab}>
-			<Tabs.List class="mb-3">
-				<Tabs.Trigger value="general">{$tt('settings.tabGeneral')}</Tabs.Trigger>
-				<Tabs.Trigger value="server">{$tt('settings.tabServer')}</Tabs.Trigger>
-			</Tabs.List>
-
-			<Tabs.Content value="general">
-				<div class="flex flex-col gap-4">
-					<div class="flex flex-col gap-3">
-						<span class="text-sm font-medium">{$tt('settings.colorTheme')}</span>
-						<div class="grid grid-cols-4 gap-2">
-							{#each COLOR_THEME_KEYS as ct}
-								<button
-									class="h-9 rounded-lg border text-xs font-medium transition-colors {colorTheme === ct.value
-										? 'border-primary bg-primary/10 text-foreground'
-										: 'border-border/60 text-muted-foreground hover:border-border hover:bg-accent/50'}"
-									onclick={() => onColorThemeChange(ct.value)}
-								>
-									{$tt(ct.tKey)}
-								</button>
-							{/each}
-						</div>
-					</div>
-
-					<div class="flex flex-col gap-3">
-						<span class="text-sm font-medium">{$tt('settings.language')}</span>
-						<div class="grid grid-cols-2 gap-2">
-							{#each [...$locales] as loc}
-								<button
-									class="h-9 rounded-lg border text-xs font-medium transition-colors {$locale === loc
-										? 'border-primary bg-primary/10 text-foreground'
-										: 'border-border/60 text-muted-foreground hover:border-border hover:bg-accent/50'}"
-									onclick={() => onLocaleChange(loc)}
-								>
-									{$tt(`languages.${loc}`)}
-								</button>
-							{/each}
-						</div>
-					</div>
-
-					<div class="flex items-center gap-3">
-						<Checkbox
-							id="compact-view"
-							checked={compactView}
-							onCheckedChange={onCompactViewChange}
-						/>
-						<label for="compact-view" class="text-sm font-medium cursor-pointer select-none">
-							{$tt('settings.compactView')}
-						</label>
-					</div>
-				</div>
-			</Tabs.Content>
-
-			<Tabs.Content value="server">
-				{#if serverConfigLoading}
-					<div class="flex justify-center py-6">
-						<Spinner class="size-5" />
-					</div>
-				{:else if serverConfigError}
-					<p class="text-sm text-destructive py-4 text-center">{$tt('settings.configError')}</p>
-				{:else if serverConfig}
-					<p class="text-xs text-muted-foreground mb-3">{$tt('settings.configNote')}</p>
-					<div class="max-h-64 overflow-hidden overflow-y-auto rounded-lg border border-border/60">
-						<Table.Root class="table-fixed w-full">
-							<Table.Header>
-								<Table.Row>
-									<Table.Head class="text-xs w-[45%]">{$tt('settings.configEnvVar')}</Table.Head>
-									<Table.Head class="text-xs">{$tt('settings.configValue')}</Table.Head>
-								</Table.Row>
-							</Table.Header>
-							<Table.Body>
-								{#each CONFIG_ROWS as row}
-									<Table.Row>
-										<Table.Cell class="font-mono text-xs py-2 text-muted-foreground break-all">
-											<HoverCard.Root>
-												<HoverCard.Trigger class="flex items-center gap-1.5 cursor-default">
-													{row.envVar}
-													<InfoIcon class="size-3 shrink-0 text-muted-foreground/50" />
-												</HoverCard.Trigger>
-												<HoverCard.Portal>
-													<HoverCard.Content class="w-64 text-xs" side="right">
-														{$tt(`settings.configHint.${row.key}`)}
-													</HoverCard.Content>
-												</HoverCard.Portal>
-											</HoverCard.Root>
-										</Table.Cell>
-										<Table.Cell class="font-mono text-xs py-2 break-all">
-											{formatConfigValue(serverConfig[row.key])}
-										</Table.Cell>
-									</Table.Row>
-								{/each}
-							</Table.Body>
-						</Table.Root>
-					</div>
-				{/if}
-			</Tabs.Content>
-		</Tabs.Root>
-
-		<AlertDialog.Footer class="pt-4 flex items-center">
-			<span class="text-xs text-muted-foreground mr-auto flex items-center gap-2">
-				v{__APP_VERSION__}
-				<span class="opacity-40">|</span>
-				<a
-					href="https://github.com/lebe-dev/transmitter/blob/main/{$locale === 'en' ? 'README.md' : `README.${$locale}.md`}"
-					target="_blank"
-					rel="noopener noreferrer"
-					class="hover:underline"
-				>{$tt('settings.docs')}</a>
-			</span>
-			<AlertDialog.Cancel>{$tt('settings.close')}</AlertDialog.Cancel>
-		</AlertDialog.Footer>
-	</AlertDialog.Content>
-</AlertDialog.Root>
 
 <!-- ── Add Torrent Dialog ──────────────────────────────────────────────────── -->
 <AlertDialog.Root bind:open={addOpen}>
@@ -1124,6 +1251,30 @@
 			{/if}
 		</div>
 
+		<!-- Size / free space -->
+		{#if pendingFileSize !== null || destFreeSpace !== null}
+			<div class="mt-3 flex flex-col gap-1.5 rounded-lg border border-border/60 bg-accent/30 px-3 py-2.5 text-sm">
+				{#if pendingFileSize !== null}
+					<div class="flex items-center justify-between gap-2">
+						<span class="text-muted-foreground">{$tt('addDialog.torrentSize')}</span>
+						<span class="font-medium tabular-nums">{formatSize(pendingFileSize, $tt)}</span>
+					</div>
+				{/if}
+				{#if destFreeSpace !== null}
+					<div class="flex items-center justify-between gap-2">
+						<span class="text-muted-foreground">{$tt('addDialog.freeSpace')}</span>
+						<span class="font-medium tabular-nums {notEnoughSpace ? 'text-destructive' : ''}">{formatSize(destFreeSpace, $tt)}</span>
+					</div>
+				{/if}
+				{#if notEnoughSpace}
+					<p class="flex items-center gap-1.5 text-xs text-destructive mt-0.5">
+						<AlertCircleIcon class="size-3.5 flex-shrink-0" />
+						{$tt('addDialog.notEnoughSpace')}
+					</p>
+				{/if}
+			</div>
+		{/if}
+
 		<AlertDialog.Footer class="pt-4">
 			<AlertDialog.Cancel disabled={isAdding} onclick={resetAddDialog}>{$tt('addDialog.cancel')}</AlertDialog.Cancel>
 			<Button
@@ -1134,7 +1285,7 @@
 				{#if isAdding}
 					<Spinner class="size-4" />
 				{/if}
-				{$tt('addDialog.addButton')}
+				{$tt(notEnoughSpace ? 'addDialog.addNoStartButton' : 'addDialog.addButton')}
 			</Button>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>
@@ -1143,10 +1294,10 @@
 <!-- ── Delete Confirmation Dialog ────────────────────────────────────────── -->
 <AlertDialog.Root bind:open={deleteOpen}>
 	<AlertDialog.Content class="sm:max-w-md">
-		<AlertDialog.Header class="pb-4">
+		<AlertDialog.Header class="min-w-0 pb-4">
 			<AlertDialog.Title class="font-display text-lg font-semibold">{$tt('deleteDialog.title')}</AlertDialog.Title>
-			<AlertDialog.Description>
-				<span class="font-medium text-foreground">{deleteTarget?.name}</span>
+			<AlertDialog.Description class="min-w-0">
+				<span class="font-medium text-foreground [overflow-wrap:anywhere]">{deleteTarget?.name}</span>
 				<br />
 				{$tt('deleteDialog.cannotUndo')}
 			</AlertDialog.Description>
@@ -1177,6 +1328,11 @@
 	onConfirm={handleFileSelectConfirm}
 	onCancel={handleFileSelectCancel}
 />
+
+<!-- ── Movie Plugin dialogs ─────────────────────────────────────────────── -->
+{#if settingsStore.moviePluginEnabled}
+	<MovieDialogs bind:kind={movieDialogKind} torrent={movieDialogTorrent} />
+{/if}
 
 <!-- ── Torrent Detail Panel ─────────────────────────────────────────────── -->
 <TorrentDetailPanel bind:open={detailOpen} torrent={detailTorrent} />

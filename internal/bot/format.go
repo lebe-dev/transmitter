@@ -15,6 +15,7 @@ const (
 	torrentsPerPage = 8
 	barWidth        = 8
 	maxTorrentName  = 40
+	maxNoteLength   = 60
 )
 
 // truncate shortens a string to maxLen runes, appending ellipsis if needed.
@@ -125,15 +126,25 @@ func totalPages(count int) int {
 	return int(math.Ceil(float64(count) / float64(torrentsPerPage)))
 }
 
-// formatStatusPage formats the torrent list for a given page (0-indexed).
-func formatStatusPage(torrents []transmission.Torrent, page int) string {
-	if len(torrents) == 0 {
-		return "No active torrents."
+type statusGroupInfo struct {
+	emoji string
+	label string
+	items []transmission.Torrent
+}
+
+// clampPage constrains page to the valid [0, pages-1] range.
+func clampPage(page, pages int) int {
+	if page >= pages {
+		page = pages - 1
 	}
+	if page < 0 {
+		page = 0
+	}
+	return page
+}
 
-	g := groupTorrents(torrents)
-	all := g.allSorted()
-
+// formatStatusHeader renders the "Torrents: N ↓.. ↑.." summary line.
+func formatStatusHeader(torrents []transmission.Torrent) string {
 	var totalDown, totalUp int64
 	for _, t := range torrents {
 		totalDown += t.RateDownload
@@ -152,14 +163,36 @@ func formatStatusPage(torrents []transmission.Torrent, page int) string {
 		}
 	}
 	sb.WriteString("\n")
+	return sb.String()
+}
+
+// nonEmptyGroups returns the labeled status groups that contain at least one torrent, in display order.
+func nonEmptyGroups(g groupedTorrents) []statusGroupInfo {
+	var groups []statusGroupInfo
+	if len(g.downloading) > 0 {
+		groups = append(groups, statusGroupInfo{"📥", "Downloading", g.downloading})
+	}
+	if len(g.seeding) > 0 {
+		groups = append(groups, statusGroupInfo{"🌱", "Seeding", g.seeding})
+	}
+	if len(g.paused) > 0 {
+		groups = append(groups, statusGroupInfo{"⏸", "Paused", g.paused})
+	}
+	return groups
+}
+
+// formatStatusPage formats the torrent list for a given page (0-indexed).
+// notes maps a torrent hash to its user note and may be nil.
+func formatStatusPage(torrents []transmission.Torrent, page int, notes map[string]string) string {
+	if len(torrents) == 0 {
+		return "No active torrents."
+	}
+
+	g := groupTorrents(torrents)
+	all := g.allSorted()
 
 	pages := totalPages(len(all))
-	if page >= pages {
-		page = pages - 1
-	}
-	if page < 0 {
-		page = 0
-	}
+	page = clampPage(page, pages)
 
 	start := page * torrentsPerPage
 	end := start + torrentsPerPage
@@ -168,28 +201,13 @@ func formatStatusPage(torrents []transmission.Torrent, page int) string {
 	}
 	pageItems := all[start:end]
 
-	// Determine which groups appear on this page
-	type groupInfo struct {
-		emoji string
-		label string
-		items []transmission.Torrent
-	}
-
-	var groups []groupInfo
-	if len(g.downloading) > 0 {
-		groups = append(groups, groupInfo{"📥", "Downloading", g.downloading})
-	}
-	if len(g.seeding) > 0 {
-		groups = append(groups, groupInfo{"🌱", "Seeding", g.seeding})
-	}
-	if len(g.paused) > 0 {
-		groups = append(groups, groupInfo{"⏸", "Paused", g.paused})
-	}
+	var sb strings.Builder
+	sb.WriteString(formatStatusHeader(torrents))
 
 	// Track position in the flat list
 	num := start + 1
-	for _, gi := range groups {
-		// Check if any items from this group appear in the page
+	for _, gi := range nonEmptyGroups(g) {
+		// Collect items of this group that appear on the current page.
 		var pageGroupItems []transmission.Torrent
 		for _, item := range pageItems {
 			if statusGroup(item) == statusGroup(gi.items[0]) {
@@ -202,7 +220,7 @@ func formatStatusPage(torrents []transmission.Torrent, page int) string {
 
 		sb.WriteString(fmt.Sprintf("\n%s <b>%s (%d)</b>\n", gi.emoji, gi.label, len(gi.items)))
 		for _, t := range pageGroupItems {
-			sb.WriteString(formatTorrentLine(t, num))
+			sb.WriteString(formatTorrentLine(t, num, notes[t.HashString]))
 			num++
 		}
 	}
@@ -214,12 +232,17 @@ func formatStatusPage(torrents []transmission.Torrent, page int) string {
 	return sb.String()
 }
 
-func formatTorrentLine(t transmission.Torrent, num int) string {
+// formatTorrentLine renders one torrent entry; note is the user note and may be empty.
+func formatTorrentLine(t transmission.Torrent, num int, note string) string {
 	name := html.EscapeString(truncate(t.Name, maxTorrentName))
 	group := statusGroup(t)
 
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("%d. <b>%s</b>\n", num, name))
+	if note != "" {
+		flat := strings.ReplaceAll(note, "\n", " ")
+		sb.WriteString(fmt.Sprintf("   📝 <i>%s</i>\n", html.EscapeString(truncate(flat, maxNoteLength))))
+	}
 
 	switch group {
 	case "downloading":

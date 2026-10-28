@@ -15,26 +15,42 @@ import (
 const maxFileSize = 20 << 20 // 20 MB
 
 func (b *Bot) handleStart(c telebot.Context) error {
-	text := `<b>Transmitter Bot</b>
-
-/add <code>&lt;magnet|url&gt;</code> — add torrent
-/status — list active torrents
-/status_all — list all torrents
-/help — help
-
-You can also send a <b>.torrent</b> file directly.`
-	return c.Send(text, telebot.ModeHTML)
+	lines := []string{
+		"<b>Transmitter Bot</b>",
+		"",
+		"/add <code>&lt;magnet|url&gt;</code> — add torrent",
+		"/status — list active torrents",
+		"/status_all — list all torrents",
+	}
+	// /shifts is only offered when a shift window is configured: without one
+	// there is no scheduler and nothing to switch.
+	if b.shiftsConfigured() {
+		lines = append(lines, "/shifts — day/night shifts")
+	}
+	lines = append(lines,
+		"/help — help",
+		"",
+		"You can also send a <b>.torrent</b> file directly.",
+	)
+	return c.Send(strings.Join(lines, "\n"), telebot.ModeHTML)
 }
 
 func (b *Bot) handleHelp(c telebot.Context) error {
-	text := `<b>Help</b>
-
-/add <code>&lt;magnet|url&gt;</code> — add torrent by magnet link or URL
-/status — list active torrents (downloading, seeding)
-/status_all — list all torrents including stopped
-
-You can also send a <b>.torrent</b> file directly to the chat.`
-	return c.Send(text, telebot.ModeHTML)
+	lines := []string{
+		"<b>Help</b>",
+		"",
+		"/add <code>&lt;magnet|url&gt;</code> — add torrent by magnet link or URL",
+		"/status — list active torrents (downloading, seeding)",
+		"/status_all — list all torrents including stopped",
+	}
+	if b.shiftsConfigured() {
+		lines = append(lines, "/shifts — show the day/night shift windows and switch each scheduler on or off")
+	}
+	lines = append(lines,
+		"",
+		"You can also send a <b>.torrent</b> file directly to the chat.",
+	)
+	return c.Send(strings.Join(lines, "\n"), telebot.ModeHTML)
 }
 
 func (b *Bot) handleAdd(c telebot.Context) error {
@@ -81,7 +97,7 @@ func (b *Bot) handleStatus(c telebot.Context) error {
 		return c.Send("No active torrents.")
 	}
 
-	text := formatStatusPage(torrents, 0)
+	text := formatStatusPage(torrents, 0, b.notes(ctx))
 	kb := statusPageKeyboard(torrents, 0, false)
 
 	return c.Send(text, telebot.ModeHTML, kb)
@@ -101,7 +117,7 @@ func (b *Bot) handleStatusAll(c telebot.Context) error {
 		return c.Send("No torrents.")
 	}
 
-	text := formatStatusPage(torrents, 0)
+	text := formatStatusPage(torrents, 0, b.notes(ctx))
 	kb := statusPageKeyboard(torrents, 0, true)
 
 	return c.Send(text, telebot.ModeHTML, kb)

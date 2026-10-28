@@ -15,11 +15,18 @@ type torrentGetter interface {
 	GetTorrents(ctx context.Context) ([]transmission.Torrent, error)
 }
 
+// NoteSource supplies user notes for torrents, keyed by torrent hash.
+// It is satisfied by *notes.Store.
+type NoteSource interface {
+	All(ctx context.Context) (map[string]string, error)
+}
+
 // Bot wraps the Telegram bot with authorization and Transmission client.
 type Bot struct {
 	tg                    *telebot.Bot
 	client                *transmission.Client
 	getter                torrentGetter // used by monitor; equals client unless overridden in tests
+	noteSource            NoteSource
 	users                 map[string]bool
 	logger                *slog.Logger
 	mu                    sync.RWMutex
@@ -31,10 +38,11 @@ type Bot struct {
 	fileSelectMu          sync.Mutex
 	fileSelect            map[int64]*FileSelectState
 	fileSelectTimeout     time.Duration
+	shifts                Shifts
 }
 
 // New creates a new Bot instance. Returns an error if the token is invalid.
-func New(token string, allowedUsers []string, client *transmission.Client, logger *slog.Logger, autoPriorityEnabled bool, autoPriorityHighCount int, fileSelectTimeout time.Duration) (*Bot, error) {
+func New(token string, allowedUsers []string, client *transmission.Client, noteSource NoteSource, logger *slog.Logger, autoPriorityEnabled bool, autoPriorityHighCount int, fileSelectTimeout time.Duration, shifts Shifts) (*Bot, error) {
 	tg, err := telebot.NewBot(telebot.Settings{
 		Token:  token,
 		Poller: &telebot.LongPoller{Timeout: 10},
@@ -52,6 +60,7 @@ func New(token string, allowedUsers []string, client *transmission.Client, logge
 		tg:                    tg,
 		client:                client,
 		getter:                client,
+		noteSource:            noteSource,
 		users:                 users,
 		logger:                logger,
 		chatIDs:               make(map[string]int64),
@@ -59,6 +68,7 @@ func New(token string, allowedUsers []string, client *transmission.Client, logge
 		autoPriorityHighCount: autoPriorityHighCount,
 		fileSelect:            make(map[int64]*FileSelectState),
 		fileSelectTimeout:     fileSelectTimeout,
+		shifts:                shifts,
 	}
 	b.notifyFn = b.broadcastNotification
 
@@ -74,6 +84,7 @@ func (b *Bot) registerHandlers() {
 	b.tg.Handle("/add", b.handleAdd)
 	b.tg.Handle("/status", b.handleStatus)
 	b.tg.Handle("/status_all", b.handleStatusAll)
+	b.tg.Handle("/shifts", b.handleShifts)
 	b.tg.Handle(telebot.OnDocument, b.handleDocument)
 	b.tg.Handle(telebot.OnCallback, b.handleCallback)
 }
@@ -106,6 +117,20 @@ func (b *Bot) broadcastNotification(text string) {
 			b.logger.Warn("notification failed", "username", username, "err", err)
 		}
 	}
+}
+
+// notes returns the stored notes keyed by torrent hash. A failure is logged and
+// degrades to an empty map: the status list stays useful without notes.
+func (b *Bot) notes(ctx context.Context) map[string]string {
+	if b.noteSource == nil {
+		return nil
+	}
+	all, err := b.noteSource.All(ctx)
+	if err != nil {
+		b.logger.Warn("failed to load torrent notes", "err", err)
+		return nil
+	}
+	return all
 }
 
 // Start begins the long polling loop. Blocks until Stop is called.

@@ -9,7 +9,12 @@
 	"header": {
 		"add": "Add",
 		"toggleTheme": "Toggle theme",
-		"settings": "Settings"
+		"settings": "Settings",
+		"freeSpace": "Free space on disk",
+		"nightShiftActive": "Night shift active",
+		"dayShiftActive": "Day shift active",
+		"totalDownloadSpeed": "Total download speed",
+		"totalUploadSpeed": "Total upload speed"
 	},
 	"search": {
 		"placeholder": "Search torrents…"
@@ -19,7 +24,10 @@
 		"downloading": "Downloading",
 		"seeding": "Seeding",
 		"paused": "Paused",
-		"done": "Done"
+		"done": "Done",
+		"undergiven": "Not repaid",
+		"unwatched": "Not watched",
+		"missingSubs": "No subtitles"
 	},
 	"sort": {
 		"label": "Sort:",
@@ -49,13 +57,49 @@
 	"error": {
 		"connection": "Connection error"
 	},
+	"offline": {
+		"banner": "You are offline. Showing data as of {time}",
+		"bannerNoData": "You are offline. No saved data yet",
+		"unavailable": "Not available offline"
+	},
 	"actions": {
 		"resume": "Resume",
+		"resumeNoSpace": "Not enough free space to resume",
 		"pause": "Pause",
 		"delete": "Delete",
 		"pin": "Pin torrent",
 		"unpin": "Unpin torrent",
-		"scrollToTop": "Scroll to top"
+		"scrollToTop": "Scroll to top",
+		"nightShiftOn": "Schedule for night shift",
+		"nightShiftOff": "Remove from night shift",
+		"nightShiftWindow": "Night shift: {start}–{end}",
+		"nightShiftDisabled": "Night shift is switched off",
+		"dayShiftOn": "Schedule for day shift",
+		"dayShiftOff": "Remove from day shift",
+		"dayShiftWindow": "Day shift: {start}–{end}",
+		"dayShiftDisabled": "Day shift is switched off"
+	},
+	"bulk": {
+		"trigger": "Actions",
+		"menu": "Bulk actions",
+		"filteredNotice": "Only the torrents currently shown",
+		"pause": "Pause all",
+		"dayShiftAdd": "Add all to day shift",
+		"dayShiftRemove": "Remove all from day shift",
+		"nightShiftAdd": "Add all to night shift",
+		"nightShiftRemove": "Remove all from night shift",
+		"confirmTitle": "Bulk action",
+		"confirmDescription": "Torrents affected: {count}",
+		"confirmButton": "Apply",
+		"cancel": "Cancel",
+		"fail": "Bulk action failed",
+		"done": {
+			"pause": "Paused: {count}",
+			"dayShiftAdd": "Added to day shift: {count}",
+			"dayShiftRemove": "Removed from day shift: {count}",
+			"nightShiftAdd": "Added to night shift: {count}",
+			"nightShiftRemove": "Removed from night shift: {count}"
+		}
 	},
 	"addDialog": {
 		"title": "Add Torrent",
@@ -69,7 +113,11 @@
 		"destinationFolder": "Destination folder",
 		"defaultPath": "Default",
 		"removePath": "Remove saved path",
-		"invalidPath": "Path must be absolute (start with /)"
+		"invalidPath": "Path must be absolute (start with /)",
+		"torrentSize": "Torrent size",
+		"freeSpace": "Free space",
+		"notEnoughSpace": "Not enough free space in the destination folder. The torrent will be added but won't start until space is freed.",
+		"addNoStartButton": "Add without starting"
 	},
 	"fileSelectDialog": {
 		"title": "Select Files",
@@ -94,10 +142,24 @@
 		"colorTheme": "Color theme",
 		"language": "Language",
 		"compactView": "Compact view",
+		"showFreeSpace": "Show free space in header",
 		"docs": "Documentation",
 		"close": "Close",
+		"backToTorrents": "Back to torrent list",
 		"tabGeneral": "General",
 		"tabServer": "Server",
+		"tabShifts": "Shifts",
+		"nightShiftLabel": "Night shift",
+		"nightShiftDescription": "Torrents marked with the moon are downloaded and seeded only during the configured night window. Outside the window they are paused.",
+		"nightShiftWindowLabel": "Night shift window",
+		"nightShiftWindowHint": "Set via NIGHT_SHIFT_START and NIGHT_SHIFT_END environment variables.",
+		"dayShiftLabel": "Day shift",
+		"dayShiftDescription": "Torrents marked with the sun are downloaded and seeded only during the configured day window. Outside the window they are paused.",
+		"dayShiftWindowLabel": "Day shift window",
+		"dayShiftWindowHint": "Set via DAY_SHIFT_START and DAY_SHIFT_END environment variables.",
+		"shiftToggleHint": "The switches are stored on the server: they apply in every browser and survive a restart. A shift that is off neither starts nor stops torrents — they keep their current state.",
+		"shiftConflictWarning": "A torrent can carry both marks. The schedulers are independent, so with non-overlapping windows they will start and stop such a torrent in turn.",
+		"shiftsNotConfigured": "Shifts are not configured on the server.",
 		"configEnvVar": "Variable",
 		"configValue": "Value",
 		"configError": "Failed to load server config",
@@ -115,8 +177,34 @@
 			"deleteWithData": "Pre-check \"delete local data\" in the delete dialog.",
 			"monitorInterval": "How often the Telegram bot polls torrent status.",
 			"fileSelectTimeout": "Timeout for file selection flow in the Telegram bot.",
-			"maxRequestBodyBytes": "Maximum allowed size of an incoming HTTP request body."
-		}
+			"maxRequestBodyBytes": "Maximum allowed size of an incoming HTTP request body.",
+			"nightShiftConfigured": "Whether the Night Shift window is set (NIGHT_SHIFT_START and NIGHT_SHIFT_END). The scheduler itself is switched on and off on the Shifts tab.",
+			"nightShiftStart": "Start of the Night Shift window (HH:MM, 24h). Torrents tagged for night shift are downloaded only during this window.",
+			"nightShiftEnd": "End of the Night Shift window (HH:MM, 24h). The window may wrap over midnight when end ≤ start.",
+			"dayShiftConfigured": "Whether the Day Shift window is set (DAY_SHIFT_START and DAY_SHIFT_END). The scheduler itself is switched on and off on the Shifts tab.",
+			"dayShiftStart": "Start of the Day Shift window (HH:MM, 24h). Torrents tagged for day shift are downloaded only during this window.",
+			"dayShiftEnd": "End of the Day Shift window (HH:MM, 24h). The window may wrap over midnight when end ≤ start.",
+			"dbPath": "Path to the SQLite database file that stores torrent notes.",
+			"noteMaxLength": "Maximum length of a torrent note, in characters.",
+			"noteCleanupInterval": "How often notes of torrents that no longer exist are removed.",
+			"impactTargetRatio": "Upload ratio counted as a full payback: 1 means the torrent uploaded as much as it downloaded.",
+			"impactInterval": "How often torrents are checked against the target upload ratio.",
+			"moviePluginEnabled": "Movie Plugin: recognizes films and series by the torrent name, shows posters, renames torrents and keeps the watched / missing subtitles marks.",
+			"movie": {
+				"tmdbApiUrl": "TMDB API endpoint. Override it to go through a mirror.",
+				"tmdbImageUrl": "TMDB image endpoint for posters.",
+				"language": "Language of titles and descriptions (TMDB locale, e.g. en-US, ru-RU).",
+				"autoDetect": "Recognize torrents added after the plugin was enabled.",
+				"backfill": "Gradually recognize torrents that were there before the plugin.",
+				"autoRename": "Rename new torrents right after a confident match. Torrents that predate the plugin are never renamed automatically.",
+				"renameTemplate": "Name template. Placeholders in curly braces: title, original_title, year, season, tmdb_id, imdb_id, type.",
+				"scanInterval": "How often new torrents are looked for.",
+				"scanBatch": "How many torrents are looked up per round.",
+				"posterDir": "Where posters are cached."
+			}
+		},
+		"impactAutoStop": "Stop seeding once {percent}% is given back",
+		"impactAutoStopHint": "A torrent that uploaded {percent}% of what it downloaded is paused automatically. While this is on, the shifts do not restart such torrents."
 	},
 	"themes": {
 		"yellow": "Yellow",
@@ -146,7 +234,16 @@
 	"card": {
 		"downloadSpeed": "Download speed",
 		"uploadSpeed": "Upload speed",
-		"uploadedTotal": "Uploaded total"
+		"uploadedTotal": "Uploaded total",
+		"impactReached": "You have given back {percent}% of what you downloaded"
+	},
+	"note": {
+		"label": "Note",
+		"placeholder": "Add a note for this torrent…",
+		"save": "Save",
+		"cancel": "Cancel",
+		"saved": "Note saved",
+		"failSave": "Failed to save note"
 	},
 	"detail": {
 		"files": "Files",
@@ -175,12 +272,103 @@
 	},
 	"toast": {
 		"added": "Torrent added",
+		"addedNoSpace": "Torrent added, waiting for free space",
 		"deleted": "Deleted: {name}",
 		"started": "Started: {name}",
 		"paused": "Paused: {name}",
 		"failAdd": "Failed to add torrent",
 		"failStart": "Failed to start torrent",
+		"failStartNoSpace": "Not enough free space to start this torrent",
 		"failPause": "Failed to pause torrent",
-		"failDelete": "Failed to delete torrent"
+		"failDelete": "Failed to delete torrent",
+		"nightShiftOn": "Scheduled for night shift: {name}",
+		"nightShiftOff": "Removed from night shift: {name}",
+		"failNightShift": "Failed to update night shift",
+		"dayShiftOn": "Scheduled for day shift: {name}",
+		"dayShiftOff": "Removed from day shift: {name}",
+		"failDayShift": "Failed to update day shift",
+		"failShiftToggle": "Failed to switch the shift",
+		"failImpactToggle": "Failed to switch automatic stopping"
+	},
+	"memo": {
+		"label": "Notes",
+		"placeholder": "Jot something down…",
+		"saving": "Saving…",
+		"saved": "Saved",
+		"failSave": "Failed to save notes",
+		"tooLong": "Notes are too long"
+	},
+	"globalPause": {
+		"pause": "Pause all torrents",
+		"resume": "Resume torrents paused globally",
+		"paused": "Paused all torrents: {count}",
+		"resumed": "Resumed torrents: {count}",
+		"failPause": "Failed to pause all torrents",
+		"failResume": "Failed to resume torrents"
+	},
+	"movie": {
+		"menu": "Movie",
+		"close": "Close",
+		"cancel": "Cancel",
+		"state": {
+			"unmatched": "Not recognized",
+			"skipped": "No video files",
+			"failed": "Lookup failed, will retry",
+			"pending": "Not checked yet"
+		},
+		"actions": {
+			"info": "Poster and details",
+			"markWatched": "Mark as watched",
+			"markUnwatched": "Mark as not watched",
+			"missingSubs": "Subtitles are missing",
+			"hasSubs": "Subtitles are found",
+			"rename": "Rename on disk…",
+			"detect": "Detect again",
+			"link": "Set link…",
+			"clear": "Clear match"
+		},
+		"toast": {
+			"watched": "Marked as watched",
+			"unwatched": "Marked as not watched",
+			"missingSubs": "Marked: subtitles are missing",
+			"hasSubs": "Mark removed: subtitles are found",
+			"failFlags": "Failed to save the mark",
+			"detected": "Recognized: {title}",
+			"notDetected": "Nothing found for “{query}”. Set a link instead.",
+			"failDetect": "Lookup failed",
+			"cleared": "Match cleared",
+			"failClear": "Failed to clear the match",
+			"linked": "Linked: {title}",
+			"failLink": "Failed to link the title",
+			"linkNotFound": "Nothing found at this link",
+			"linkUnsupported": "Paste a TMDB or IMDb link",
+			"renamed": "Renamed to “{name}”",
+			"failRename": "Failed to rename"
+		},
+		"info": {
+			"posterAlt": "Poster: {title}",
+			"noPoster": "No poster",
+			"tv": "Series",
+			"movie": "Movie",
+			"watched": "Watched",
+			"missingSubs": "Subtitles are missing",
+			"noOverview": "No description.",
+			"manual": "Set manually",
+			"detectedFrom": "Recognized from: {query}",
+			"notConfident": "The year or title did not match exactly — check that this is the right title.",
+			"renamedTo": "Renamed on disk to: {name}"
+		},
+		"link": {
+			"title": "Set the title by link",
+			"description": "Paste a link to the title page on TMDB or IMDb.",
+			"hint": "For example themoviedb.org/movie/157336 or imdb.com/title/tt0816692. The link replaces the recognized title.",
+			"submit": "Link"
+		},
+		"rename": {
+			"title": "Rename on disk",
+			"description": "The folder (or the only file) of the torrent is renamed by Transmission; seeding continues.",
+			"same": "The torrent already has this name.",
+			"submit": "Rename"
+		}
 	}
 }

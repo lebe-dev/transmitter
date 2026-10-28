@@ -9,7 +9,12 @@
 	"header": {
 		"add": "Hinzufügen",
 		"toggleTheme": "Design wechseln",
-		"settings": "Einstellungen"
+		"settings": "Einstellungen",
+		"freeSpace": "Freier Speicherplatz",
+		"nightShiftActive": "Nachtschicht aktiv",
+		"dayShiftActive": "Tagschicht aktiv",
+		"totalDownloadSpeed": "Gesamte Download-Geschwindigkeit",
+		"totalUploadSpeed": "Gesamte Upload-Geschwindigkeit"
 	},
 	"search": {
 		"placeholder": "Torrents suchen…"
@@ -19,7 +24,10 @@
 		"downloading": "Herunterladen",
 		"seeding": "Seeden",
 		"paused": "Pausiert",
-		"done": "Fertig"
+		"done": "Fertig",
+		"undergiven": "Nicht zurückgegeben",
+		"unwatched": "Nicht gesehen",
+		"missingSubs": "Ohne Untertitel"
 	},
 	"sort": {
 		"label": "Sortierung:",
@@ -49,13 +57,49 @@
 	"error": {
 		"connection": "Verbindungsfehler"
 	},
+	"offline": {
+		"banner": "Keine Verbindung. Daten vom {time}",
+		"bannerNoData": "Keine Verbindung. Noch keine gespeicherten Daten",
+		"unavailable": "Ohne Verbindung nicht verfügbar"
+	},
 	"actions": {
 		"resume": "Fortsetzen",
+		"resumeNoSpace": "Nicht genug freier Speicher zum Fortsetzen",
 		"pause": "Pausieren",
 		"delete": "Löschen",
 		"pin": "Torrent anheften",
 		"unpin": "Torrent loslösen",
-		"scrollToTop": "Nach oben"
+		"scrollToTop": "Nach oben",
+		"nightShiftOn": "Für Nachtschicht einplanen",
+		"nightShiftOff": "Aus Nachtschicht entfernen",
+		"nightShiftWindow": "Nachtschicht: {start}–{end}",
+		"nightShiftDisabled": "Nachtschicht ist ausgeschaltet",
+		"dayShiftOn": "Für Tagschicht einplanen",
+		"dayShiftOff": "Aus Tagschicht entfernen",
+		"dayShiftWindow": "Tagschicht: {start}–{end}",
+		"dayShiftDisabled": "Tagschicht ist ausgeschaltet"
+	},
+	"bulk": {
+		"trigger": "Aktionen",
+		"menu": "Sammelaktionen",
+		"filteredNotice": "Nur die aktuell angezeigten Torrents",
+		"pause": "Alle pausieren",
+		"dayShiftAdd": "Alle zur Tagschicht hinzufügen",
+		"dayShiftRemove": "Alle aus der Tagschicht entfernen",
+		"nightShiftAdd": "Alle zur Nachtschicht hinzufügen",
+		"nightShiftRemove": "Alle aus der Nachtschicht entfernen",
+		"confirmTitle": "Sammelaktion",
+		"confirmDescription": "Betroffene Torrents: {count}",
+		"confirmButton": "Anwenden",
+		"cancel": "Abbrechen",
+		"fail": "Sammelaktion fehlgeschlagen",
+		"done": {
+			"pause": "Pausiert: {count}",
+			"dayShiftAdd": "Zur Tagschicht hinzugefügt: {count}",
+			"dayShiftRemove": "Aus der Tagschicht entfernt: {count}",
+			"nightShiftAdd": "Zur Nachtschicht hinzugefügt: {count}",
+			"nightShiftRemove": "Aus der Nachtschicht entfernt: {count}"
+		}
 	},
 	"addDialog": {
 		"title": "Torrent hinzufügen",
@@ -69,7 +113,11 @@
 		"destinationFolder": "Zielordner",
 		"defaultPath": "Standard",
 		"removePath": "Gespeicherten Pfad entfernen",
-		"invalidPath": "Pfad muss absolut sein (mit / beginnen)"
+		"invalidPath": "Pfad muss absolut sein (mit / beginnen)",
+		"torrentSize": "Torrent-Größe",
+		"freeSpace": "Freier Speicher",
+		"notEnoughSpace": "Nicht genügend freier Speicherplatz im Zielordner. Der Torrent wird hinzugefügt, startet aber erst, wenn Speicher frei ist.",
+		"addNoStartButton": "Hinzufügen ohne Start"
 	},
 	"fileSelectDialog": {
 		"title": "Dateien auswählen",
@@ -94,10 +142,24 @@
 		"colorTheme": "Farbdesign",
 		"language": "Sprache",
 		"compactView": "Kompakte Ansicht",
+		"showFreeSpace": "Freien Speicher im Header anzeigen",
 		"docs": "Dokumentation",
 		"close": "Schließen",
+		"backToTorrents": "Zurück zur Torrent-Liste",
 		"tabGeneral": "Allgemein",
 		"tabServer": "Server",
+		"tabShifts": "Schichten",
+		"nightShiftLabel": "Nachtschicht",
+		"nightShiftDescription": "Mit dem Mond markierte Torrents werden nur im konfigurierten Nachtfenster heruntergeladen und geseedet. Außerhalb des Fensters werden sie pausiert.",
+		"nightShiftWindowLabel": "Fenster der Nachtschicht",
+		"nightShiftWindowHint": "Wird über die Umgebungsvariablen NIGHT_SHIFT_START und NIGHT_SHIFT_END gesetzt.",
+		"dayShiftLabel": "Tagschicht",
+		"dayShiftDescription": "Mit der Sonne markierte Torrents werden nur im konfigurierten Tagfenster heruntergeladen und geseedet. Außerhalb des Fensters werden sie pausiert.",
+		"dayShiftWindowLabel": "Fenster der Tagschicht",
+		"dayShiftWindowHint": "Wird über die Umgebungsvariablen DAY_SHIFT_START und DAY_SHIFT_END gesetzt.",
+		"shiftToggleHint": "Die Schalter werden auf dem Server gespeichert: sie gelten in jedem Browser und bleiben nach einem Neustart erhalten. Eine ausgeschaltete Schicht startet und stoppt keine Torrents — sie behalten ihren aktuellen Zustand.",
+		"shiftConflictWarning": "Ein Torrent kann beide Markierungen tragen. Die Scheduler arbeiten unabhängig — bei nicht überlappenden Fenstern starten und stoppen sie ihn abwechselnd.",
+		"shiftsNotConfigured": "Schichten sind auf dem Server nicht konfiguriert.",
 		"configEnvVar": "Variable",
 		"configValue": "Wert",
 		"configError": "Konfiguration konnte nicht geladen werden",
@@ -115,8 +177,34 @@
 			"deleteWithData": "\"Lokale Daten löschen\" im Löschdialog vorab aktivieren.",
 			"monitorInterval": "Wie oft der Telegram-Bot den Torrent-Status abfragt.",
 			"fileSelectTimeout": "Timeout für die Dateiauswahl im Telegram-Bot.",
-			"maxRequestBodyBytes": "Maximale Größe des eingehenden HTTP-Anfragetexts."
-		}
+			"maxRequestBodyBytes": "Maximale Größe des eingehenden HTTP-Anfragetexts.",
+			"nightShiftConfigured": "Ob das Zeitfenster der Nachtschicht gesetzt ist (NIGHT_SHIFT_START und NIGHT_SHIFT_END). Der Scheduler selbst wird im Tab „Schichten“ ein- und ausgeschaltet.",
+			"nightShiftStart": "Beginn des Nachtschicht-Fensters (HH:MM, 24h). Markierte Torrents werden nur in diesem Fenster heruntergeladen.",
+			"nightShiftEnd": "Ende des Nachtschicht-Fensters (HH:MM, 24h). Das Fenster darf Mitternacht überspannen, wenn Ende ≤ Beginn.",
+			"dayShiftConfigured": "Ob das Zeitfenster der Tagschicht gesetzt ist (DAY_SHIFT_START und DAY_SHIFT_END). Der Scheduler selbst wird im Tab „Schichten“ ein- und ausgeschaltet.",
+			"dayShiftStart": "Beginn des Tagschicht-Fensters (HH:MM, 24h). Markierte Torrents werden nur in diesem Fenster heruntergeladen.",
+			"dayShiftEnd": "Ende des Tagschicht-Fensters (HH:MM, 24h). Das Fenster darf Mitternacht überspannen, wenn Ende ≤ Beginn.",
+			"dbPath": "Pfad zur SQLite-Datenbankdatei, in der die Torrent-Notizen gespeichert werden.",
+			"noteMaxLength": "Maximale Länge einer Torrent-Notiz in Zeichen.",
+			"noteCleanupInterval": "Wie oft Notizen nicht mehr vorhandener Torrents entfernt werden.",
+			"impactTargetRatio": "Upload-Verhältnis, das als vollständige Rückgabe gilt: 1 bedeutet, der Torrent hat so viel hochgeladen wie heruntergeladen.",
+			"impactInterval": "Wie oft Torrents auf das Ziel-Upload-Verhältnis geprüft werden.",
+			"moviePluginEnabled": "Movie Plugin: erkennt Filme und Serien am Torrent-Namen, zeigt Poster, benennt Torrents um und speichert die Markierungen gesehen / Untertitel fehlen.",
+			"movie": {
+				"tmdbApiUrl": "TMDB-API-Endpunkt. Kann durch einen Spiegel ersetzt werden.",
+				"tmdbImageUrl": "TMDB-Bild-Endpunkt für Poster.",
+				"language": "Sprache von Titeln und Beschreibungen (TMDB-Locale, z. B. de-DE, en-US).",
+				"autoDetect": "Torrents erkennen, die nach dem Aktivieren des Plugins hinzugefügt wurden.",
+				"backfill": "Torrents, die schon vor dem Plugin da waren, nach und nach erkennen.",
+				"autoRename": "Neue Torrents direkt nach einer sicheren Zuordnung umbenennen. Torrents von vor dem Plugin werden nie automatisch umbenannt.",
+				"renameTemplate": "Namensvorlage. Platzhalter in geschweiften Klammern: title, original_title, year, season, tmdb_id, imdb_id, type.",
+				"scanInterval": "Wie oft nach neuen Torrents gesucht wird.",
+				"scanBatch": "Wie viele Torrents pro Durchlauf erkannt werden.",
+				"posterDir": "Wo Poster zwischengespeichert werden."
+			}
+		},
+		"impactAutoStop": "Seeding beenden, sobald {percent}% zurückgegeben sind",
+		"impactAutoStopHint": "Ein Torrent, der {percent}% des Heruntergeladenen hochgeladen hat, wird automatisch pausiert. Solange die Option aktiv ist, starten die Schichten solche Torrents nicht neu."
 	},
 	"themes": {
 		"yellow": "Gelb",
@@ -146,7 +234,16 @@
 	"card": {
 		"downloadSpeed": "Download-Geschwindigkeit",
 		"uploadSpeed": "Upload-Geschwindigkeit",
-		"uploadedTotal": "Gesamt hochgeladen"
+		"uploadedTotal": "Gesamt hochgeladen",
+		"impactReached": "Sie haben {percent}% des Heruntergeladenen zurückgegeben"
+	},
+	"note": {
+		"label": "Notiz",
+		"placeholder": "Notiz zu diesem Torrent hinzufügen…",
+		"save": "Speichern",
+		"cancel": "Abbrechen",
+		"saved": "Notiz gespeichert",
+		"failSave": "Notiz konnte nicht gespeichert werden"
 	},
 	"detail": {
 		"files": "Dateien",
@@ -175,12 +272,103 @@
 	},
 	"toast": {
 		"added": "Torrent hinzugefügt",
+		"addedNoSpace": "Torrent hinzugefügt, wartet auf freien Speicher",
 		"deleted": "Gelöscht: {name}",
 		"started": "Gestartet: {name}",
 		"paused": "Pausiert: {name}",
 		"failAdd": "Torrent konnte nicht hinzugefügt werden",
 		"failStart": "Torrent konnte nicht gestartet werden",
+		"failStartNoSpace": "Nicht genug freier Speicher, um diesen Torrent zu starten",
 		"failPause": "Torrent konnte nicht pausiert werden",
-		"failDelete": "Torrent konnte nicht gelöscht werden"
+		"failDelete": "Torrent konnte nicht gelöscht werden",
+		"nightShiftOn": "Für Nachtschicht eingeplant: {name}",
+		"nightShiftOff": "Aus Nachtschicht entfernt: {name}",
+		"failNightShift": "Nachtschicht konnte nicht aktualisiert werden",
+		"dayShiftOn": "Für Tagschicht eingeplant: {name}",
+		"dayShiftOff": "Aus Tagschicht entfernt: {name}",
+		"failDayShift": "Tagschicht konnte nicht aktualisiert werden",
+		"failShiftToggle": "Schicht konnte nicht umgeschaltet werden",
+		"failImpactToggle": "Automatisches Stoppen konnte nicht umgeschaltet werden"
+	},
+	"memo": {
+		"label": "Notizen",
+		"placeholder": "Notiere etwas…",
+		"saving": "Wird gespeichert…",
+		"saved": "Gespeichert",
+		"failSave": "Notizen konnten nicht gespeichert werden",
+		"tooLong": "Die Notizen sind zu lang"
+	},
+	"globalPause": {
+		"pause": "Alle Torrents pausieren",
+		"resume": "Global pausierte Torrents fortsetzen",
+		"paused": "Pausierte Torrents: {count}",
+		"resumed": "Fortgesetzte Torrents: {count}",
+		"failPause": "Torrents konnten nicht pausiert werden",
+		"failResume": "Torrents konnten nicht fortgesetzt werden"
+	},
+	"movie": {
+		"menu": "Film",
+		"close": "Schließen",
+		"cancel": "Abbrechen",
+		"state": {
+			"unmatched": "Nicht erkannt",
+			"skipped": "Keine Videodateien",
+			"failed": "Suche fehlgeschlagen, wird wiederholt",
+			"pending": "Noch nicht geprüft"
+		},
+		"actions": {
+			"info": "Poster und Details",
+			"markWatched": "Als gesehen markieren",
+			"markUnwatched": "Als nicht gesehen markieren",
+			"missingSubs": "Untertitel fehlen",
+			"hasSubs": "Untertitel gefunden",
+			"rename": "Auf der Festplatte umbenennen…",
+			"detect": "Erneut erkennen",
+			"link": "Link angeben…",
+			"clear": "Zuordnung entfernen"
+		},
+		"toast": {
+			"watched": "Als gesehen markiert",
+			"unwatched": "Als nicht gesehen markiert",
+			"missingSubs": "Markiert: Untertitel fehlen",
+			"hasSubs": "Markierung entfernt: Untertitel gefunden",
+			"failFlags": "Markierung konnte nicht gespeichert werden",
+			"detected": "Erkannt: {title}",
+			"notDetected": "Für „{query}“ wurde nichts gefunden. Bitte einen Link angeben.",
+			"failDetect": "Suche fehlgeschlagen",
+			"cleared": "Zuordnung entfernt",
+			"failClear": "Zuordnung konnte nicht entfernt werden",
+			"linked": "Zugeordnet: {title}",
+			"failLink": "Titel konnte nicht zugeordnet werden",
+			"linkNotFound": "Unter diesem Link wurde nichts gefunden",
+			"linkUnsupported": "Bitte einen TMDB- oder IMDb-Link einfügen",
+			"renamed": "Umbenannt in „{name}“",
+			"failRename": "Umbenennen fehlgeschlagen"
+		},
+		"info": {
+			"posterAlt": "Poster: {title}",
+			"noPoster": "Kein Poster",
+			"tv": "Serie",
+			"movie": "Film",
+			"watched": "Gesehen",
+			"missingSubs": "Untertitel fehlen",
+			"noOverview": "Keine Beschreibung.",
+			"manual": "Manuell angegeben",
+			"detectedFrom": "Erkannt anhand von: {query}",
+			"notConfident": "Jahr oder Titel stimmten nicht genau überein – bitte prüfen, ob es der richtige Titel ist.",
+			"renamedTo": "Auf der Festplatte umbenannt in: {name}"
+		},
+		"link": {
+			"title": "Titel per Link angeben",
+			"description": "Link zur Titelseite auf TMDB oder IMDb einfügen.",
+			"hint": "Zum Beispiel themoviedb.org/movie/157336 oder imdb.com/title/tt0816692. Der Link ersetzt den erkannten Titel.",
+			"submit": "Zuordnen"
+		},
+		"rename": {
+			"title": "Auf der Festplatte umbenennen",
+			"description": "Transmission benennt den Ordner (oder die einzige Datei) des Torrents um; das Seeden läuft weiter.",
+			"same": "Der Torrent hat bereits diesen Namen.",
+			"submit": "Umbenennen"
+		}
 	}
 }

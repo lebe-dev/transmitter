@@ -7,7 +7,7 @@ const LOCALE_STORAGE_KEY = 'transmitter-locale';
 const FALLBACK_LOCALE = 'en';
 
 function getInitialLocale(): string {
-	if (typeof window !== 'undefined') {
+	if (globalThis.window !== undefined) {
 		const saved = localStorage.getItem(LOCALE_STORAGE_KEY);
 		if (saved) return saved;
 	}

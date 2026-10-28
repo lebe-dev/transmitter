@@ -7,12 +7,16 @@ Transmitter es una alternativa moderna y ligera a la interfaz web estándar de T
 
 ## Características
 
-- **Lista de torrents** — tabla ordenable: nombre, estado, progreso, tamaño, velocidad, fecha de adición, ETA
-- **Filtros por estado** — Todos, Descargando, Sembrando, Pausado, Completado
-- **Búsqueda** — filtra torrents por nombre (sin distinción de mayúsculas)
-- **Añadir torrents** — enlaces magnet o carga de archivos .torrent
-- **Gestión** — pausar, reanudar, eliminar torrents
-- **Auto-actualización** — actualizaciones en vivo cada 3–5 segundos
+- **Operaciones básicas** — lista ordenable (nombre, estado, progreso, tamaño, velocidad, fecha de adición, ETA) con filtros por estado, búsqueda por nombre sin distinción de mayúsculas, adición mediante enlace magnet o archivo .torrent y pausar/reanudar/eliminar
+- **Notas** — texto libre para cualquier torrent (guardado en el servidor en SQLite, visible en la lista, el panel de detalles y el bot de Telegram)
+- **Turno nocturno** — marca torrents para descargarlos y compartirlos sólo dentro de una ventana horaria configurada; fuera de la ventana se pausan
+- **Turno diurno** — lo mismo, con su propia etiqueta, su ventana y un botón con el sol; los turnos son independientes y un torrent puede llevar ambas marcas
+- **Interruptores de turnos** — cualquier turno configurado se puede desactivar en «Ajustes → Turnos»; el estado se guarda en SQLite en el servidor, por lo que se aplica en todos los navegadores y se mantiene tras reiniciar. Mientras un turno está desactivado su planificador no toca nada: los torrents se quedan como están y el botón del turno se ve en gris
+- **Impact** — cuánto ha devuelto un torrent de lo que descargó. Un trofeo marca los que han subido el 100% de su descarga, el filtro «Sin devolver» muestra el resto (se pueden enviar a un turno en bloque) y un interruptor opcional detiene el torrent al alcanzar el objetivo
+- **Pausa global** — un botón en la cabecera pausa todos los torrents activos y recuerda cuáles eran; al reanudar solo se inician esos, así que los que habías detenido siguen detenidos. El estado se guarda en el servidor y sobrevive a un reinicio; los turnos no actúan mientras la pausa está activa
+- **Notas** — un texto libre al principio de la pantalla principal (3 líneas por defecto, crece con el texto), guardado automáticamente en SQLite
+- **Movie Plugin** (desactivado por defecto, `MOVIE_PLUGIN_ENABLED=true`) — reconoce películas, dibujos animados y series por el nombre del torrent (nombres de escena con puntos, «Русское / Original [2014, …]»), obtiene el póster y la descripción de TMDB, renombra la carpeta o el archivo del torrent en disco según una plantilla (lo hace Transmission, la siembra continúa) y guarda las marcas «vista» y «faltan subtítulos» con sus propios filtros. Una coincidencia errónea o ausente se corrige desde el menú de la tarjeta con un enlace de TMDB o IMDb. Los torrents nuevos se reconocen nada más añadirlos y los existentes poco a poco en segundo plano; sólo los nuevos se renombran automáticamente
+- **Modo sin conexión** — sin conexión la interfaz sigue abriéndose y muestra los torrents, las notas y los ajustes de la última sincronización, con un aviso que lo indica; las acciones que requieren el servidor no están disponibles hasta que vuelva la conexión. Para abrir la página sin red se necesita HTTPS o localhost (service worker)
 - **Idiomas soportados**: en, ru, es, de
 - **Docker images**: linux/amd64, linux/arm/v7, linux/arm64/v8
 
@@ -46,6 +50,24 @@ Todos los ajustes se realizan mediante variables de entorno:
 | `LOG_LEVEL` | No | `info` |
 | `FILE_PRIORITY_ENABLED` | No | `false` |
 | `FILE_PRIORITY_HIGH_COUNT` | No | `3` |
+| `NIGHT_SHIFT_START` | No | — (desactivado) |
+| `NIGHT_SHIFT_END` | No | — (desactivado) |
+| `NIGHT_SHIFT_INTERVAL` | No | `1m` |
+| `DAY_SHIFT_START` | No | — (desactivado) |
+| `DAY_SHIFT_END` | No | — (desactivado) |
+| `DAY_SHIFT_INTERVAL` | No | `1m` |
+| `DB_PATH` | No | `data/transmitter.db` (imagen Docker: `/app/data/transmitter.db`) |
+| `TORRENT_NOTE_MAX_LENGTH` | No | `200` |
+| `TORRENT_NOTE_CLEANUP_INTERVAL` | No | `1h` |
+| `IMPACT_TARGET_RATIO` | No | `1` |
+| `IMPACT_INTERVAL` | No | `5m` |
+| `SENTRY_DSN` | No | — (desactivado) |
+| `SENTRY_ENVIRONMENT` | Si se usa Sentry | — |
+| `MOVIE_PLUGIN_ENABLED` | No | `false` |
+| `TMDB_API_KEY` | Si se usa Movie Plugin | — |
+| `MOVIE_LANGUAGE` | No | `en-US` |
+| `MOVIE_RENAME_TEMPLATE` | No | `{title} ({year})` |
+| `MOVIE_AUTO_DETECT` / `MOVIE_BACKFILL` / `MOVIE_AUTO_RENAME` | No | `true` |
 
 Para todas las opciones, consulta [.env.example](.env.example).
 
@@ -56,6 +78,5 @@ Ver [SECURITY.md](docs/SECURITY.es.md).
 ## Hoja de ruta
 
 - Autenticación en la interfaz web
-- Video plugin
 - Soporte de múltiples instancias de Transmission
 - Feeds RSS para adición automática de torrents

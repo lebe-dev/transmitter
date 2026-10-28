@@ -1,6 +1,12 @@
 package transmission
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"errors"
+)
+
+// ErrTorrentNotFound is returned when no torrent matches the requested ID or hash.
+var ErrTorrentNotFound = errors.New("torrent not found")
 
 // RPCRequest is a Transmission JSON-RPC request.
 type RPCRequest struct {
@@ -32,6 +38,13 @@ type Torrent struct {
 	Error        int     `json:"error"`
 	ErrorString  string  `json:"errorString"`
 	UploadedEver int64   `json:"uploadedEver"`
+	// DownloadedEver is the payload downloaded over the torrent's lifetime; it is
+	// the denominator of UploadRatio.
+	DownloadedEver int64 `json:"downloadedEver"`
+	// UploadRatio is uploadedEver/downloadedEver as reported by Transmission.
+	// It is negative when the ratio is unknown (nothing downloaded yet).
+	UploadRatio float64  `json:"uploadRatio"`
+	Labels      []string `json:"labels"`
 }
 
 // TorrentGetArgs are arguments for torrent-get.
@@ -73,11 +86,12 @@ type TorrentActionArgs struct {
 
 // TorrentSetArgs are arguments for torrent-set.
 type TorrentSetArgs struct {
-	IDs           []int64 `json:"ids"`
-	PriorityHigh  []int   `json:"priority-high,omitempty"`
-	PriorityLow   []int   `json:"priority-low,omitempty"`
-	FilesWanted   []int   `json:"files-wanted,omitempty"`
-	FilesUnwanted []int   `json:"files-unwanted,omitempty"`
+	IDs           []int64   `json:"ids"`
+	PriorityHigh  []int     `json:"priority-high,omitempty"`
+	PriorityLow   []int     `json:"priority-low,omitempty"`
+	FilesWanted   []int     `json:"files-wanted,omitempty"`
+	FilesUnwanted []int     `json:"files-unwanted,omitempty"`
+	Labels        *[]string `json:"labels,omitempty"`
 }
 
 // TorrentFile holds file info returned by torrent-get with "files" field.
@@ -86,10 +100,14 @@ type TorrentFile struct {
 	Length int64  `json:"length"`
 }
 
-// TorrentWithFiles holds torrent info with files list.
+// TorrentWithFiles holds torrent info with files list. HashString, Name and
+// AddedDate are filled only when requested.
 type TorrentWithFiles struct {
-	ID    int64         `json:"id"`
-	Files []TorrentFile `json:"files"`
+	ID         int64         `json:"id"`
+	HashString string        `json:"hashString,omitempty"`
+	Name       string        `json:"name,omitempty"`
+	AddedDate  int64         `json:"addedDate,omitempty"`
+	Files      []TorrentFile `json:"files"`
 }
 
 // TorrentWithFilesResult holds the result of torrent-get with files.
@@ -102,4 +120,6 @@ var TorrentFields = []string{
 	"id", "name", "status", "percentDone", "totalSize",
 	"rateDownload", "rateUpload", "addedDate", "eta",
 	"hashString", "downloadDir", "error", "errorString", "uploadedEver",
+	"downloadedEver", "uploadRatio",
+	"labels",
 }

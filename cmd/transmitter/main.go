@@ -10,12 +10,22 @@ import (
 
 	"github.com/lebe-dev/transmitter/internal/bot"
 	"github.com/lebe-dev/transmitter/internal/config"
+	"github.com/lebe-dev/transmitter/internal/impact"
+	"github.com/lebe-dev/transmitter/internal/movie"
+	"github.com/lebe-dev/transmitter/internal/notes"
+	"github.com/lebe-dev/transmitter/internal/pause"
+	"github.com/lebe-dev/transmitter/internal/prefs"
+	"github.com/lebe-dev/transmitter/internal/sentrylog"
 	"github.com/lebe-dev/transmitter/internal/server"
+	"github.com/lebe-dev/transmitter/internal/shift"
 	"github.com/lebe-dev/transmitter/internal/transmission"
 	"github.com/lebe-dev/transmitter/static"
 )
 
-var Version = "dev"
+var (
+	Version     = "dev"
+	BuildNumber = "dev"
+)
 
 func main() {
 	cfg, err := config.Load()
@@ -24,52 +34,63 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: cfg.LogLevel}))
-	slog.SetDefault(logger)
-	logger.Info("starting transmitter", "version", Version)
+	version := Version + "-" + BuildNumber
 
-	client := transmission.NewClient(cfg.TransmissionURL, cfg.TransmissionUser, cfg.TransmissionPass)
-
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)
-	defer stop()
-
-	var tgBot *bot.Bot
-	if cfg.TelegramBotEnabled {
-		if cfg.TelegramToken == "" {
-			logger.Error("TELEGRAM_BOT_ENABLED=true but TELEGRAM_TOKEN is not set")
-			os.Exit(1)
-		}
-		tgBot, err = bot.New(cfg.TelegramToken, cfg.TelegramUsers, client, logger, cfg.FilePriorityEnabled, cfg.FilePriorityHighCount, cfg.FileSelectTimeout)
-		if err != nil {
-			logger.Error("bot init failed", "err", err)
-			os.Exit(1)
-		}
-		go tgBot.Start()
-		go tgBot.StartMonitor(ctx, cfg.MonitorInterval)
-	} else {
-		logger.Info("telegram bot disabled (TELEGRAM_BOT_ENABLED=false)")
-	}
-
-	var srv *server.Server
-	if cfg.WebUIEnabled {
-		srv, err = server.New(cfg, client, static.FS, logger)
-		if err != nil {
-			logger.Error("server init failed", "err", err)
-			os.Exit(1)
-		}
-		go func() {
-			if err := srv.Start(); err != nil {
-				logger.Error("server error", "err", err)
-				stop()
-			}
-		}()
-	} else {
-		logger.Info("web UI disabled (WEBUI_ENABLED=false)")
+	logger := setupLogger(cfg)
+	logger.Info("starting transmitter", "version", version)
+	if cfg.SentryDSN != "" {
+		defer sentrylog.Flush(2 * time.Second)
+		logger.Info("sentry enabled", "environment", cfg.SentryEnvironment)
 	}
 
 	if !cfg.WebUIEnabled && !cfg.TelegramBotEnabled {
 		logger.Error("both WEBUI_ENABLED and TELEGRAM_BOT_ENABLED are false — nothing to run")
 		os.Exit(1)
+	}
+
+	client := transmission.NewClient(cfg.TransmissionURL, cfg.TransmissionUser, cfg.TransmissionPass)
+
+	noteStore, err := notes.Open(cfg.DBPath, cfg.NoteMaxLength)
+	if err != nil {
+		logger.Error("notes database init failed", "path", cfg.DBPath, "err", err)
+		os.Exit(1)
+	}
+	defer noteStore.Close() //nolint:errcheck
+	logger.Info("notes database ready", "path", cfg.DBPath, "max_length", cfg.NoteMaxLength)
+
+	// Shares the database file with the notes store; holds the shift toggles set
+	// from the web UI.
+	prefStore, err := prefs.Open(cfg.DBPath)
+	if err != nil {
+		logger.Error("preferences database init failed", "path", cfg.DBPath, "err", err)
+		os.Exit(1)
+	}
+	defer prefStore.Close() //nolint:errcheck
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)
+	defer stop()
+
+	// The same set of shifts drives the schedulers and the bot's /shifts card.
+	shiftOptions := configuredShifts(cfg, logger)
+
+	// Stops torrents that gave back everything they took; the shifts consult the
+	// same worker so they do not restart what it paused.
+	impactWorker := impact.New(client, cfg.ImpactTargetRatio, cfg.ImpactInterval, prefStore, logger)
+
+	// The global pause from the web UI; the shifts stand still while it is on.
+	pauser := pause.New(client, prefStore, logger)
+
+	movies, closeMovies := startMoviePlugin(ctx, cfg, client, logger)
+	defer closeMovies()
+
+	tgBot := startBot(ctx, cfg, client, noteStore, logger, bot.Shifts{Configured: shiftOptions, Store: prefStore})
+	srv := startServer(cfg, client, noteStore, prefStore, pauser, movies, version, logger, stop)
+
+	go notes.NewCleaner(noteStore, client, cfg.NoteCleanupInterval, logger).Run(ctx)
+	go impactWorker.Run(ctx)
+
+	for _, opts := range shiftOptions {
+		go shift.New(client, opts, shiftOptions, prefStore, impactWorker, pauser, logger).Run(ctx)
 	}
 
 	<-ctx.Done()
@@ -87,4 +108,121 @@ func main() {
 		}
 	}
 	logger.Info("shutdown complete")
+}
+
+// setupLogger builds the application logger, wiring in Sentry when a DSN is configured.
+func setupLogger(cfg *config.Config) *slog.Logger {
+	var handler slog.Handler = slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: cfg.LogLevel})
+	if cfg.SentryDSN != "" {
+		if err := sentrylog.Init(cfg.SentryDSN, cfg.SentryEnvironment, Version); err != nil {
+			slog.Error("sentry init failed", "err", err)
+			os.Exit(1)
+		}
+		handler = sentrylog.NewHandler(handler, nil)
+	}
+
+	logger := slog.New(handler)
+	slog.SetDefault(logger)
+	return logger
+}
+
+// configuredShifts collects the shifts that have a time window set in the
+// environment. The rest get no scheduler and are hidden from the bot.
+func configuredShifts(cfg *config.Config, logger *slog.Logger) []shift.Options {
+	var opts []shift.Options
+
+	if cfg.NightShiftEnabled {
+		opts = append(opts, shift.NightOptions(cfg))
+	} else {
+		logger.Info("night-shift not configured (NIGHT_SHIFT_START/NIGHT_SHIFT_END not set)")
+	}
+
+	if cfg.DayShiftEnabled {
+		opts = append(opts, shift.DayOptions(cfg))
+	} else {
+		logger.Info("day-shift not configured (DAY_SHIFT_START/DAY_SHIFT_END not set)")
+	}
+
+	return opts
+}
+
+// startMoviePlugin opens the Movie Plugin store and starts its worker when the
+// plugin is enabled. It returns a nil service (an untyped nil, so the server
+// sees the plugin as absent) and a no-op closer when it is disabled.
+func startMoviePlugin(ctx context.Context, cfg *config.Config, client *transmission.Client, logger *slog.Logger) (server.MovieService, func()) {
+	if !cfg.Movie.Enabled {
+		logger.Info("movie plugin disabled (MOVIE_PLUGIN_ENABLED=false)")
+		return nil, func() {}
+	}
+
+	store, err := movie.OpenStore(cfg.DBPath)
+	if err != nil {
+		logger.Error("movie plugin database init failed", "path", cfg.DBPath, "err", err)
+		os.Exit(1)
+	}
+
+	source := movie.NewTMDB(cfg.Movie.TMDBAPIURL, cfg.Movie.TMDBImageURL, cfg.Movie.TMDBAPIKey, cfg.Movie.Language)
+	svc := movie.NewService(store, source, client, movie.Options{
+		Interval:   cfg.Movie.ScanInterval,
+		Batch:      cfg.Movie.ScanBatch,
+		AutoDetect: cfg.Movie.AutoDetect,
+		Backfill:   cfg.Movie.Backfill,
+		AutoRename: cfg.Movie.AutoRename,
+		Template:   cfg.Movie.Template,
+		PosterDir:  cfg.Movie.PosterDir,
+	}, logger)
+	go svc.Run(ctx)
+
+	return svc, func() { store.Close() } //nolint:errcheck
+}
+
+// startBot initializes and starts the Telegram bot when enabled, returning nil when disabled.
+func startBot(ctx context.Context, cfg *config.Config, client *transmission.Client, noteStore bot.NoteSource, logger *slog.Logger, shifts bot.Shifts) *bot.Bot {
+	if !cfg.TelegramBotEnabled {
+		logger.Info("telegram bot disabled (TELEGRAM_BOT_ENABLED=false)")
+		return nil
+	}
+	if cfg.TelegramToken == "" {
+		logger.Error("TELEGRAM_BOT_ENABLED=true but TELEGRAM_TOKEN is not set")
+		os.Exit(1)
+	}
+
+	tgBot, err := bot.New(cfg.TelegramToken, cfg.TelegramUsers, client, noteStore, logger, cfg.FilePriorityEnabled, cfg.FilePriorityHighCount, cfg.FileSelectTimeout, shifts)
+	if err != nil {
+		logger.Error("bot init failed", "err", err)
+		os.Exit(1)
+	}
+	go tgBot.Start()
+	go tgBot.StartMonitor(ctx, cfg.MonitorInterval)
+	return tgBot
+}
+
+// prefStore holds the runtime state the HTTP handlers read and write: the
+// shift schedulers, the impact auto-stop rule and the global note.
+// internal/prefs implements all of them.
+type prefStore interface {
+	server.ShiftStore
+	server.ImpactStore
+	server.MemoStore
+}
+
+// startServer initializes and starts the HTTP server when enabled, returning nil when disabled.
+func startServer(cfg *config.Config, client *transmission.Client, noteStore server.NoteStore, prefStore prefStore, pauser server.Pauser, movies server.MovieService, version string, logger *slog.Logger, stop context.CancelFunc) *server.Server {
+	if !cfg.WebUIEnabled {
+		logger.Info("web UI disabled (WEBUI_ENABLED=false)")
+		return nil
+	}
+
+	srv, err := server.New(cfg, client, noteStore, prefStore, prefStore, prefStore, pauser, movies, version, static.FS, logger)
+	if err != nil {
+		logger.Error("server init failed", "err", err)
+		os.Exit(1)
+	}
+	go func() {
+		if err := srv.Start(); err != nil {
+			logger.Error("server error", "err", err)
+			stop()
+		}
+	}()
+	return srv
 }

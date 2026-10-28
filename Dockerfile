@@ -1,6 +1,6 @@
 ARG BUILDPLATFORM=linux/amd64
 
-FROM --platform=$BUILDPLATFORM node:22-alpine3.23 AS frontend-build
+FROM --platform=$BUILDPLATFORM node:24-alpine3.24 AS frontend-build
 
 WORKDIR /build
 
@@ -12,7 +12,7 @@ RUN APP_VERSION=$(cat /build/VERSION) && \
     yarn --frozen-lockfile && \
     yarn build
 
-FROM golang:1.26-alpine3.23 AS app-build
+FROM golang:1.26-alpine3.24 AS app-build
 
 WORKDIR /build
 
@@ -22,22 +22,28 @@ COPY go.mod go.sum ./
 
 RUN go mod download
 
-COPY . /build
+COPY cmd/ ./cmd/
+COPY internal/ ./internal/
+COPY static/embed.go ./static/embed.go
+COPY VERSION ./VERSION
 
 COPY --from=frontend-build /build/build/ /build/static/dist/
 
+ARG BUILD_NUMBER=dev
+
 RUN APP_VERSION=$(cat VERSION) && \
-    CGO_ENABLED=0 go build -ldflags="-w -s -X main.Version=$APP_VERSION" -o transmitter ./cmd/transmitter && \
+    CGO_ENABLED=0 go build -ldflags="-w -s -X main.Version=$APP_VERSION -X main.BuildNumber=$BUILD_NUMBER" -o transmitter ./cmd/transmitter && \
     upx -9 --lzma transmitter && \
     chmod +x transmitter
 
-FROM alpine:3.23
+FROM alpine:3.24
 
 WORKDIR /app
 
 RUN apk --no-cache add ca-certificates tzdata && \
     addgroup -g 10001 transmitter && \
     adduser -h /app -D -u 10001 -G transmitter transmitter && \
+    mkdir -p /app/data && \
     chmod 700 /app && \
     chown -R transmitter: /app
 
@@ -47,7 +53,13 @@ RUN chown -R transmitter: /app && chmod +x /app/transmitter
 
 USER transmitter
 
+# Torrent notes live in a SQLite database — mount /app/data to keep them
+# across container recreations.
+VOLUME ["/app/data"]
+
 ENV LISTEN_ADDR=0.0.0.0:8080
+ENV DB_PATH=/app/data/transmitter.db
+ENV TZ=Europe/Moscow
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD wget -q -O- http://localhost:8080/api/health || exit 1

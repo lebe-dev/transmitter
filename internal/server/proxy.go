@@ -8,8 +8,24 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/lebe-dev/transmitter/internal/shift"
 	"github.com/lebe-dev/transmitter/internal/transmission"
 )
+
+// noteDeleteTimeout bounds the background cleanup of notes after a torrent removal.
+const noteDeleteTimeout = 5 * time.Second
+
+const (
+	headerContentType = "Content-Type"
+	mimeJSON          = "application/json"
+)
+
+// writeJSONError replies with a JSON {"error": ...} body and the given status.
+func writeJSONError(w http.ResponseWriter, status int, message string) {
+	w.Header().Set(headerContentType, mimeJSON)
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(map[string]string{"error": message}) //nolint:errcheck
+}
 
 var allowedMethods = map[string]bool{
 	"torrent-get":    true,
@@ -19,6 +35,7 @@ var allowedMethods = map[string]bool{
 	"torrent-remove": true,
 	"torrent-set":    true,
 	"session-get":    true,
+	"free-space":     true,
 }
 
 // AutoPriorityConfig holds settings for automatic file priority.
@@ -28,7 +45,9 @@ type AutoPriorityConfig struct {
 }
 
 // ProxyHandler proxies JSON-RPC requests to Transmission, enforcing method whitelist.
-func ProxyHandler(client *transmission.Client, priorityCfg AutoPriorityConfig, maxBodyBytes int64) http.HandlerFunc {
+// A non-nil noteStore also has the notes of removed torrents cleaned up; a
+// non-nil onAdded is called after a successful torrent-add.
+func ProxyHandler(client *transmission.Client, priorityCfg AutoPriorityConfig, maxBodyBytes int64, noteStore NoteStore, onAdded func()) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
 
@@ -39,7 +58,10 @@ func ProxyHandler(client *transmission.Client, priorityCfg AutoPriorityConfig, m
 		}
 
 		var parsed struct {
-			Method string `json:"method"`
+			Method    string `json:"method"`
+			Arguments struct {
+				IDs json.RawMessage `json:"ids"`
+			} `json:"arguments"`
 		}
 		if err := json.Unmarshal(body, &parsed); err != nil {
 			http.Error(w, `{"result":"invalid json"}`, http.StatusBadRequest)
@@ -48,10 +70,17 @@ func ProxyHandler(client *transmission.Client, priorityCfg AutoPriorityConfig, m
 
 		if !allowedMethods[parsed.Method] {
 			slog.Warn("blocked rpc method", "method", parsed.Method, "remote", r.RemoteAddr)
-			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set(headerContentType, mimeJSON)
 			w.WriteHeader(http.StatusForbidden)
 			w.Write([]byte(`{"result":"method not allowed"}`)) //nolint:errcheck
 			return
+		}
+
+		// Resolve the hashes before forwarding: once the torrents are gone,
+		// Transmission can no longer map the IDs in the request to hashes.
+		var removedHashes []string
+		if noteStore != nil && parsed.Method == "torrent-remove" {
+			removedHashes = resolveHashes(r.Context(), client, parsed.Arguments.IDs)
 		}
 
 		respBody, err := client.DoRaw(r.Context(), body)
@@ -61,13 +90,54 @@ func ProxyHandler(client *transmission.Client, priorityCfg AutoPriorityConfig, m
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set(headerContentType, mimeJSON)
 		w.Write(respBody) //nolint:errcheck
 
 		if priorityCfg.Enabled && parsed.Method == "torrent-add" {
 			go applyAutoPriority(client, respBody, priorityCfg.HighCount)
 		}
+		if onAdded != nil && parsed.Method == "torrent-add" && rpcSucceeded(respBody) {
+			onAdded()
+		}
+		if len(removedHashes) > 0 && rpcSucceeded(respBody) {
+			go deleteNotes(noteStore, removedHashes)
+		}
 	}
+}
+
+// resolveHashes maps a raw Transmission "ids" selector to torrent hashes.
+// Failures are logged and yield no hashes: the periodic notes cleanup is the
+// backstop, so a hiccup here only delays removal instead of losing data.
+func resolveHashes(ctx context.Context, client *transmission.Client, ids json.RawMessage) []string {
+	hashes, err := client.GetTorrentHashes(ctx, ids)
+	if err != nil {
+		slog.Warn("notes: failed to resolve hashes of torrents being removed", "err", err)
+		return nil
+	}
+	return hashes
+}
+
+// deleteNotes removes the notes of torrents that were just deleted.
+func deleteNotes(store NoteStore, hashes []string) {
+	ctx, cancel := context.WithTimeout(context.Background(), noteDeleteTimeout)
+	defer cancel()
+
+	if err := store.Delete(ctx, hashes...); err != nil {
+		slog.Warn("notes: failed to delete notes of removed torrents", "count", len(hashes), "err", err)
+		return
+	}
+	slog.Debug("notes: deleted notes of removed torrents", "count", len(hashes))
+}
+
+// rpcSucceeded reports whether a Transmission response carries result "success".
+func rpcSucceeded(respBody []byte) bool {
+	var resp struct {
+		Result string `json:"result"`
+	}
+	if err := json.Unmarshal(respBody, &resp); err != nil {
+		return false
+	}
+	return resp.Result == "success"
 }
 
 func applyAutoPriority(client *transmission.Client, respBody []byte, highCount int) {
@@ -96,15 +166,48 @@ func applyAutoPriority(client *transmission.Client, respBody []byte, highCount i
 }
 
 // UISettings holds UI-relevant configuration exposed via /api/settings.
+//
+// A shift is "configured" when its time window is set via the environment, and
+// "enabled" when the user has not switched it off in the UI. The UI shows the
+// shift buttons for a configured shift and greys them out while it is disabled.
 type UISettings struct {
-	DeleteWithData bool `json:"deleteWithData"`
+	Version              string `json:"version"`
+	DeleteWithData       bool   `json:"deleteWithData"`
+	NightShiftConfigured bool   `json:"nightShiftConfigured"`
+	NightShiftEnabled    bool   `json:"nightShiftEnabled"`
+	NightShiftStart      string `json:"nightShiftStart,omitempty"`
+	NightShiftEnd        string `json:"nightShiftEnd,omitempty"`
+	DayShiftConfigured   bool   `json:"dayShiftConfigured"`
+	DayShiftEnabled      bool   `json:"dayShiftEnabled"`
+	DayShiftStart        string `json:"dayShiftStart,omitempty"`
+	DayShiftEnd          string `json:"dayShiftEnd,omitempty"`
+	NoteMaxLength        int    `json:"noteMaxLength"`
+	// ImpactTargetRatio is the upload ratio counted as a full payback; the UI
+	// marks torrents that reached it and offers the ones that did not.
+	ImpactTargetRatio float64 `json:"impactTargetRatio"`
+	// ImpactAutoStopEnabled tells whether reaching that ratio also stops the torrent.
+	ImpactAutoStopEnabled bool `json:"impactAutoStopEnabled"`
+	// MoviePluginEnabled shows the movie menu, posters and marks in the UI.
+	MoviePluginEnabled bool `json:"moviePluginEnabled"`
 }
 
-// SettingsHandler returns UI-relevant server configuration as JSON.
-func SettingsHandler(settings UISettings) http.HandlerFunc {
-	return func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(settings) //nolint:errcheck
+// SettingsHandler returns UI-relevant server configuration as JSON. The shift
+// toggles and the impact auto-stop toggle are read from the stores on every
+// request, since they change at runtime; a nil store leaves the values of
+// settings untouched.
+func SettingsHandler(settings UISettings, shifts ShiftStore, impact ImpactStore) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		resp := settings
+		if shifts != nil {
+			resp.NightShiftEnabled = settings.NightShiftConfigured && shiftEnabled(r.Context(), shifts, shift.NightLabel)
+			resp.DayShiftEnabled = settings.DayShiftConfigured && shiftEnabled(r.Context(), shifts, shift.DayLabel)
+		}
+		if impact != nil {
+			resp.ImpactAutoStopEnabled = impactAutoStopEnabled(r.Context(), impact)
+		}
+
+		w.Header().Set(headerContentType, mimeJSON)
+		json.NewEncoder(w).Encode(resp) //nolint:errcheck
 	}
 }
 
@@ -123,12 +226,41 @@ type ServerConfig struct {
 	DeleteWithData        bool     `json:"deleteWithData"`
 	MonitorInterval       string   `json:"monitorInterval"`
 	FileSelectTimeout     string   `json:"fileSelectTimeout"`
+	NightShiftConfigured  bool     `json:"nightShiftConfigured"`
+	NightShiftStart       string   `json:"nightShiftStart"`
+	NightShiftEnd         string   `json:"nightShiftEnd"`
+	DayShiftConfigured    bool     `json:"dayShiftConfigured"`
+	DayShiftStart         string   `json:"dayShiftStart"`
+	DayShiftEnd           string   `json:"dayShiftEnd"`
+	DBPath                string   `json:"dbPath"`
+	NoteMaxLength         int      `json:"noteMaxLength"`
+	NoteCleanupInterval   string   `json:"noteCleanupInterval"`
+	ImpactTargetRatio     float64  `json:"impactTargetRatio"`
+	ImpactInterval        string   `json:"impactInterval"`
+	MoviePluginEnabled    bool     `json:"moviePluginEnabled"`
+	// Movie is set only while the Movie Plugin is enabled. The TMDB key is
+	// never exposed.
+	Movie *MovieServerConfig `json:"movie,omitempty"`
+}
+
+// MovieServerConfig is the Movie Plugin part of /api/config.
+type MovieServerConfig struct {
+	TMDBAPIURL   string `json:"tmdbApiUrl"`
+	TMDBImageURL string `json:"tmdbImageUrl"`
+	Language     string `json:"language"`
+	AutoDetect   bool   `json:"autoDetect"`
+	Backfill     bool   `json:"backfill"`
+	AutoRename   bool   `json:"autoRename"`
+	Template     string `json:"renameTemplate"`
+	ScanInterval string `json:"scanInterval"`
+	ScanBatch    int    `json:"scanBatch"`
+	PosterDir    string `json:"posterDir"`
 }
 
 // ConfigHandler returns non-sensitive server configuration as JSON.
 func ConfigHandler(cfg ServerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set(headerContentType, mimeJSON)
 		json.NewEncoder(w).Encode(cfg) //nolint:errcheck
 	}
 }
@@ -137,7 +269,7 @@ func ConfigHandler(cfg ServerConfig) http.HandlerFunc {
 func HealthHandler(client *transmission.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		_, err := client.SessionGet(r.Context())
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set(headerContentType, mimeJSON)
 		if err != nil {
 			slog.Warn("health check failed", "err", err)
 			w.WriteHeader(http.StatusServiceUnavailable)

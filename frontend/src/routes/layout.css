@@ -115,10 +115,53 @@
     * {
         @apply border-border outline-ring/50;
     }
+    html {
+        /*
+         * Reserve the scrollbar gutter instead of forcing a permanent scrollbar.
+         *
+         * `overflow-y: scroll` here breaks the body scroll lock used by bits-ui
+         * dialogs/sheets/selects: the lock sets `overflow: hidden` on <body>, which
+         * cannot propagate to the viewport while <html> has an explicit overflow, so
+         * the scrollbar stays visible — yet the lock still adds `padding-right` to
+         * compensate for a scrollbar that never disappeared, shifting the page.
+         *
+         * `scrollbar-gutter: stable` keeps the layout width constant, lets the lock
+         * actually stop the page from scrolling, and is explicitly detected by bits-ui
+         * so no padding compensation is applied at all.
+         */
+        scrollbar-gutter: stable;
+    }
     body {
         @apply bg-background text-foreground;
         font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
     }
+}
+
+/*
+ * Оболочка страницы: колонка контента (page-surface) лежит на чуть более
+ * тусклом фоне (page-shell), чтобы поля по краям не сливались с карточками.
+ * Оба цвета выводятся из живых переменных темы, поэтому работают во всех
+ * цветовых схемах и в тёмном режиме.
+ */
+body,
+.page-shell {
+    background-color: color-mix(in oklab, var(--muted) 85%, var(--background));
+}
+
+.page-surface {
+    background-color: var(--background);
+}
+
+/*
+ * Полоса фильтров прокручивается по горизонтали на узких экранах, но сама
+ * полоса прокрутки под ней только шумит — навигация идёт свайпом.
+ */
+.no-scrollbar {
+    scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
 }
 
 .font-display {

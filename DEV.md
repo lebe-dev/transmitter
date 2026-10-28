@@ -13,6 +13,8 @@ transmitter/
 │   ├── transmission/         // Transmission RPC client
 │   │   ├── client.go         // HTTP client, session ID management
 │   │   └── types.go          // JSON-RPC request/response structs
+│   ├── movie/                // Movie Plugin: release-name parsing, TMDB client,
+│   │                         //   SQLite store, detection/rename worker, poster cache
 │   ├── server/               // HTTP server and handlers
 │   │   ├── server.go         // server setup
 │   │   ├── proxy.go          // RPC proxy handler + whitelist

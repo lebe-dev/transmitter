@@ -9,12 +9,16 @@ Transmitter is a modern, lightweight alternative to Transmission's stock UI. Run
 
 ## Features
 
-- **Torrent list** — sortable table: name, status, progress, size, speed, added date, ETA
-- **Status filters** — All, Downloading, Seeding, Paused, Done
-- **Search** — filter torrents by name (case-insensitive)
-- **Add torrents** — magnet links or .torrent file upload
-- **Management** — pause, resume, delete torrents
-- **Auto-refresh** — live updates every 3–5 seconds
+- **Torrent basics** — sortable list (name, status, progress, size, speed, added date, ETA) with status filters, case-insensitive search, adding via magnet link or .torrent upload, and pause/resume/delete
+- **Notes** — attach a custom text to any torrent (stored server-side in SQLite, shown in the list, the detail panel and the Telegram bot)
+- **Night Shift** — mark torrents (moon-star button) to download and seed only inside a configured time window; outside the window they are paused
+- **Day Shift** — the same, with its own label, window and a sun button; the two shifts are independent, a torrent may be marked for both
+- **Shift switches** — each configured shift can be turned off in Settings → Shifts or from the Telegram bot (`/shifts`); the state is stored server-side in SQLite, so it applies to every browser and survives a restart. While a shift is off its scheduler touches nothing: torrents keep their current state and the shift button is greyed out
+- **Impact** — how much a torrent gave back of what it took. A trophy marks the ones that uploaded 100% of their download, the «Not repaid» filter shows the rest (send them to a shift in bulk), and an optional switch stops a torrent once it reaches the target
+- **Global pause** — one button in the header pauses every running torrent and remembers which ones they were; resuming starts only those, so torrents you had stopped stay stopped. The state is stored server-side and survives a restart; shifts stand still while the pause is on
+- **Scratchpad** — a free-form note at the top of the main screen (3 lines by default, grows with the text), autosaved to SQLite
+- **Movie Plugin** (off by default, `MOVIE_PLUGIN_ENABLED=true`) — recognizes films, cartoons and series by the torrent name (scene names with dots, "Русское / Original [2014, …]" names), pulls the poster and description from TMDB, renames the torrent folder or file on disk (via Transmission, seeding continues) by a template, and keeps the «watched» and «missing subtitles» marks with their own filters. A wrong or missing match is fixed from the card menu with a TMDB or IMDb link. New torrents are recognized right after they are added, existing ones gradually in the background; only new ones are renamed automatically
+- **Offline mode** — without a connection the UI still opens and shows the torrents, notes and settings as of the last sync, with a banner saying so; actions that need the server are unavailable until it is back. Opening the page itself offline requires HTTPS or localhost (service worker)
 - **Support locales**: en, ru, es, de
 - **Docker images**: linux/amd64, linux/arm/v7, linux/arm64/v8
 
@@ -48,6 +52,24 @@ All settings via environment variables:
 | `LOG_LEVEL` | No | `info` |
 | `FILE_PRIORITY_ENABLED` | No | `false` |
 | `FILE_PRIORITY_HIGH_COUNT` | No | `3` |
+| `NIGHT_SHIFT_START` | No | — (disabled) |
+| `NIGHT_SHIFT_END` | No | — (disabled) |
+| `NIGHT_SHIFT_INTERVAL` | No | `1m` |
+| `DAY_SHIFT_START` | No | — (disabled) |
+| `DAY_SHIFT_END` | No | — (disabled) |
+| `DAY_SHIFT_INTERVAL` | No | `1m` |
+| `DB_PATH` | No | `data/transmitter.db` (Docker image: `/app/data/transmitter.db`) |
+| `TORRENT_NOTE_MAX_LENGTH` | No | `200` |
+| `TORRENT_NOTE_CLEANUP_INTERVAL` | No | `1h` |
+| `IMPACT_TARGET_RATIO` | No | `1` |
+| `IMPACT_INTERVAL` | No | `5m` |
+| `SENTRY_DSN` | No | — (disabled) |
+| `SENTRY_ENVIRONMENT` | If using Sentry | — |
+| `MOVIE_PLUGIN_ENABLED` | No | `false` |
+| `TMDB_API_KEY` | If using Movie Plugin | — |
+| `MOVIE_LANGUAGE` | No | `en-US` |
+| `MOVIE_RENAME_TEMPLATE` | No | `{title} ({year})` |
+| `MOVIE_AUTO_DETECT` / `MOVIE_BACKFILL` / `MOVIE_AUTO_RENAME` | No | `true` |
 
 For all options, see [.env.example](.env.example).
 
@@ -58,6 +80,5 @@ See [SECURITY.md](docs/SECURITY.md).
 ## Roadmap
 
 - Web UI authentication
-- Video plugin
 - Support multiple Transmission instances
 - RSS feeds for automatic torrent addition
