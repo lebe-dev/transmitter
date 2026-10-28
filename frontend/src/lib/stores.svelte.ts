@@ -1,5 +1,7 @@
 import { getTorrents, getSession, getNotes, setNote, getMemo, setMemo, getGlobalPause, setGlobalPause } from './api.js';
 import { undergiven } from './impact.js';
+import { matchesSearch, missingSubs, unwatched } from './movie.js';
+import { movieStore } from './movies.svelte.js';
 import { settingsStore } from './settings.svelte.js';
 import { connectivity } from './connectivity.svelte.js';
 import { OfflineError, readCache, writeCache } from './offline.js';
@@ -42,7 +44,11 @@ class TorrentStore {
 
 		if (this.search) {
 			const q = this.search.toLowerCase();
-			list = list.filter((t) => t.name.toLowerCase().includes(q));
+			list = list.filter(
+				(t) =>
+					t.name.toLowerCase().includes(q) ||
+					(movieStore.enabled && matchesSearch(movieStore.get(t.hashString), q)),
+			);
 		}
 
 		switch (this.filterStatus) {
@@ -63,6 +69,12 @@ class TorrentStore {
 				break;
 			case 'undergiven':
 				list = list.filter((t) => undergiven(t, settingsStore.impactTargetRatio));
+				break;
+			case 'unwatched':
+				list = list.filter((t) => unwatched(movieStore.get(t.hashString)));
+				break;
+			case 'missingSubs':
+				list = list.filter((t) => missingSubs(movieStore.get(t.hashString)));
 				break;
 		}
 

@@ -15,6 +15,7 @@ Transmitter es una alternativa moderna y ligera a la interfaz web estándar de T
 - **Impact** — cuánto ha devuelto un torrent de lo que descargó. Un trofeo marca los que han subido el 100% de su descarga, el filtro «Sin devolver» muestra el resto (se pueden enviar a un turno en bloque) y un interruptor opcional detiene el torrent al alcanzar el objetivo
 - **Pausa global** — un botón en la cabecera pausa todos los torrents activos y recuerda cuáles eran; al reanudar solo se inician esos, así que los que habías detenido siguen detenidos. El estado se guarda en el servidor y sobrevive a un reinicio; los turnos no actúan mientras la pausa está activa
 - **Notas** — un texto libre al principio de la pantalla principal (3 líneas por defecto, crece con el texto), guardado automáticamente en SQLite
+- **Movie Plugin** (desactivado por defecto, `MOVIE_PLUGIN_ENABLED=true`) — reconoce películas, dibujos animados y series por el nombre del torrent (nombres de escena con puntos, «Русское / Original [2014, …]»), obtiene el póster y la descripción de TMDB, renombra la carpeta o el archivo del torrent en disco según una plantilla (lo hace Transmission, la siembra continúa) y guarda las marcas «vista» y «faltan subtítulos» con sus propios filtros. Una coincidencia errónea o ausente se corrige desde el menú de la tarjeta con un enlace de TMDB o IMDb. Los torrents nuevos se reconocen nada más añadirlos y los existentes poco a poco en segundo plano; sólo los nuevos se renombran automáticamente
 - **Modo sin conexión** — sin conexión la interfaz sigue abriéndose y muestra los torrents, las notas y los ajustes de la última sincronización, con un aviso que lo indica; las acciones que requieren el servidor no están disponibles hasta que vuelva la conexión. Para abrir la página sin red se necesita HTTPS o localhost (service worker)
 - **Idiomas soportados**: en, ru, es, de
 - **Docker images**: linux/amd64, linux/arm/v7, linux/arm64/v8
@@ -62,6 +63,11 @@ Todos los ajustes se realizan mediante variables de entorno:
 | `IMPACT_INTERVAL` | No | `5m` |
 | `SENTRY_DSN` | No | — (desactivado) |
 | `SENTRY_ENVIRONMENT` | Si se usa Sentry | — |
+| `MOVIE_PLUGIN_ENABLED` | No | `false` |
+| `TMDB_API_KEY` | Si se usa Movie Plugin | — |
+| `MOVIE_LANGUAGE` | No | `en-US` |
+| `MOVIE_RENAME_TEMPLATE` | No | `{title} ({year})` |
+| `MOVIE_AUTO_DETECT` / `MOVIE_BACKFILL` / `MOVIE_AUTO_RENAME` | No | `true` |
 
 Para todas las opciones, consulta [.env.example](.env.example).
 
@@ -72,6 +78,5 @@ Ver [SECURITY.md](docs/SECURITY.es.md).
 ## Hoja de ruta
 
 - Autenticación en la interfaz web
-- Video plugin
 - Soporte de múltiples instancias de Transmission
 - Feeds RSS para adición automática de torrents

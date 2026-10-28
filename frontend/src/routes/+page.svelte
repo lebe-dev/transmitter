@@ -22,6 +22,9 @@
 	import MoonStarIcon from '@lucide/svelte/icons/moon-star';
 	import NotebookPenIcon from '@lucide/svelte/icons/notebook-pen';
 	import TrophyIcon from '@lucide/svelte/icons/trophy';
+	import ClapperboardIcon from '@lucide/svelte/icons/clapperboard';
+	import EyeIcon from '@lucide/svelte/icons/eye';
+	import CaptionsOffIcon from '@lucide/svelte/icons/captions-off';
 
 	import XIcon from '@lucide/svelte/icons/x';
 	import FolderIcon from '@lucide/svelte/icons/folder';
@@ -29,6 +32,8 @@
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import { torrentStore, pinStore, downloadDirStore, noteStore } from '$lib/stores.svelte.js';
 	import { settingsStore } from '$lib/settings.svelte.js';
+	import { movieStore } from '$lib/movies.svelte.js';
+	import { movieLabel, missingSubs as movieMissingSubs, unwatched as movieUnwatched, type MovieDialogKind } from '$lib/movie.js';
 	import { connectivity } from '$lib/connectivity.svelte.js';
 	import { errorText, failText } from '$lib/offline.js';
 	import { addTorrentMagnet, addTorrentFile, startTorrents, stopTorrents, removeTorrents, getTorrentFiles, setFilesWanted, setTorrentLabels, getFreeSpace } from '$lib/api.js';
@@ -48,6 +53,8 @@
 	import Hint from '$lib/components/Hint.svelte';
 	import TorrentDetailPanel from '$lib/components/TorrentDetailPanel.svelte';
 	import FileSelectDialog from '$lib/components/FileSelectDialog.svelte';
+	import MovieMenu from '$lib/components/MovieMenu.svelte';
+	import MovieDialogs from '$lib/components/MovieDialogs.svelte';
 
 	// ── Status ────────────────────────────────────────────────────────────────
 
@@ -155,9 +162,11 @@
 		).length,
 		undergiven: torrentStore.torrents.filter((t) => impactUndergiven(t, settingsStore.impactTargetRatio))
 			.length,
+		unwatched: torrentStore.torrents.filter((t) => movieUnwatched(movieStore.get(t.hashString))).length,
+		missingSubs: torrentStore.torrents.filter((t) => movieMissingSubs(movieStore.get(t.hashString))).length,
 	});
 
-	const FILTER_KEYS: { key: FilterStatus; tKey: string }[] = [
+	const BASE_FILTER_KEYS: { key: FilterStatus; tKey: string }[] = [
 		{ key: 'all', tKey: 'filters.all' },
 		{ key: 'downloading', tKey: 'filters.downloading' },
 		{ key: 'seeding', tKey: 'filters.seeding' },
@@ -165,6 +174,15 @@
 		{ key: 'done', tKey: 'filters.done' },
 		{ key: 'undergiven', tKey: 'filters.undergiven' },
 	];
+
+	const MOVIE_FILTER_KEYS: { key: FilterStatus; tKey: string }[] = [
+		{ key: 'unwatched', tKey: 'filters.unwatched' },
+		{ key: 'missingSubs', tKey: 'filters.missingSubs' },
+	];
+
+	const FILTER_KEYS = $derived(
+		settingsStore.moviePluginEnabled ? [...BASE_FILTER_KEYS, ...MOVIE_FILTER_KEYS] : BASE_FILTER_KEYS,
+	);
 
 	// ── File selection dialog ─────────────────────────────────────────────────
 
@@ -500,6 +518,16 @@
 		detailOpen = true;
 	}
 
+	// ── Movie Plugin ─────────────────────────────────────────────────────────
+
+	let movieDialogKind = $state<MovieDialogKind | null>(null);
+	let movieDialogTorrent = $state<Torrent | null>(null);
+
+	function openMovieDialog(t: Torrent, kind: MovieDialogKind) {
+		movieDialogTorrent = t;
+		movieDialogKind = kind;
+	}
+
 	// ── Color theme ───────────────────────────────────────────────────────────
 
 	// mode-watcher manages data-theme attr & localStorage ('mode-watcher-theme')
@@ -525,12 +553,16 @@
 		void downloadDirStore.init();
 		settingsStore
 			.load()
-			.then((s) => noteStore.init(s.noteMaxLength))
+			.then((s) => {
+				void movieStore.init(s.moviePluginEnabled ?? false);
+				return noteStore.init(s.noteMaxLength);
+			})
 			.catch(() => {});
 		window.addEventListener('scroll', onScroll, { passive: true });
 	});
 	onDestroy(() => {
 		torrentStore.destroy();
+		movieStore.destroy();
 		window.removeEventListener('scroll', onScroll);
 	});
 
@@ -556,6 +588,50 @@
 				</span>
 			{/snippet}
 		</Hint>
+	{/if}
+{/snippet}
+
+<!--
+	Строка Movie Plugin под названием: распознанный фильм (открывает обложку) и
+	отметки «просмотрено» / «нет субтитров».
+-->
+{#snippet movieLine(t: Torrent, spacing: string)}
+	{#if settingsStore.moviePluginEnabled}
+		{@const rec = movieStore.get(t.hashString)}
+		{@const label = movieLabel(rec)}
+		{#if label || rec?.watched || rec?.missingSubs}
+			<div class="flex items-center gap-2 {spacing} text-xs min-w-0">
+				{#if label}
+					<button
+						class="flex items-center gap-1.5 min-w-0 text-primary hover:underline"
+						onclick={(e) => { e.stopPropagation(); openMovieDialog(t, 'info'); }}
+						onkeydown={(e) => e.stopPropagation()}
+						aria-label={$tt('movie.actions.info')}
+					>
+						<ClapperboardIcon class="size-3 flex-shrink-0" />
+						<span class="truncate">{label}</span>
+					</button>
+				{/if}
+				{#if rec?.watched}
+					<Hint text={$tt('movie.info.watched')}>
+						{#snippet trigger({ props })}
+							<span {...props} class="flex-shrink-0 text-muted-foreground" aria-label={$tt('movie.info.watched')}>
+								<EyeIcon class="size-3.5" />
+							</span>
+						{/snippet}
+					</Hint>
+				{/if}
+				{#if rec?.missingSubs}
+					<Hint text={$tt('movie.info.missingSubs')}>
+						{#snippet trigger({ props })}
+							<span {...props} class="flex-shrink-0 text-amber-600 dark:text-amber-400" aria-label={$tt('movie.info.missingSubs')}>
+								<CaptionsOffIcon class="size-3.5" />
+							</span>
+						{/snippet}
+					</Hint>
+				{/if}
+			</div>
+		{/if}
 	{/if}
 {/snippet}
 
@@ -803,6 +879,9 @@
 									{t.name}
 								</h3>
 								<div class="flex items-center gap-0.5 flex-shrink-0">
+									{#if settingsStore.moviePluginEnabled}
+										<MovieMenu torrent={t} onOpen={(kind) => openMovieDialog(t, kind)} />
+									{/if}
 									{@render shiftToggles(t)}
 									<button
 										onclick={(e) => { e.stopPropagation(); pinStore.toggle(t.hashString); }}
@@ -815,6 +894,8 @@
 									</button>
 								</div>
 							</div>
+
+							{@render movieLine(t, 'mb-1.5')}
 
 							<!-- Note -->
 						{#if note}
@@ -919,6 +1000,9 @@
 									{t.name}
 								</h3>
 								<div class="flex items-center gap-0.5 flex-shrink-0">
+									{#if settingsStore.moviePluginEnabled}
+										<MovieMenu torrent={t} onOpen={(kind) => openMovieDialog(t, kind)} />
+									{/if}
 									{@render shiftToggles(t)}
 									<button
 										onclick={(e) => { e.stopPropagation(); pinStore.toggle(t.hashString); }}
@@ -931,6 +1015,8 @@
 									</button>
 								</div>
 							</div>
+
+							{@render movieLine(t, 'mb-2')}
 
 							<!-- Note -->
 						{#if note}
@@ -1242,6 +1328,11 @@
 	onConfirm={handleFileSelectConfirm}
 	onCancel={handleFileSelectCancel}
 />
+
+<!-- ── Movie Plugin dialogs ─────────────────────────────────────────────── -->
+{#if settingsStore.moviePluginEnabled}
+	<MovieDialogs bind:kind={movieDialogKind} torrent={movieDialogTorrent} />
+{/if}
 
 <!-- ── Torrent Detail Panel ─────────────────────────────────────────────── -->
 <TorrentDetailPanel bind:open={detailOpen} torrent={detailTorrent} />

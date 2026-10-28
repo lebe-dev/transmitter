@@ -25,7 +25,9 @@
 		"seeding": "Sembrando",
 		"paused": "Pausado",
 		"done": "Listo",
-		"undergiven": "Sin devolver"
+		"undergiven": "Sin devolver",
+		"unwatched": "Sin ver",
+		"missingSubs": "Sin subtítulos"
 	},
 	"sort": {
 		"label": "Ordenar:",
@@ -186,7 +188,20 @@
 			"noteMaxLength": "Longitud máxima de una nota de torrent, en caracteres.",
 			"noteCleanupInterval": "Con qué frecuencia se eliminan las notas de torrents que ya no existen.",
 			"impactTargetRatio": "Proporción de subida considerada devolución completa: 1 significa que el torrent subió tanto como descargó.",
-			"impactInterval": "Con qué frecuencia se comprueba si los torrents alcanzaron la proporción objetivo."
+			"impactInterval": "Con qué frecuencia se comprueba si los torrents alcanzaron la proporción objetivo.",
+			"moviePluginEnabled": "Movie Plugin: reconoce películas y series por el nombre del torrent, muestra pósteres, renombra torrents y guarda las marcas de vista / faltan subtítulos.",
+			"movie": {
+				"tmdbApiUrl": "Endpoint de la API de TMDB. Puede sustituirse por un espejo.",
+				"tmdbImageUrl": "Endpoint de imágenes de TMDB para los pósteres.",
+				"language": "Idioma de títulos y descripciones (locale de TMDB, p. ej. es-ES, en-US).",
+				"autoDetect": "Reconocer los torrents añadidos después de activar el plugin.",
+				"backfill": "Reconocer poco a poco los torrents que ya existían antes del plugin.",
+				"autoRename": "Renombrar los torrents nuevos justo después de una coincidencia segura. Los torrents anteriores al plugin nunca se renombran automáticamente.",
+				"renameTemplate": "Plantilla del nombre. Marcadores entre llaves: title, original_title, year, season, tmdb_id, imdb_id, type.",
+				"scanInterval": "Con qué frecuencia se buscan torrents nuevos.",
+				"scanBatch": "Cuántos torrents se reconocen por ronda.",
+				"posterDir": "Dónde se guardan en caché los pósteres."
+			}
 		},
 		"impactAutoStop": "Dejar de sembrar al devolver el {percent}%",
 		"impactAutoStopHint": "Un torrent que ha subido el {percent}% de lo que descargó se pausa automáticamente. Mientras la opción esté activa, los turnos no reinician esos torrents."
@@ -290,5 +305,70 @@
 		"resumed": "Torrents reanudados: {count}",
 		"failPause": "No se pudieron pausar todos los torrents",
 		"failResume": "No se pudieron reanudar los torrents"
+	},
+	"movie": {
+		"menu": "Película",
+		"close": "Cerrar",
+		"cancel": "Cancelar",
+		"state": {
+			"unmatched": "No reconocido",
+			"skipped": "Sin archivos de vídeo",
+			"failed": "Error de búsqueda, se reintentará",
+			"pending": "Aún sin comprobar"
+		},
+		"actions": {
+			"info": "Póster y detalles",
+			"markWatched": "Marcar como vista",
+			"markUnwatched": "Marcar como no vista",
+			"missingSubs": "Faltan subtítulos",
+			"hasSubs": "Subtítulos encontrados",
+			"rename": "Renombrar en disco…",
+			"detect": "Reconocer de nuevo",
+			"link": "Indicar enlace…",
+			"clear": "Quitar coincidencia"
+		},
+		"toast": {
+			"watched": "Marcada como vista",
+			"unwatched": "Marcada como no vista",
+			"missingSubs": "Marcado: faltan subtítulos",
+			"hasSubs": "Marca quitada: subtítulos encontrados",
+			"failFlags": "No se pudo guardar la marca",
+			"detected": "Reconocido: {title}",
+			"notDetected": "No se encontró nada para «{query}». Indique un enlace.",
+			"failDetect": "Error en la búsqueda",
+			"cleared": "Coincidencia quitada",
+			"failClear": "No se pudo quitar la coincidencia",
+			"linked": "Vinculado: {title}",
+			"failLink": "No se pudo vincular el título",
+			"linkNotFound": "No se encontró nada en este enlace",
+			"linkUnsupported": "Pegue un enlace de TMDB o IMDb",
+			"renamed": "Renombrado a «{name}»",
+			"failRename": "No se pudo renombrar"
+		},
+		"info": {
+			"posterAlt": "Póster: {title}",
+			"noPoster": "Sin póster",
+			"tv": "Serie",
+			"movie": "Película",
+			"watched": "Vista",
+			"missingSubs": "Faltan subtítulos",
+			"noOverview": "Sin descripción.",
+			"manual": "Indicado manualmente",
+			"detectedFrom": "Reconocido a partir de: {query}",
+			"notConfident": "El año o el título no coincidieron exactamente; compruebe que es el título correcto.",
+			"renamedTo": "Renombrado en disco a: {name}"
+		},
+		"link": {
+			"title": "Indicar el título por enlace",
+			"description": "Pegue un enlace a la página del título en TMDB o IMDb.",
+			"hint": "Por ejemplo themoviedb.org/movie/157336 o imdb.com/title/tt0816692. El enlace sustituye al título reconocido.",
+			"submit": "Vincular"
+		},
+		"rename": {
+			"title": "Renombrar en disco",
+			"description": "Transmission renombra la carpeta (o el único archivo) del torrent; la siembra continúa.",
+			"same": "El torrent ya tiene este nombre.",
+			"submit": "Renombrar"
+		}
 	}
 }

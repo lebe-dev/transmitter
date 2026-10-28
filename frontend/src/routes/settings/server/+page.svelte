@@ -7,7 +7,7 @@
 	import * as HoverCard from '$lib/components/ui/hover-card/index.js';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { settingsStore } from '$lib/settings.svelte.js';
-	import type { ServerConfig } from '$lib/types.js';
+	import type { MovieServerConfig, ServerConfig } from '$lib/types.js';
 
 	const CONFIG_ROWS_BASE: { envVar: string; key: keyof ServerConfig }[] = [
 		{ envVar: 'TRANSMISSION_URL',         key: 'transmissionUrl' },
@@ -28,6 +28,7 @@
 		{ envVar: 'TORRENT_NOTE_CLEANUP_INTERVAL', key: 'noteCleanupInterval' },
 		{ envVar: 'IMPACT_TARGET_RATIO',      key: 'impactTargetRatio' },
 		{ envVar: 'IMPACT_INTERVAL',          key: 'impactInterval' },
+		{ envVar: 'MOVIE_PLUGIN_ENABLED',     key: 'moviePluginEnabled' },
 	];
 
 	const NIGHT_SHIFT_CONFIG_ROWS: { envVar: string; key: keyof ServerConfig }[] = [
@@ -40,13 +41,38 @@
 		{ envVar: 'DAY_SHIFT_END',            key: 'dayShiftEnd' },
 	];
 
+	// Ключ TMDB сервер не отдаёт — его строки здесь нет.
+	const MOVIE_CONFIG_ROWS: { envVar: string; key: keyof MovieServerConfig }[] = [
+		{ envVar: 'TMDB_API_URL',             key: 'tmdbApiUrl' },
+		{ envVar: 'TMDB_IMAGE_URL',           key: 'tmdbImageUrl' },
+		{ envVar: 'MOVIE_LANGUAGE',           key: 'language' },
+		{ envVar: 'MOVIE_AUTO_DETECT',        key: 'autoDetect' },
+		{ envVar: 'MOVIE_BACKFILL',           key: 'backfill' },
+		{ envVar: 'MOVIE_AUTO_RENAME',        key: 'autoRename' },
+		{ envVar: 'MOVIE_RENAME_TEMPLATE',    key: 'renameTemplate' },
+		{ envVar: 'MOVIE_SCAN_INTERVAL',      key: 'scanInterval' },
+		{ envVar: 'MOVIE_SCAN_BATCH',         key: 'scanBatch' },
+		{ envVar: 'MOVIE_POSTER_DIR',         key: 'posterDir' },
+	];
+
+	type ConfigRow = { envVar: string; hintKey: string; value: unknown };
+
 	const config = $derived(settingsStore.serverConfig);
 
-	const configRows = $derived([
-		...CONFIG_ROWS_BASE,
-		...(config?.nightShiftConfigured ? NIGHT_SHIFT_CONFIG_ROWS : []),
-		...(config?.dayShiftConfigured ? DAY_SHIFT_CONFIG_ROWS : []),
-	]);
+	const configRows = $derived.by<ConfigRow[]>(() => {
+		if (!config) return [];
+		const top = (rows: { envVar: string; key: keyof ServerConfig }[]) =>
+			rows.map((r) => ({ envVar: r.envVar, hintKey: r.key, value: config[r.key] }));
+		const movie = config.movie;
+		return [
+			...top(CONFIG_ROWS_BASE),
+			...(config.nightShiftConfigured ? top(NIGHT_SHIFT_CONFIG_ROWS) : []),
+			...(config.dayShiftConfigured ? top(DAY_SHIFT_CONFIG_ROWS) : []),
+			...(movie
+				? MOVIE_CONFIG_ROWS.map((r) => ({ envVar: r.envVar, hintKey: `movie.${r.key}`, value: movie[r.key] }))
+				: []),
+		];
+	});
 
 	function formatConfigValue(v: unknown): string {
 		if (Array.isArray(v)) return v.length === 0 ? '—' : v.join(', ');
@@ -86,13 +112,13 @@
 								</HoverCard.Trigger>
 								<HoverCard.Portal>
 									<HoverCard.Content class="w-64 text-xs" side="right">
-										{$tt(`settings.configHint.${row.key}`)}
+										{$tt(`settings.configHint.${row.hintKey}`)}
 									</HoverCard.Content>
 								</HoverCard.Portal>
 							</HoverCard.Root>
 						</Table.Cell>
 						<Table.Cell class="font-mono text-xs py-2 break-all">
-							{formatConfigValue(config[row.key])}
+							{formatConfigValue(row.value)}
 						</Table.Cell>
 					</Table.Row>
 				{/each}

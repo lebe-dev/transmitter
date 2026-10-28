@@ -1,6 +1,12 @@
 package transmission
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"errors"
+)
+
+// ErrTorrentNotFound is returned when no torrent matches the requested ID or hash.
+var ErrTorrentNotFound = errors.New("torrent not found")
 
 // RPCRequest is a Transmission JSON-RPC request.
 type RPCRequest struct {
@@ -94,10 +100,14 @@ type TorrentFile struct {
 	Length int64  `json:"length"`
 }
 
-// TorrentWithFiles holds torrent info with files list.
+// TorrentWithFiles holds torrent info with files list. HashString, Name and
+// AddedDate are filled only when requested.
 type TorrentWithFiles struct {
-	ID    int64         `json:"id"`
-	Files []TorrentFile `json:"files"`
+	ID         int64         `json:"id"`
+	HashString string        `json:"hashString,omitempty"`
+	Name       string        `json:"name,omitempty"`
+	AddedDate  int64         `json:"addedDate,omitempty"`
+	Files      []TorrentFile `json:"files"`
 }
 
 // TorrentWithFilesResult holds the result of torrent-get with files.

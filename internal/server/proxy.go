@@ -45,8 +45,9 @@ type AutoPriorityConfig struct {
 }
 
 // ProxyHandler proxies JSON-RPC requests to Transmission, enforcing method whitelist.
-// A non-nil noteStore also has the notes of removed torrents cleaned up.
-func ProxyHandler(client *transmission.Client, priorityCfg AutoPriorityConfig, maxBodyBytes int64, noteStore NoteStore) http.HandlerFunc {
+// A non-nil noteStore also has the notes of removed torrents cleaned up; a
+// non-nil onAdded is called after a successful torrent-add.
+func ProxyHandler(client *transmission.Client, priorityCfg AutoPriorityConfig, maxBodyBytes int64, noteStore NoteStore, onAdded func()) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
 
@@ -94,6 +95,9 @@ func ProxyHandler(client *transmission.Client, priorityCfg AutoPriorityConfig, m
 
 		if priorityCfg.Enabled && parsed.Method == "torrent-add" {
 			go applyAutoPriority(client, respBody, priorityCfg.HighCount)
+		}
+		if onAdded != nil && parsed.Method == "torrent-add" && rpcSucceeded(respBody) {
+			onAdded()
 		}
 		if len(removedHashes) > 0 && rpcSucceeded(respBody) {
 			go deleteNotes(noteStore, removedHashes)
@@ -183,6 +187,8 @@ type UISettings struct {
 	ImpactTargetRatio float64 `json:"impactTargetRatio"`
 	// ImpactAutoStopEnabled tells whether reaching that ratio also stops the torrent.
 	ImpactAutoStopEnabled bool `json:"impactAutoStopEnabled"`
+	// MoviePluginEnabled shows the movie menu, posters and marks in the UI.
+	MoviePluginEnabled bool `json:"moviePluginEnabled"`
 }
 
 // SettingsHandler returns UI-relevant server configuration as JSON. The shift
@@ -231,6 +237,24 @@ type ServerConfig struct {
 	NoteCleanupInterval   string   `json:"noteCleanupInterval"`
 	ImpactTargetRatio     float64  `json:"impactTargetRatio"`
 	ImpactInterval        string   `json:"impactInterval"`
+	MoviePluginEnabled    bool     `json:"moviePluginEnabled"`
+	// Movie is set only while the Movie Plugin is enabled. The TMDB key is
+	// never exposed.
+	Movie *MovieServerConfig `json:"movie,omitempty"`
+}
+
+// MovieServerConfig is the Movie Plugin part of /api/config.
+type MovieServerConfig struct {
+	TMDBAPIURL   string `json:"tmdbApiUrl"`
+	TMDBImageURL string `json:"tmdbImageUrl"`
+	Language     string `json:"language"`
+	AutoDetect   bool   `json:"autoDetect"`
+	Backfill     bool   `json:"backfill"`
+	AutoRename   bool   `json:"autoRename"`
+	Template     string `json:"renameTemplate"`
+	ScanInterval string `json:"scanInterval"`
+	ScanBatch    int    `json:"scanBatch"`
+	PosterDir    string `json:"posterDir"`
 }
 
 // ConfigHandler returns non-sensitive server configuration as JSON.

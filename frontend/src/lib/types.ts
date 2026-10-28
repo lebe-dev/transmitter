@@ -23,8 +23,19 @@ export interface Torrent {
 	leftUntilDone?: number;
 }
 
-/** «undergiven» — раздача скачала больше, чем отдала (impact ниже цели). */
-export type FilterStatus = 'all' | 'downloading' | 'seeding' | 'paused' | 'done' | 'undergiven';
+/**
+ * «undergiven» — раздача скачала больше, чем отдала (impact ниже цели).
+ * «unwatched» и «missingSubs» — фильтры Movie Plugin, есть только когда он включён.
+ */
+export type FilterStatus =
+	| 'all'
+	| 'downloading'
+	| 'seeding'
+	| 'paused'
+	| 'done'
+	| 'undergiven'
+	| 'unwatched'
+	| 'missingSubs';
 
 export interface TorrentFile {
 	bytesCompleted: number;
@@ -90,6 +101,8 @@ export interface UISettings {
 	impactTargetRatio: number;
 	/** Снимать ли с раздачи торренты, достигшие цели. */
 	impactAutoStopEnabled: boolean;
+	/** Movie Plugin включён переменной MOVIE_PLUGIN_ENABLED. */
+	moviePluginEnabled: boolean;
 }
 
 export type ShiftName = 'night' | 'day';
@@ -119,7 +132,59 @@ export interface ServerConfig {
 	noteCleanupInterval: string;
 	impactTargetRatio: number;
 	impactInterval: string;
+	moviePluginEnabled: boolean;
+	/** Есть только при включённом Movie Plugin; ключ TMDB сервер не отдаёт. */
+	movie?: MovieServerConfig;
+}
+
+export interface MovieServerConfig {
+	tmdbApiUrl: string;
+	tmdbImageUrl: string;
+	language: string;
+	autoDetect: boolean;
+	backfill: boolean;
+	autoRename: boolean;
+	renameTemplate: string;
+	scanInterval: string;
+	scanBatch: number;
+	posterDir: string;
 }
 
 /** Torrent notes keyed by torrent hash. */
 export type TorrentNotes = Record<string, string>;
+
+/**
+ * Состояние распознавания раздачи Movie Plugin:
+ * '' — ещё не смотрели (у раздачи есть только отметки), matched — найден фильм/сериал,
+ * unmatched — не нашли или пользователь сбросил, skipped — в раздаче нет видео,
+ * failed — TMDB/сеть недоступны, сервер повторит позже.
+ */
+export type MovieState = '' | 'matched' | 'unmatched' | 'skipped' | 'failed';
+
+export interface MovieRecord {
+	state: MovieState;
+	/** Совпадение задано ссылкой или сброшено вручную — фон его не трогает. */
+	manual: boolean;
+	/** Название и год совпали точно — только такие раздачи переименовываются сами. */
+	confident: boolean;
+	mediaType?: 'movie' | 'tv';
+	tmdbId?: number;
+	imdbId?: string;
+	title?: string;
+	originalTitle?: string;
+	year?: number;
+	/** Сезон из имени раздачи сериала (S02); у фильмов нет. */
+	season?: number;
+	overview?: string;
+	hasPoster: boolean;
+	rating?: number;
+	/** Что искали в TMDB (или ссылка, если задано вручную). */
+	query?: string;
+	/** Имя, в которое раздачу переименовали на диске. */
+	renamedTo?: string;
+	watched: boolean;
+	missingSubs: boolean;
+}
+
+/** Movie Plugin records keyed by torrent hash. */
+export type MovieRecords = Record<string, MovieRecord>;

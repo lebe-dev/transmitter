@@ -444,3 +444,49 @@ func (c *Client) SessionGet(ctx context.Context) (json.RawMessage, error) {
 	}
 	return resp.Arguments, nil
 }
+
+// GetTorrentFilesByHash returns a torrent with its file list, looked up by hash.
+func (c *Client) GetTorrentFilesByHash(ctx context.Context, hash string) (TorrentWithFiles, error) {
+	args, err := json.Marshal(map[string]any{
+		"ids":    []string{hash},
+		"fields": []string{"id", "hashString", "name", "addedDate", "files"},
+	})
+	if err != nil {
+		return TorrentWithFiles{}, err
+	}
+
+	resp, err := c.Do(ctx, RPCRequest{Method: methodTorrentGet, Arguments: args})
+	if err != nil {
+		return TorrentWithFiles{}, fmt.Errorf("torrent-get files: %w", err)
+	}
+	if resp.Result != "success" {
+		return TorrentWithFiles{}, fmt.Errorf("torrent-get files failed: %s", resp.Result)
+	}
+
+	var result TorrentWithFilesResult
+	if err := json.Unmarshal(resp.Arguments, &result); err != nil {
+		return TorrentWithFiles{}, fmt.Errorf("unmarshal files: %w", err)
+	}
+	if len(result.Torrents) == 0 {
+		return TorrentWithFiles{}, ErrTorrentNotFound
+	}
+	return result.Torrents[0], nil
+}
+
+// RenamePath renames a file or folder of a torrent, on disk and in
+// Transmission. path is relative to the download dir; passing the torrent name
+// renames the torrent's top-level folder (or its only file).
+func (c *Client) RenamePath(ctx context.Context, id int64, path, name string) error {
+	args, err := json.Marshal(map[string]any{"ids": []int64{id}, "path": path, "name": name})
+	if err != nil {
+		return err
+	}
+	resp, err := c.Do(ctx, RPCRequest{Method: "torrent-rename-path", Arguments: args})
+	if err != nil {
+		return fmt.Errorf("torrent-rename-path: %w", err)
+	}
+	if resp.Result != "success" {
+		return fmt.Errorf("torrent-rename-path failed: %s", resp.Result)
+	}
+	return nil
+}

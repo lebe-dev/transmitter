@@ -323,3 +323,69 @@ func TestLoadImpact(t *testing.T) {
 		}
 	})
 }
+
+func TestLoadMoviePlugin(t *testing.T) {
+	t.Setenv("TRANSMISSION_USER", "u")
+	t.Setenv("TRANSMISSION_PASS", "p")
+
+	t.Run("disabled by default", func(t *testing.T) {
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		m := cfg.Movie
+		if m.Enabled {
+			t.Error("Movie.Enabled = true, want false by default")
+		}
+		if m.Language != defaultMovieLanguage || m.Template != defaultMovieRenameTemplate ||
+			m.ScanInterval != defaultMovieScanInterval || m.ScanBatch != defaultMovieScanBatch {
+			t.Errorf("Movie = %+v, want defaults", m)
+		}
+		if !m.AutoDetect || !m.Backfill || !m.AutoRename {
+			t.Errorf("Movie = %+v, want detection and renaming on by default", m)
+		}
+		if m.PosterDir != "data/posters" {
+			t.Errorf("PosterDir = %q, want it next to the database", m.PosterDir)
+		}
+	})
+
+	t.Run("enabled requires an API key", func(t *testing.T) {
+		t.Setenv("MOVIE_PLUGIN_ENABLED", "true")
+		if _, err := Load(); err == nil {
+			t.Fatal("Load: want an error without TMDB_API_KEY")
+		}
+	})
+
+	t.Run("overrides", func(t *testing.T) {
+		t.Setenv("MOVIE_PLUGIN_ENABLED", "true")
+		t.Setenv("TMDB_API_KEY", "key")
+		t.Setenv("MOVIE_LANGUAGE", "ru-RU")
+		t.Setenv("MOVIE_AUTO_RENAME", "false")
+		t.Setenv("MOVIE_BACKFILL", "false")
+		t.Setenv("MOVIE_RENAME_TEMPLATE", "{original_title} [{year}]")
+		t.Setenv("MOVIE_SCAN_INTERVAL", "5m")
+		t.Setenv("MOVIE_SCAN_BATCH", "3")
+		t.Setenv("DB_PATH", "/app/data/transmitter.db")
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		m := cfg.Movie
+		if !m.Enabled || m.TMDBAPIKey != "key" || m.Language != "ru-RU" || m.AutoRename || m.Backfill ||
+			m.Template != "{original_title} [{year}]" || m.ScanInterval != 5*time.Minute || m.ScanBatch != 3 {
+			t.Errorf("Movie = %+v", m)
+		}
+		if m.PosterDir != "/app/data/posters" {
+			t.Errorf("PosterDir = %q", m.PosterDir)
+		}
+	})
+
+	t.Run("template without a title is rejected", func(t *testing.T) {
+		t.Setenv("MOVIE_PLUGIN_ENABLED", "true")
+		t.Setenv("TMDB_API_KEY", "key")
+		t.Setenv("MOVIE_RENAME_TEMPLATE", "{year}")
+		if _, err := Load(); err == nil {
+			t.Fatal("Load: want an error for a template without the title")
+		}
+	})
+}
