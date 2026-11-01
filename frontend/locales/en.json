@@ -36,6 +36,7 @@
 		"size": "Size",
 		"progress": "Progress",
 		"status": "Status",
+		"watched": "Watched",
 		"toggleDirection": "Toggle sort direction"
 	},
 	"status": {

@@ -36,6 +36,7 @@
 		"size": "Tamaño",
 		"progress": "Progreso",
 		"status": "Estado",
+		"watched": "Visto",
 		"toggleDirection": "Cambiar dirección de orden"
 	},
 	"status": {

@@ -94,19 +94,58 @@
 
 	let sorting = $state<SortingState>([{ id: 'addedDate', desc: true }]);
 
-	const SORT_OPTIONS = [
+	const BASE_SORT_OPTIONS = [
 		{ value: 'addedDate', key: 'sort.added' },
 		{ value: 'name', key: 'sort.name' },
 		{ value: 'totalSize', key: 'sort.size' },
 		{ value: 'percentDone', key: 'sort.progress' },
 		{ value: 'status', key: 'sort.status' },
 	] as const;
+	const WATCHED_SORT = { value: 'watched', key: 'sort.watched' } as const;
 
-	let sortField = $state('addedDate');
-	let sortDesc = $state(true);
+	const SORT_OPTIONS = $derived(
+		settingsStore.moviePluginEnabled ? [...BASE_SORT_OPTIONS, WATCHED_SORT] : BASE_SORT_OPTIONS
+	);
+
+	const SORT_STORAGE_KEY = 'transmitter-sort';
+
+	function loadSort(): { field: string; desc: boolean } {
+		const fallback = { field: 'addedDate', desc: true };
+		try {
+			const raw = localStorage.getItem(SORT_STORAGE_KEY);
+			if (!raw) return fallback;
+			const parsed = JSON.parse(raw);
+			const known = [...BASE_SORT_OPTIONS, WATCHED_SORT].some((o) => o.value === parsed?.field);
+			if (!known || typeof parsed.desc !== 'boolean') return fallback;
+			return { field: parsed.field, desc: parsed.desc };
+		} catch {
+			return fallback;
+		}
+	}
+
+	const savedSort = loadSort();
+	let sortField = $state(savedSort.field);
+	let sortDesc = $state(savedSort.desc);
+
+	/** Поле «Просмотр» есть только при включённом Movie Plugin; без него откатываемся к дате. */
+	const activeSortField = $derived(
+		sortField === WATCHED_SORT.value && !settingsStore.moviePluginEnabled ? 'addedDate' : sortField
+	);
 
 	$effect(() => {
-		sorting = [{ id: sortField, desc: sortDesc }];
+		try {
+			localStorage.setItem(SORT_STORAGE_KEY, JSON.stringify({ field: sortField, desc: sortDesc }));
+		} catch {
+			// Storage may be unavailable; the choice then lasts for this session only.
+		}
+	});
+
+	$effect(() => {
+		// «Просмотр» не колонка таблицы: внутри таблицы порядок по дате, а группировка — в sortedRows.
+		sorting =
+			activeSortField === WATCHED_SORT.value
+				? [{ id: 'addedDate', desc: true }]
+				: [{ id: activeSortField, desc: sortDesc }];
 	});
 
 	const columns: ColumnDef<Torrent>[] = [
@@ -142,11 +181,16 @@
 
 	const sortedRows = $derived.by(() => {
 		const rows = table.getRowModel().rows;
+		const byWatched = activeSortField === WATCHED_SORT.value;
+		const watchedRank = (hash: string) => (movieStore.get(hash)?.watched ? 1 : 0);
 		return rows.toSorted((a, b) => {
 			const aPinned = pinStore.isPinned(a.original.hashString);
 			const bPinned = pinStore.isPinned(b.original.hashString);
-			if (aPinned === bPinned) return 0;
-			return aPinned ? -1 : 1;
+			if (aPinned !== bPinned) return aPinned ? -1 : 1;
+			if (!byWatched) return 0;
+			// ↓ — от непросмотренных к просмотренным, ↑ — наоборот.
+			const diff = watchedRank(a.original.hashString) - watchedRank(b.original.hashString);
+			return sortDesc ? diff : -diff;
 		});
 	});
 
@@ -779,12 +823,12 @@
 					<button
 						class="flex items-center gap-1 text-xs font-medium text-foreground/80 hover:text-foreground transition-colors px-1.5 py-1 rounded"
 						onclick={() => {
-							const idx = SORT_OPTIONS.findIndex((o) => o.value === sortField);
+							const idx = SORT_OPTIONS.findIndex((o) => o.value === activeSortField);
 							const next = SORT_OPTIONS[(idx + 1) % SORT_OPTIONS.length];
 							sortField = next.value;
 						}}
 					>
-						{$tt(SORT_OPTIONS.find((o) => o.value === sortField)?.key ?? 'sort.added')}
+						{$tt(SORT_OPTIONS.find((o) => o.value === activeSortField)?.key ?? 'sort.added')}
 					</button>
 					<button
 						class="text-xs text-muted-foreground hover:text-foreground transition-colors p-1 rounded"

@@ -106,7 +106,7 @@
 					<Table.Row>
 						<Table.Cell class="font-mono text-xs py-2 text-muted-foreground break-all">
 							<HoverCard.Root>
-								<HoverCard.Trigger class="flex items-center gap-1.5 cursor-default">
+								<HoverCard.Trigger class="inline-flex items-center gap-1.5 cursor-default">
 									{row.envVar}
 									<InfoIcon class="size-3 shrink-0 text-muted-foreground/50" />
 								</HoverCard.Trigger>
