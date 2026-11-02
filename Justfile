@@ -123,16 +123,18 @@ build-image-local:
 push-image:
     docker push {{ imageName }}:{{ tag }}
 
-release-image:
+release-image imageTag=tag:
     docker buildx inspect multibuilder > /dev/null 2>&1 || docker buildx create --name multibuilder --driver docker-container
     docker buildx use multibuilder
     docker buildx inspect --bootstrap
-    docker buildx build --platform linux/amd64,linux/arm/v7,linux/arm64 --build-arg BUILD_NUMBER={{ buildNumber }} -t {{ imageName }}:{{ tag }} --push .
+    docker buildx build --platform linux/amd64,linux/arm/v7,linux/arm64 --build-arg BUILD_NUMBER={{ buildNumber }} -t {{ imageName }}:{{ imageTag }} --push .
 
-release: release-image
+release: (release-image version)
 
-# Depends on release-image so the tag being deployed is guaranteed to exist in the registry —
-# buildNumber is the git short hash at invocation time, and it would otherwise drift if a commit
-# landed between a separate `just release` and `just deploy` call.
-deploy: release-image
+release-dev: (release-image tag)
+
+deploy: (release-image version)
+    ssh -t rpi "cd /opt/transmitter && sudo sed -i -E 's#(image: {{ imageName }}:).*#\1{{ version }}#' docker-compose.yml && sudo docker compose pull && sudo docker compose down && sudo docker compose up -d"
+
+deploy-dev: (release-image tag)
     ssh -t rpi "cd /opt/transmitter && sudo sed -i -E 's#(image: {{ imageName }}:).*#\1{{ tag }}#' docker-compose.yml && sudo docker compose pull && sudo docker compose down && sudo docker compose up -d"
