@@ -127,7 +127,7 @@ release-image:
     docker buildx inspect multibuilder > /dev/null 2>&1 || docker buildx create --name multibuilder --driver docker-container
     docker buildx use multibuilder
     docker buildx inspect --bootstrap
-    docker buildx build --platform linux/amd64,linux/arm/v7,linux/arm64/v8 --build-arg BUILD_NUMBER={{ buildNumber }} -t {{ imageName }}:{{ tag }} --push .
+    docker buildx build --platform linux/amd64,linux/arm/v7,linux/arm64 --build-arg BUILD_NUMBER={{ buildNumber }} -t {{ imageName }}:{{ tag }} --push .
 
 release: release-image
 
