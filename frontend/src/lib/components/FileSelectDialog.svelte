@@ -20,14 +20,17 @@
 		open: boolean;
 		torrentId: number;
 		torrentName: string;
-		onConfirm: (wantedIndices: number[], unwantedIndices: number[]) => void;
-		onCancel: () => void;
+		onConfirm: (wantedIndices: number[], unwantedIndices: number[]) => void | Promise<void>;
+		onCancel: () => void | Promise<void>;
 	} = $props();
 
 	let files = $state<TorrentFile[]>([]);
 	let selected = $state<boolean[]>([]);
 	let loading = $state(false);
 	let error = $state<string | null>(null);
+	let confirming = $state(false);
+	let cancelling = $state(false);
+	let busy = $derived(confirming || cancelling);
 
 	function basename(path: string): string {
 		return path.split('/').pop() ?? path;
@@ -56,7 +59,7 @@
 	let selectedSize = $derived(
 		files.reduce((sum, file, i) => (selected[i] ? sum + file.length : sum), 0),
 	);
-	let canConfirm = $derived(selectedCount > 0 && !loading);
+	let canConfirm = $derived(selectedCount > 0 && !loading && !busy);
 
 	function selectAll() {
 		selected = files.map(() => true);
@@ -70,22 +73,34 @@
 		selected = selected.map((v, i) => (i === index ? !v : v));
 	}
 
-	function handleConfirm() {
+	async function handleConfirm() {
+		if (busy) return;
 		const wanted: number[] = [];
 		const unwanted: number[] = [];
 		selected.forEach((sel, i) => {
 			if (sel) wanted.push(i);
 			else unwanted.push(i);
 		});
-		onConfirm(wanted, unwanted);
+		confirming = true;
+		try {
+			await onConfirm(wanted, unwanted);
+		} finally {
+			confirming = false;
+		}
 	}
 
-	function handleCancel() {
-		onCancel();
+	async function handleCancel() {
+		if (busy) return;
+		cancelling = true;
+		try {
+			await onCancel();
+		} finally {
+			cancelling = false;
+		}
 	}
 </script>
 
-<AlertDialog.Root bind:open onOpenChange={(v) => { if (!v) handleCancel(); }}>
+<AlertDialog.Root bind:open onOpenChange={(v) => { if (!v && !busy) handleCancel(); }}>
 	<AlertDialog.Content class="sm:max-w-lg">
 		<AlertDialog.Header>
 			<AlertDialog.Title>{get(tt)('fileSelectDialog.title')}</AlertDialog.Title>
@@ -137,12 +152,18 @@
 		{/if}
 
 		<AlertDialog.Footer>
-			<AlertDialog.Cancel onclick={handleCancel}>
+			<Button variant="outline" disabled={busy} onclick={handleCancel}>
+				{#if cancelling}
+					<Spinner class="size-4" />
+				{/if}
 				{get(tt)('fileSelectDialog.cancel')}
-			</AlertDialog.Cancel>
-			<AlertDialog.Action disabled={!canConfirm} onclick={handleConfirm}>
+			</Button>
+			<Button class="font-display font-semibold" disabled={!canConfirm} onclick={handleConfirm}>
+				{#if confirming}
+					<Spinner class="size-4" />
+				{/if}
 				{get(tt)('fileSelectDialog.downloadButton')}
-			</AlertDialog.Action>
+			</Button>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>
 </AlertDialog.Root>

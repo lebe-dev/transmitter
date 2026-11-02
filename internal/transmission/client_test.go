@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func newTestServer(t *testing.T, handler http.HandlerFunc) (*httptest.Server, *Client) {
@@ -538,5 +539,17 @@ func TestGetTorrentHashesWithoutIDsSelectsAll(t *testing.T) {
 
 	if strings.Contains(string(gotArgs), `"ids"`) {
 		t.Errorf("request args = %s, want no ids key so Transmission returns all torrents", gotArgs)
+	}
+}
+
+func TestWithTimeout(t *testing.T) {
+	if c := NewClient("http://x", "u", "p"); c.httpClient.Timeout != DefaultTimeout {
+		t.Errorf("default timeout = %v, want %v", c.httpClient.Timeout, DefaultTimeout)
+	}
+	if c := NewClient("http://x", "u", "p", WithTimeout(3*time.Minute)); c.httpClient.Timeout != 3*time.Minute {
+		t.Errorf("timeout = %v, want 3m", c.httpClient.Timeout)
+	}
+	if c := NewClient("http://x", "u", "p", WithTimeout(0)); c.httpClient.Timeout != DefaultTimeout {
+		t.Errorf("zero timeout must keep the default, got %v", c.httpClient.Timeout)
 	}
 }

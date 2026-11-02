@@ -48,7 +48,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	client := transmission.NewClient(cfg.TransmissionURL, cfg.TransmissionUser, cfg.TransmissionPass)
+	client := transmission.NewClient(cfg.TransmissionURL, cfg.TransmissionUser, cfg.TransmissionPass, transmission.WithTimeout(cfg.TransmissionTimeout))
 
 	noteStore, err := notes.Open(cfg.DBPath, cfg.NoteMaxLength)
 	if err != nil {
@@ -163,7 +163,7 @@ func startMoviePlugin(ctx context.Context, cfg *config.Config, client *transmiss
 		os.Exit(1)
 	}
 
-	source := movie.NewTMDB(cfg.Movie.TMDBAPIURL, cfg.Movie.TMDBImageURL, cfg.Movie.TMDBAPIKey, cfg.Movie.Language)
+	source := movie.NewTMDB(cfg.Movie.TMDBAPIURL, cfg.Movie.TMDBImageURL, cfg.Movie.TMDBAPIKey, cfg.Movie.Language).WithTimeout(cfg.Movie.TMDBTimeout)
 	svc := movie.NewService(store, source, client, movie.Options{
 		Interval:    cfg.Movie.ScanInterval,
 		Batch:       cfg.Movie.ScanBatch,
@@ -192,7 +192,7 @@ func startBot(ctx context.Context, cfg *config.Config, client *transmission.Clie
 		os.Exit(1)
 	}
 
-	tgBot, err := bot.New(cfg.TelegramToken, cfg.TelegramUsers, client, noteStore, logger, cfg.FilePriorityEnabled, cfg.FilePriorityHighCount, cfg.FileSelectTimeout, shifts)
+	tgBot, err := bot.New(cfg.TelegramToken, cfg.TelegramUsers, client, noteStore, logger, cfg.FilePriorityEnabled, cfg.FilePriorityHighCount, cfg.FileSelectTimeout, cfg.BotRequestTimeout, shifts)
 	if err != nil {
 		logger.Error("bot init failed", "err", err)
 		os.Exit(1)

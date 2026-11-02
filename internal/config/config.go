@@ -24,6 +24,18 @@ const (
 	// defaultImpactInterval is how often the impact worker looks for torrents that
 	// reached the target ratio.
 	defaultImpactInterval = 5 * time.Minute
+	// defaultTransmissionTimeout bounds one Transmission RPC call. A Raspberry Pi
+	// under load can take well over ten seconds to answer torrent-get with files.
+	defaultTransmissionTimeout = time.Minute
+	// defaultHTTPReadTimeout bounds reading a request, including an uploaded .torrent.
+	defaultHTTPReadTimeout = 30 * time.Second
+	// defaultHTTPWriteTimeout bounds writing a response; it must outlast a slow
+	// Transmission call that the proxy waits for.
+	defaultHTTPWriteTimeout = 2 * time.Minute
+	// defaultBotRequestTimeout bounds one Transmission call made for a Telegram command.
+	defaultBotRequestTimeout = time.Minute
+	// defaultTMDBTimeout bounds one request to TMDB.
+	defaultTMDBTimeout = 30 * time.Second
 	// defaultMovieLanguage is the TMDB locale for titles and descriptions.
 	defaultMovieLanguage = "en-US"
 	// defaultMovieRenameTemplate names torrents after the English title; spaces
@@ -52,6 +64,10 @@ type Config struct {
 	TelegramBotEnabled    bool
 	MaxRequestBodyBytes   int64
 	FileSelectTimeout     time.Duration
+	TransmissionTimeout   time.Duration
+	HTTPReadTimeout       time.Duration
+	HTTPWriteTimeout      time.Duration
+	BotRequestTimeout     time.Duration
 	DeleteWithData        bool
 	NightShiftEnabled     bool
 	NightShiftStart       DayTime
@@ -78,6 +94,7 @@ type MovieConfig struct {
 	TMDBAPIKey   string
 	TMDBAPIURL   string
 	TMDBImageURL string
+	TMDBTimeout  time.Duration
 	Language     string
 	AutoDetect   bool
 	Backfill     bool
@@ -135,6 +152,10 @@ func Load() (*Config, error) {
 	cfg.TelegramBotEnabled = parseBoolDefault(os.Getenv("TELEGRAM_BOT_ENABLED"), false)
 	cfg.MaxRequestBodyBytes = parsePositiveInt64(os.Getenv("MAX_REQUEST_BODY_BYTES"), 10<<20)
 	cfg.FileSelectTimeout = parseDuration(os.Getenv("FILE_SELECT_TIMEOUT"), 5*time.Minute)
+	cfg.TransmissionTimeout = parseDuration(os.Getenv("TRANSMISSION_TIMEOUT"), defaultTransmissionTimeout)
+	cfg.HTTPReadTimeout = parseDuration(os.Getenv("HTTP_READ_TIMEOUT"), defaultHTTPReadTimeout)
+	cfg.HTTPWriteTimeout = parseDuration(os.Getenv("HTTP_WRITE_TIMEOUT"), defaultHTTPWriteTimeout)
+	cfg.BotRequestTimeout = parseDuration(os.Getenv("TELEGRAM_REQUEST_TIMEOUT"), defaultBotRequestTimeout)
 	cfg.DeleteWithData = strings.EqualFold(os.Getenv("DELETE_WITH_DATA"), "true")
 	cfg.NightShiftInterval = parseDuration(os.Getenv("NIGHT_SHIFT_INTERVAL"), time.Minute)
 	cfg.DayShiftInterval = parseDuration(os.Getenv("DAY_SHIFT_INTERVAL"), time.Minute)
@@ -209,6 +230,7 @@ func parseMovieConfig(dbPath string) (MovieConfig, error) {
 		TMDBAPIKey:   strings.TrimSpace(os.Getenv("TMDB_API_KEY")),
 		TMDBAPIURL:   envOrDefault("TMDB_API_URL", "https://api.themoviedb.org/3"),
 		TMDBImageURL: envOrDefault("TMDB_IMAGE_URL", "https://image.tmdb.org/t/p"),
+		TMDBTimeout:  parseDuration(os.Getenv("TMDB_TIMEOUT"), defaultTMDBTimeout),
 		Language:     envOrDefault("MOVIE_LANGUAGE", defaultMovieLanguage),
 		AutoDetect:   parseBoolDefault(os.Getenv("MOVIE_AUTO_DETECT"), true),
 		Backfill:     parseBoolDefault(os.Getenv("MOVIE_BACKFILL"), true),

@@ -157,8 +157,8 @@ func applyAutoPriority(client *transmission.Client, respBody []byte, highCount i
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
+	// The client's own timeout bounds every call.
+	ctx := context.Background()
 
 	if err := client.SetHighPriorityFiles(ctx, rpcResp.Arguments.TorrentAdded.ID, highCount); err != nil {
 		slog.Warn("auto-priority: failed to set file priorities", "torrent_id", rpcResp.Arguments.TorrentAdded.ID, "err", err)

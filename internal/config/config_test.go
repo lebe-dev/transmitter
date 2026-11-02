@@ -389,3 +389,41 @@ func TestLoadMoviePlugin(t *testing.T) {
 		}
 	})
 }
+
+func TestLoadTimeouts(t *testing.T) {
+	t.Setenv("TRANSMISSION_USER", "u")
+	t.Setenv("TRANSMISSION_PASS", "p")
+
+	t.Run("defaults are generous", func(t *testing.T) {
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if cfg.TransmissionTimeout != time.Minute {
+			t.Errorf("TransmissionTimeout = %v, want 1m", cfg.TransmissionTimeout)
+		}
+		if cfg.HTTPWriteTimeout <= cfg.TransmissionTimeout {
+			t.Errorf("HTTPWriteTimeout %v must outlast TransmissionTimeout %v", cfg.HTTPWriteTimeout, cfg.TransmissionTimeout)
+		}
+		if cfg.HTTPReadTimeout != defaultHTTPReadTimeout || cfg.BotRequestTimeout != defaultBotRequestTimeout || cfg.Movie.TMDBTimeout != defaultTMDBTimeout {
+			t.Errorf("unexpected defaults: %v %v %v", cfg.HTTPReadTimeout, cfg.BotRequestTimeout, cfg.Movie.TMDBTimeout)
+		}
+	})
+
+	t.Run("overrides", func(t *testing.T) {
+		t.Setenv("TRANSMISSION_TIMEOUT", "90s")
+		t.Setenv("HTTP_READ_TIMEOUT", "10s")
+		t.Setenv("HTTP_WRITE_TIMEOUT", "5m")
+		t.Setenv("TELEGRAM_REQUEST_TIMEOUT", "2m")
+		t.Setenv("TMDB_TIMEOUT", "45s")
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if cfg.TransmissionTimeout != 90*time.Second || cfg.HTTPReadTimeout != 10*time.Second ||
+			cfg.HTTPWriteTimeout != 5*time.Minute || cfg.BotRequestTimeout != 2*time.Minute ||
+			cfg.Movie.TMDBTimeout != 45*time.Second {
+			t.Errorf("overrides not applied: %+v", cfg)
+		}
+	})
+}

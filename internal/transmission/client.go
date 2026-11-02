@@ -30,15 +30,33 @@ type Client struct {
 	group      singleflight.Group
 }
 
+// DefaultTimeout bounds one RPC call unless WithTimeout says otherwise.
+const DefaultTimeout = time.Minute
+
+// Option customizes a Client.
+type Option func(*Client)
+
+// WithTimeout sets how long one RPC call may take; non-positive values are ignored.
+func WithTimeout(d time.Duration) Option {
+	return func(c *Client) {
+		if d > 0 {
+			c.httpClient.Timeout = d
+		}
+	}
+}
+
 // NewClient creates a new Transmission RPC client.
-func NewClient(rpcURL, user, pass string) *Client {
+func NewClient(rpcURL, user, pass string, opts ...Option) *Client {
 	auth := base64.StdEncoding.EncodeToString([]byte(user + ":" + pass))
 	c := &Client{
 		url:        rpcURL,
 		authHeader: "Basic " + auth,
-		httpClient: &http.Client{Timeout: 10 * time.Second},
+		httpClient: &http.Client{Timeout: DefaultTimeout},
 	}
 	c.sessionID.Store("")
+	for _, opt := range opts {
+		opt(c)
+	}
 	return c
 }
 

@@ -61,6 +61,11 @@ docker-compose up -d
 | `TORRENT_NOTE_CLEANUP_INTERVAL` | Нет | `1h` |
 | `IMPACT_TARGET_RATIO` | Нет | `1` |
 | `IMPACT_INTERVAL` | Нет | `5m` |
+| `TRANSMISSION_TIMEOUT` | Нет | `60s` |
+| `HTTP_READ_TIMEOUT` | Нет | `30s` |
+| `HTTP_WRITE_TIMEOUT` | Нет | `2m` |
+| `TELEGRAM_REQUEST_TIMEOUT` | Нет | `60s` |
+| `TMDB_TIMEOUT` | Нет | `30s` |
 | `SENTRY_DSN` | Нет | — (отключено) |
 | `SENTRY_ENVIRONMENT` | При использовании Sentry | — |
 | `MOVIE_PLUGIN_ENABLED` | Нет | `false` |

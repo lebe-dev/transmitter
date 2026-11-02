@@ -83,8 +83,17 @@ func NewTMDB(baseURL, imageURL, apiKey, language string) *TMDB {
 		language: language,
 		// The default transport honours HTTPS_PROXY, which is how TMDB is
 		// reached from networks that block it.
-		httpClient: &http.Client{Timeout: 15 * time.Second},
+		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}
+}
+
+// WithTimeout sets how long one TMDB request may take; non-positive values are
+// ignored. It returns the client for chaining.
+func (t *TMDB) WithTimeout(d time.Duration) *TMDB {
+	if d > 0 {
+		t.httpClient.Timeout = d
+	}
+	return t
 }
 
 // tmdbResult is a search hit; movies fill Title/ReleaseDate, series Name/FirstAirDate.

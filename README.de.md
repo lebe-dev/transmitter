@@ -61,6 +61,11 @@ Alle Einstellungen über Umgebungsvariablen:
 | `TORRENT_NOTE_CLEANUP_INTERVAL` | Nein | `1h` |
 | `IMPACT_TARGET_RATIO` | Nein | `1` |
 | `IMPACT_INTERVAL` | Nein | `5m` |
+| `TRANSMISSION_TIMEOUT` | Nein | `60s` |
+| `HTTP_READ_TIMEOUT` | Nein | `30s` |
+| `HTTP_WRITE_TIMEOUT` | Nein | `2m` |
+| `TELEGRAM_REQUEST_TIMEOUT` | Nein | `60s` |
+| `TMDB_TIMEOUT` | Nein | `30s` |
 | `SENTRY_DSN` | Nein | — (deaktiviert) |
 | `SENTRY_ENVIRONMENT` | Bei Verwendung von Sentry | — |
 | `MOVIE_PLUGIN_ENABLED` | Nein | `false` |

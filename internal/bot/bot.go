@@ -39,10 +39,11 @@ type Bot struct {
 	fileSelect            map[int64]*FileSelectState
 	fileSelectTimeout     time.Duration
 	shifts                Shifts
+	requestTimeout        time.Duration
 }
 
 // New creates a new Bot instance. Returns an error if the token is invalid.
-func New(token string, allowedUsers []string, client *transmission.Client, noteSource NoteSource, logger *slog.Logger, autoPriorityEnabled bool, autoPriorityHighCount int, fileSelectTimeout time.Duration, shifts Shifts) (*Bot, error) {
+func New(token string, allowedUsers []string, client *transmission.Client, noteSource NoteSource, logger *slog.Logger, autoPriorityEnabled bool, autoPriorityHighCount int, fileSelectTimeout, requestTimeout time.Duration, shifts Shifts) (*Bot, error) {
 	tg, err := telebot.NewBot(telebot.Settings{
 		Token:  token,
 		Poller: &telebot.LongPoller{Timeout: 10},
@@ -69,6 +70,7 @@ func New(token string, allowedUsers []string, client *transmission.Client, noteS
 		fileSelect:            make(map[int64]*FileSelectState),
 		fileSelectTimeout:     fileSelectTimeout,
 		shifts:                shifts,
+		requestTimeout:        requestTimeout,
 	}
 	b.notifyFn = b.broadcastNotification
 
@@ -143,4 +145,16 @@ func (b *Bot) Start() {
 func (b *Bot) Stop() {
 	b.logger.Info("telegram bot stopping")
 	b.tg.Stop()
+}
+
+// defaultRequestTimeout applies when the bot is built without a request timeout.
+const defaultRequestTimeout = time.Minute
+
+// requestContext returns a context that expires after the configured request timeout.
+func (b *Bot) requestContext(parent context.Context) (context.Context, context.CancelFunc) {
+	timeout := b.requestTimeout
+	if timeout <= 0 {
+		timeout = defaultRequestTimeout
+	}
+	return context.WithTimeout(parent, timeout)
 }

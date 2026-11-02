@@ -135,8 +135,8 @@ func New(cfg *config.Config, client *transmission.Client, noteStore NoteStore, s
 	httpServer := &http.Server{
 		Addr:         cfg.ListenAddr,
 		Handler:      handler,
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 30 * time.Second,
+		ReadTimeout:  cfg.HTTPReadTimeout,
+		WriteTimeout: cfg.HTTPWriteTimeout,
 		IdleTimeout:  60 * time.Second,
 	}
 
