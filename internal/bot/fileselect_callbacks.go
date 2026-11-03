@@ -6,7 +6,6 @@ import (
 	"html"
 	"strconv"
 	"strings"
-	"time"
 
 	"gopkg.in/telebot.v4"
 )
@@ -113,7 +112,7 @@ func (b *Bot) callbackFileConfirm(c telebot.Context, data string) error {
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := b.requestContext(context.Background())
 	defer cancel()
 
 	if len(unwanted) > 0 {
@@ -147,7 +146,7 @@ func (b *Bot) callbackFileSkip(c telebot.Context, data string) error {
 		return c.Respond(&telebot.CallbackResponse{Text: msgSessionExpired, ShowAlert: true})
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := b.requestContext(context.Background())
 	defer cancel()
 
 	if err := b.client.StartTorrents(ctx, []int64{torrentID}); err != nil {

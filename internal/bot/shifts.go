@@ -191,7 +191,7 @@ func (b *Bot) shiftToggles(ctx context.Context) map[string]bool {
 }
 
 func (b *Bot) handleShifts(c telebot.Context) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := b.requestContext(context.Background())
 	defer cancel()
 
 	text, kb := b.shiftCard(ctx)
@@ -211,7 +211,7 @@ func (b *Bot) callbackShiftToggle(c telebot.Context, data string) error {
 		return c.Respond(&telebot.CallbackResponse{Text: "Shifts are not available", ShowAlert: true})
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := b.requestContext(context.Background())
 	defer cancel()
 
 	if err := b.shifts.Store.SetShiftEnabled(ctx, label, enabled); err != nil {
@@ -231,7 +231,7 @@ func (b *Bot) callbackShiftToggle(c telebot.Context, data string) error {
 }
 
 func (b *Bot) callbackShiftsRefresh(c telebot.Context) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := b.requestContext(context.Background())
 	defer cancel()
 
 	_ = c.Respond()

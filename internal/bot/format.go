@@ -152,14 +152,14 @@ func formatStatusHeader(torrents []transmission.Torrent) string {
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("<b>Torrents: %d</b>", len(torrents)))
+	fmt.Fprintf(&sb, "<b>Torrents: %d</b>", len(torrents))
 	if totalDown > 0 || totalUp > 0 {
 		sb.WriteString("  |")
 		if totalDown > 0 {
-			sb.WriteString(fmt.Sprintf("  ↓%s", formatSpeed(totalDown)))
+			fmt.Fprintf(&sb, "  ↓%s", formatSpeed(totalDown))
 		}
 		if totalUp > 0 {
-			sb.WriteString(fmt.Sprintf("  ↑%s", formatSpeed(totalUp)))
+			fmt.Fprintf(&sb, "  ↑%s", formatSpeed(totalUp))
 		}
 	}
 	sb.WriteString("\n")
@@ -218,7 +218,7 @@ func formatStatusPage(torrents []transmission.Torrent, page int, notes map[strin
 			continue
 		}
 
-		sb.WriteString(fmt.Sprintf("\n%s <b>%s (%d)</b>\n", gi.emoji, gi.label, len(gi.items)))
+		fmt.Fprintf(&sb, "\n%s <b>%s (%d)</b>\n", gi.emoji, gi.label, len(gi.items))
 		for _, t := range pageGroupItems {
 			sb.WriteString(formatTorrentLine(t, num, notes[t.HashString]))
 			num++
@@ -226,7 +226,7 @@ func formatStatusPage(torrents []transmission.Torrent, page int, notes map[strin
 	}
 
 	if pages > 1 {
-		sb.WriteString(fmt.Sprintf("\n📄 Page %d/%d", page+1, pages))
+		fmt.Fprintf(&sb, "\n📄 Page %d/%d", page+1, pages)
 	}
 
 	return sb.String()
@@ -238,31 +238,31 @@ func formatTorrentLine(t transmission.Torrent, num int, note string) string {
 	group := statusGroup(t)
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("%d. <b>%s</b>\n", num, name))
+	fmt.Fprintf(&sb, "%d. <b>%s</b>\n", num, name)
 	if note != "" {
 		flat := strings.ReplaceAll(note, "\n", " ")
-		sb.WriteString(fmt.Sprintf("   📝 <i>%s</i>\n", html.EscapeString(truncate(flat, maxNoteLength))))
+		fmt.Fprintf(&sb, "   📝 <i>%s</i>\n", html.EscapeString(truncate(flat, maxNoteLength)))
 	}
 
 	switch group {
 	case "downloading":
 		pct := int(t.PercentDone * 100)
 		bar := renderProgressBar(t.PercentDone)
-		sb.WriteString(fmt.Sprintf("   %d%% %s", pct, bar))
+		fmt.Fprintf(&sb, "   %d%% %s", pct, bar)
 		if t.RateDownload > 0 {
-			sb.WriteString(fmt.Sprintf("  ↓%s", formatSpeed(t.RateDownload)))
+			fmt.Fprintf(&sb, "  ↓%s", formatSpeed(t.RateDownload))
 		}
 		if t.ETA > 0 {
-			sb.WriteString(fmt.Sprintf("  ETA %s", formatETA(t.ETA)))
+			fmt.Fprintf(&sb, "  ETA %s", formatETA(t.ETA))
 		}
 		sb.WriteString("\n")
 	case "seeding":
 		if t.RateUpload > 0 {
-			sb.WriteString(fmt.Sprintf("   ↑%s\n", formatSpeed(t.RateUpload)))
+			fmt.Fprintf(&sb, "   ↑%s\n", formatSpeed(t.RateUpload))
 		}
 	case "paused":
 		pct := int(t.PercentDone * 100)
-		sb.WriteString(fmt.Sprintf("   %d%%\n", pct))
+		fmt.Fprintf(&sb, "   %d%%\n", pct)
 	}
 
 	return sb.String()
@@ -296,31 +296,31 @@ func formatTorrentDetail(t transmission.Torrent) string {
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("📄 <b>%s</b>\n\n", name))
-	sb.WriteString(fmt.Sprintf("Status: %s %s\n", statusEmoji, statusLabel))
+	fmt.Fprintf(&sb, "📄 <b>%s</b>\n\n", name)
+	fmt.Fprintf(&sb, "Status: %s %s\n", statusEmoji, statusLabel)
 
 	pct := int(t.PercentDone * 100)
 	bar := renderProgressBar(t.PercentDone)
-	sb.WriteString(fmt.Sprintf("Progress: %d%% %s\n", pct, bar))
-	sb.WriteString(fmt.Sprintf("Size: %s\n", formatSize(t.TotalSize)))
+	fmt.Fprintf(&sb, "Progress: %d%% %s\n", pct, bar)
+	fmt.Fprintf(&sb, "Size: %s\n", formatSize(t.TotalSize))
 
 	if t.RateDownload > 0 || t.RateUpload > 0 {
 		sb.WriteString("Speed:")
 		if t.RateDownload > 0 {
-			sb.WriteString(fmt.Sprintf(" ↓%s", formatSpeed(t.RateDownload)))
+			fmt.Fprintf(&sb, " ↓%s", formatSpeed(t.RateDownload))
 		}
 		if t.RateUpload > 0 {
-			sb.WriteString(fmt.Sprintf(" ↑%s", formatSpeed(t.RateUpload)))
+			fmt.Fprintf(&sb, " ↑%s", formatSpeed(t.RateUpload))
 		}
 		sb.WriteString("\n")
 	}
 
 	if t.ETA > 0 {
-		sb.WriteString(fmt.Sprintf("ETA: %s\n", formatETA(t.ETA)))
+		fmt.Fprintf(&sb, "ETA: %s\n", formatETA(t.ETA))
 	}
 
 	if t.AddedDate > 0 {
-		sb.WriteString(fmt.Sprintf("Added: %s\n", formatDate(t.AddedDate)))
+		fmt.Fprintf(&sb, "Added: %s\n", formatDate(t.AddedDate))
 	}
 
 	return sb.String()

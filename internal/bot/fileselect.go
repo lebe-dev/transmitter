@@ -62,7 +62,7 @@ func (b *Bot) cleanupStaleFileSelectStates() {
 
 	for _, id := range stale {
 		b.logger.Warn("file select state expired, removing torrent", "torrent_id", id)
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := b.requestContext(context.Background())
 		if err := b.client.RemoveTorrents(ctx, []int64{id}, true); err != nil {
 			b.logger.Warn("failed to remove expired torrent", "torrent_id", id, "err", err)
 		}
@@ -115,7 +115,7 @@ func totalSize(files []transmission.TorrentFile) int64 {
 func formatFileSelectMessage(state *FileSelectState) string {
 	var sb strings.Builder
 
-	sb.WriteString(fmt.Sprintf("📂 <b>%s</b>\n\n", html.EscapeString(truncate(state.TorrentName, maxTorrentName))))
+	fmt.Fprintf(&sb, "📂 <b>%s</b>\n\n", html.EscapeString(truncate(state.TorrentName, maxTorrentName)))
 
 	pages := fileSelectPages(len(state.Files))
 	page := state.Page
@@ -136,11 +136,11 @@ func formatFileSelectMessage(state *FileSelectState) string {
 			check = "✅"
 		}
 		name := filepath.Base(f.Name)
-		sb.WriteString(fmt.Sprintf("%s %d. %s — %s\n\n", check, i+1, html.EscapeString(name), formatSize(f.Length)))
+		fmt.Fprintf(&sb, "%s %d. %s — %s\n\n", check, i+1, html.EscapeString(name), formatSize(f.Length))
 	}
 
 	selCount, selSize := selectedCount(state)
-	sb.WriteString(fmt.Sprintf("\nSelected: %d/%d (%s / %s)", selCount, len(state.Files), formatSize(selSize), formatSize(totalSize(state.Files))))
+	fmt.Fprintf(&sb, "\nSelected: %d/%d (%s / %s)", selCount, len(state.Files), formatSize(selSize), formatSize(totalSize(state.Files)))
 
 	return sb.String()
 }

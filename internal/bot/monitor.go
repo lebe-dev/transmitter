@@ -26,7 +26,7 @@ func (b *Bot) StartMonitor(ctx context.Context, interval time.Duration) {
 }
 
 func (b *Bot) pollOnce(ctx context.Context) {
-	pollCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	pollCtx, cancel := b.requestContext(ctx)
 	defer cancel()
 
 	torrents, err := b.getter.GetTorrents(pollCtx)

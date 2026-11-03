@@ -7,7 +7,6 @@ import (
 	"html"
 	"io"
 	"strings"
-	"time"
 
 	"gopkg.in/telebot.v4"
 )
@@ -59,7 +58,7 @@ func (b *Bot) handleAdd(c telebot.Context) error {
 		return c.Send("Usage: /add <code>&lt;magnet link or URL&gt;</code>", telebot.ModeHTML)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := b.requestContext(context.Background())
 	defer cancel()
 
 	added, err := b.client.AddMagnet(ctx, args)
@@ -83,7 +82,7 @@ func (b *Bot) handleAdd(c telebot.Context) error {
 }
 
 func (b *Bot) handleStatus(c telebot.Context) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := b.requestContext(context.Background())
 	defer cancel()
 
 	all, err := b.client.GetTorrents(ctx)
@@ -104,7 +103,7 @@ func (b *Bot) handleStatus(c telebot.Context) error {
 }
 
 func (b *Bot) handleStatusAll(c telebot.Context) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := b.requestContext(context.Background())
 	defer cancel()
 
 	torrents, err := b.client.GetTorrents(ctx)
@@ -138,7 +137,7 @@ func (b *Bot) handleDocument(c telebot.Context) error {
 		b.logger.Warn("failed to download file from telegram", "err", err)
 		return c.Send("Failed to download file: " + err.Error())
 	}
-	defer file.Close()
+	defer file.Close() //nolint:errcheck
 
 	data, err := io.ReadAll(io.LimitReader(file, maxFileSize))
 	if err != nil {
@@ -147,7 +146,7 @@ func (b *Bot) handleDocument(c telebot.Context) error {
 
 	metainfo := base64.StdEncoding.EncodeToString(data)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := b.requestContext(context.Background())
 	defer cancel()
 
 	added, err := b.client.AddTorrentFilePaused(ctx, metainfo)

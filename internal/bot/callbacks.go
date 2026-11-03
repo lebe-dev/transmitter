@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"gopkg.in/telebot.v4"
 )
@@ -80,7 +79,7 @@ func (b *Bot) callbackDetail(c telebot.Context, data, prefix string, showAll boo
 		return c.Respond(&telebot.CallbackResponse{Text: "Invalid torrent ID", ShowAlert: true})
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := b.requestContext(context.Background())
 	defer cancel()
 
 	torrent, err := b.client.GetTorrent(ctx, id)
@@ -102,7 +101,7 @@ func (b *Bot) callbackPause(c telebot.Context, data string) error {
 		return c.Respond(&telebot.CallbackResponse{Text: msgInvalidID, ShowAlert: true})
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := b.requestContext(context.Background())
 	defer cancel()
 
 	if err := b.client.StopTorrents(ctx, []int64{id}); err != nil {
@@ -126,7 +125,7 @@ func (b *Bot) callbackResume(c telebot.Context, data string) error {
 		return c.Respond(&telebot.CallbackResponse{Text: msgInvalidID, ShowAlert: true})
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := b.requestContext(context.Background())
 	defer cancel()
 
 	if err := b.client.StartTorrents(ctx, []int64{id}); err != nil {
@@ -150,7 +149,7 @@ func (b *Bot) callbackDeletePrompt(c telebot.Context, data string) error {
 		return c.Respond(&telebot.CallbackResponse{Text: msgInvalidID, ShowAlert: true})
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := b.requestContext(context.Background())
 	defer cancel()
 
 	torrent, err := b.client.GetTorrent(ctx, id)
@@ -176,7 +175,7 @@ func (b *Bot) callbackDelete(c telebot.Context, data string, deleteFiles bool) e
 		return c.Respond(&telebot.CallbackResponse{Text: msgInvalidID, ShowAlert: true})
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := b.requestContext(context.Background())
 	defer cancel()
 
 	// Get name before deleting
@@ -204,7 +203,7 @@ func (b *Bot) callbackStatusPage(c telebot.Context, data, prefix string, showAll
 		return c.Respond(&telebot.CallbackResponse{Text: "Invalid page", ShowAlert: true})
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := b.requestContext(context.Background())
 	defer cancel()
 
 	torrents, err := b.client.GetTorrents(ctx)
@@ -229,7 +228,7 @@ func (b *Bot) callbackBackToList(c telebot.Context, data, prefix string, showAll
 		page = 0
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := b.requestContext(context.Background())
 	defer cancel()
 
 	torrents, err := b.client.GetTorrents(ctx)
