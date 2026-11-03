@@ -168,16 +168,17 @@
 			<SettingsIcon class="size-4" />
 		</a>
 
-		<Button
-			size="sm"
-			class="font-display font-semibold flex-shrink-0"
-			onclick={onAdd}
-			disabled={connectivity.offline}
-			title={connectivity.offline ? $tt('offline.unavailable') : undefined}
-		>
-			<PlusIcon class="size-4" />
-			{$tt('header.add')}
-		</Button>
+		<Hint text={connectivity.offline ? $tt('offline.unavailable') : undefined} class="inline-flex flex-shrink-0">
+			<Button
+				size="sm"
+				class="font-display font-semibold"
+				onclick={onAdd}
+				disabled={connectivity.offline}
+			>
+				<PlusIcon class="size-4" />
+				{$tt('header.add')}
+			</Button>
+		</Hint>
 	</div>
 
 	{#if connectivity.offline}

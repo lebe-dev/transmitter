@@ -999,15 +999,16 @@
 								<div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity touch-device:opacity-100">
 									{#if t.status === 0}
 										{@const noSpace = blockedBySpace(t, freeByDir)}
-										<button
-											onclick={(e) => { e.stopPropagation(); handleStart(t); }}
-											disabled={noSpace}
-											aria-label={$tt(noSpace ? 'actions.resumeNoSpace' : 'actions.resume')}
-											title={noSpace ? $tt('actions.resumeNoSpace') : undefined}
-											class="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
-										>
-											<PlayIcon class="size-3.5" />
-										</button>
+										<Hint text={noSpace ? $tt('actions.resumeNoSpace') : undefined} class="inline-flex">
+											<button
+												onclick={(e) => { e.stopPropagation(); handleStart(t); }}
+												disabled={noSpace}
+												aria-label={$tt(noSpace ? 'actions.resumeNoSpace' : 'actions.resume')}
+												class="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
+											>
+												<PlayIcon class="size-3.5" />
+											</button>
+										</Hint>
 									{:else if t.status === 4 || t.status === 3 || t.status === 6 || t.status === 5}
 										<button
 											onclick={(e) => { e.stopPropagation(); handleStop(t); }}
@@ -1122,15 +1123,16 @@
 								<div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity touch-device:opacity-100">
 									{#if t.status === 0}
 										{@const noSpace = blockedBySpace(t, freeByDir)}
-										<button
-											onclick={(e) => { e.stopPropagation(); handleStart(t); }}
-											disabled={noSpace}
-											aria-label={$tt(noSpace ? 'actions.resumeNoSpace' : 'actions.resume')}
-											title={noSpace ? $tt('actions.resumeNoSpace') : undefined}
-											class="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
-										>
-											<PlayIcon class="size-3.5" />
-										</button>
+										<Hint text={noSpace ? $tt('actions.resumeNoSpace') : undefined} class="inline-flex">
+											<button
+												onclick={(e) => { e.stopPropagation(); handleStart(t); }}
+												disabled={noSpace}
+												aria-label={$tt(noSpace ? 'actions.resumeNoSpace' : 'actions.resume')}
+												class="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
+											>
+												<PlayIcon class="size-3.5" />
+											</button>
+										</Hint>
 									{:else if t.status === 4 || t.status === 3 || t.status === 6 || t.status === 5}
 										<button
 											onclick={(e) => { e.stopPropagation(); handleStop(t); }}

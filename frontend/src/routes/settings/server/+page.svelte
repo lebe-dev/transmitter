@@ -4,7 +4,7 @@
 	import InfoIcon from '@lucide/svelte/icons/info';
 
 	import * as Table from '$lib/components/ui/table/index.js';
-	import * as HoverCard from '$lib/components/ui/hover-card/index.js';
+	import Hint from '$lib/components/Hint.svelte';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { settingsStore } from '$lib/settings.svelte.js';
 	import type { MovieServerConfig, ServerConfig } from '$lib/types.js';
@@ -105,17 +105,15 @@
 				{#each configRows as row (row.envVar)}
 					<Table.Row>
 						<Table.Cell class="font-mono text-xs py-2 text-muted-foreground break-all">
-							<HoverCard.Root>
-								<HoverCard.Trigger class="inline-flex items-center gap-1.5 cursor-default">
-									{row.envVar}
-									<InfoIcon class="size-3 shrink-0 text-muted-foreground/50" />
-								</HoverCard.Trigger>
-								<HoverCard.Portal>
-									<HoverCard.Content class="w-64 text-xs" side="right">
-										{$tt(`settings.configHint.${row.hintKey}`)}
-									</HoverCard.Content>
-								</HoverCard.Portal>
-							</HoverCard.Root>
+							<Hint
+								text={$tt(`settings.configHint.${row.hintKey}`)}
+								side="right"
+								contentClass="max-w-64"
+								class="inline-flex items-center gap-1.5 cursor-default"
+							>
+								{row.envVar}
+								<InfoIcon class="size-3 shrink-0 text-muted-foreground/50" />
+							</Hint>
 						</Table.Cell>
 						<Table.Cell class="font-mono text-xs py-2 break-all">
 							{formatConfigValue(row.value)}

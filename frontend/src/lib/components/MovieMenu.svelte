@@ -13,6 +13,7 @@
 	import Link2Icon from '@lucide/svelte/icons/link-2';
 	import CircleXIcon from '@lucide/svelte/icons/circle-x';
 
+	import Hint from '$lib/components/Hint.svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { movieLabel, type MovieDialogKind } from '$lib/movie.js';
 	import { movieStore } from '$lib/movies.svelte.js';
@@ -92,17 +93,18 @@
 </script>
 
 <DropdownMenu.Root>
-	<DropdownMenu.Trigger
-		onclick={stop}
-		onkeydown={stop}
-		aria-label={$tt('movie.menu')}
-		title={$tt('movie.menu')}
-		class="size-7 rounded-md flex items-center justify-center transition-colors data-[state=open]:bg-accent {matched
-			? 'text-primary hover:bg-primary/10'
-			: 'text-muted-foreground/40 hover:text-muted-foreground'}"
-	>
-		<ClapperboardIcon class="size-3.5" />
-	</DropdownMenu.Trigger>
+	<Hint text={$tt('movie.menu')} class="inline-flex">
+		<DropdownMenu.Trigger
+			onclick={stop}
+			onkeydown={stop}
+			aria-label={$tt('movie.menu')}
+			class="size-7 rounded-md flex items-center justify-center transition-colors data-[state=open]:bg-accent {matched
+				? 'text-primary hover:bg-primary/10'
+				: 'text-muted-foreground/40 hover:text-muted-foreground'}"
+		>
+			<ClapperboardIcon class="size-3.5" />
+		</DropdownMenu.Trigger>
+	</Hint>
 
 	<DropdownMenu.Content class="min-w-60 max-w-72" align="end">
 		<DropdownMenu.Group>
