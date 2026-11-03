@@ -45,13 +45,25 @@ func WithTimeout(d time.Duration) Option {
 	}
 }
 
+// maxIdleConnsPerHost keeps enough warm connections to Transmission for the
+// proxy, the bot and every background worker polling at once; the stdlib
+// default of 2 makes the rest reconnect on each call.
+const maxIdleConnsPerHost = 16
+
+// newTransport clones the default transport with a larger idle pool.
+func newTransport() *http.Transport {
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	t.MaxIdleConnsPerHost = maxIdleConnsPerHost
+	return t
+}
+
 // NewClient creates a new Transmission RPC client.
 func NewClient(rpcURL, user, pass string, opts ...Option) *Client {
 	auth := base64.StdEncoding.EncodeToString([]byte(user + ":" + pass))
 	c := &Client{
 		url:        rpcURL,
 		authHeader: "Basic " + auth,
-		httpClient: &http.Client{Timeout: DefaultTimeout},
+		httpClient: &http.Client{Timeout: DefaultTimeout, Transport: newTransport()},
 	}
 	c.sessionID.Store("")
 	for _, opt := range opts {
@@ -67,7 +79,7 @@ func (c *Client) Do(ctx context.Context, req RPCRequest) (RPCResponse, error) {
 		return RPCResponse{}, fmt.Errorf("marshal request: %w", err)
 	}
 
-	resp, err := c.send(ctx, body)
+	resp, err := c.send(ctx, body, false)
 	if err != nil {
 		return RPCResponse{}, err
 	}
@@ -80,13 +92,16 @@ func (c *Client) Do(ctx context.Context, req RPCRequest) (RPCResponse, error) {
 	return rpcResp, nil
 }
 
-func (c *Client) doHTTP(ctx context.Context, body []byte) (*http.Response, string, error) {
+func (c *Client) doHTTP(ctx context.Context, body []byte, keepGzip bool) (*http.Response, string, error) {
 	sessionID := c.sessionID.Load().(string)
-	resp, err := c.doHTTPWithSession(ctx, body, sessionID)
+	resp, err := c.doHTTPWithSession(ctx, body, sessionID, keepGzip)
 	return resp, sessionID, err
 }
 
-func (c *Client) doHTTPWithSession(ctx context.Context, body []byte, sessionID string) (*http.Response, error) {
+// doHTTPWithSession posts body to Transmission. With keepGzip the request asks
+// for gzip explicitly, which stops the transport from decoding the answer, so
+// the caller gets the compressed bytes as Transmission sent them.
+func (c *Client) doHTTPWithSession(ctx context.Context, body []byte, sessionID string, keepGzip bool) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.url, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
@@ -95,6 +110,9 @@ func (c *Client) doHTTPWithSession(ctx context.Context, body []byte, sessionID s
 	req.Header.Set("Authorization", c.authHeader)
 	if sessionID != "" {
 		req.Header.Set(sessionIDHeader, sessionID)
+	}
+	if keepGzip {
+		req.Header.Set("Accept-Encoding", "gzip")
 	}
 
 	resp, err := c.httpClient.Do(req)
@@ -142,7 +160,7 @@ func (c *Client) refreshSessionID(ctx context.Context, staleID string) (string, 
 // DoRaw forwards a raw JSON body to Transmission and returns the raw response body.
 // Used by the HTTP proxy to avoid double-encoding.
 func (c *Client) DoRaw(ctx context.Context, body []byte) ([]byte, error) {
-	resp, err := c.send(ctx, body)
+	resp, err := c.send(ctx, body, false)
 	if err != nil {
 		return nil, err
 	}
@@ -155,12 +173,30 @@ func (c *Client) DoRaw(ctx context.Context, body []byte) ([]byte, error) {
 	return data, nil
 }
 
+// DoRawGzip is DoRaw for a caller that can pass gzip on: the answer is
+// returned still compressed when Transmission compressed it, and gzipped
+// reports whether it did. Forwarding these bytes saves decoding the full
+// torrent list here and sending it uncompressed to the browser.
+func (c *Client) DoRawGzip(ctx context.Context, body []byte) (data []byte, gzipped bool, err error) {
+	resp, err := c.send(ctx, body, true)
+	if err != nil {
+		return nil, false, err
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	data, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, false, fmt.Errorf("read response: %w", err)
+	}
+	return data, resp.Header.Get("Content-Encoding") == "gzip", nil
+}
+
 // send posts body to Transmission, refreshing the session ID and retrying once
 // on 409. Any other status than 200 is an error, so an auth failure surfaces
 // as such instead of as an HTML page passed off as an RPC response. On success
 // the caller owns the response body.
-func (c *Client) send(ctx context.Context, body []byte) (*http.Response, error) {
-	resp, sessionID, err := c.doHTTP(ctx, body)
+func (c *Client) send(ctx context.Context, body []byte, keepGzip bool) (*http.Response, error) {
+	resp, sessionID, err := c.doHTTP(ctx, body, keepGzip)
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +207,7 @@ func (c *Client) send(ctx context.Context, body []byte) (*http.Response, error) 
 		if err != nil {
 			return nil, fmt.Errorf("refresh session id: %w", err)
 		}
-		resp, err = c.doHTTPWithSession(ctx, body, newID)
+		resp, err = c.doHTTPWithSession(ctx, body, newID, keepGzip)
 		if err != nil {
 			return nil, err
 		}

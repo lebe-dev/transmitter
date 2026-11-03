@@ -7,7 +7,9 @@ const config = {
 	preprocess: vitePreprocess([precompileIntl('locales')]),
 
 	kit: {
-		adapter: adapter({ fallback: 'index.html' })
+		// precompress: the Go server sends the .br/.gz siblings as they are,
+		// so a Raspberry Pi never has to compress the bundle on the fly.
+		adapter: adapter({ fallback: 'index.html', precompress: true })
 	}
 };
 

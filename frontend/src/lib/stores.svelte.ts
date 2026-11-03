@@ -14,6 +14,11 @@ const LEADER_KEY = 'tx_leader';
 const HB_KEY = 'tx_heartbeat';
 const CHANNEL_NAME = 'transmitter';
 const TORRENTS_CACHE_KEY = 'torrents';
+/**
+ * Офлайн-кэш списка нужен «последний известный», а не каждый опрос:
+ * сериализация всего списка в localStorage раз в 5 с блокирует главный поток.
+ */
+const CACHE_WRITE_MS = 60_000;
 
 class TorrentStore {
 	torrents = $state<Torrent[]>([]);
@@ -28,6 +33,8 @@ class TorrentStore {
 	#timer: ReturnType<typeof setTimeout> | null = null;
 	#channel: BroadcastChannel | null = null;
 	#leader = false;
+	#cacheWrittenAt = 0;
+	#cacheDirty = false;
 
 	constructor() {
 		// Последний известный список: виден сразу при старте и остаётся в офлайне.
@@ -104,6 +111,7 @@ class TorrentStore {
 	}
 
 	destroy() {
+		this.#flushCache();
 		this.#clearTimer();
 		this.#channel?.close();
 		window.removeEventListener('beforeunload', this.#onUnload);
@@ -139,6 +147,7 @@ class TorrentStore {
 	}
 
 	readonly #onUnload = () => {
+		this.#flushCache();
 		if (this.#leader) {
 			localStorage.removeItem(LEADER_KEY);
 			localStorage.removeItem(HB_KEY);
@@ -150,7 +159,10 @@ class TorrentStore {
 	};
 
 	readonly #onVisibilityChange = () => {
-		if (document.hidden) return;
+		if (document.hidden) {
+			this.#flushCache();
+			return;
+		}
 		if (this.#leader) {
 			this.#clearTimer();
 			this.#fetch().then(() => this.#scheduleNext());
@@ -170,7 +182,8 @@ class TorrentStore {
 			this.syncedAt = syncedAt;
 			this.loading = false;
 			this.error = null;
-			writeCache(TORRENTS_CACHE_KEY, torrents, syncedAt);
+			this.#cacheDirty = true;
+			if (syncedAt - this.#cacheWrittenAt >= CACHE_WRITE_MS) this.#flushCache();
 			this.#channel?.postMessage({ type: 'data', torrents, syncedAt });
 		} catch (err) {
 			// В офлайне список остаётся последним известным, об этом говорит баннер.
@@ -178,6 +191,13 @@ class TorrentStore {
 			else this.error = err instanceof Error ? err.message : 'Connection error';
 			this.loading = false;
 		}
+	}
+
+	#flushCache() {
+		if (!this.#cacheDirty || this.syncedAt === null) return;
+		writeCache(TORRENTS_CACHE_KEY, $state.snapshot(this.torrents), this.syncedAt);
+		this.#cacheWrittenAt = Date.now();
+		this.#cacheDirty = false;
 	}
 
 	#scheduleNext() {

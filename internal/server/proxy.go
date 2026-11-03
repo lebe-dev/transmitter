@@ -83,6 +83,15 @@ func ProxyHandler(client *transmission.Client, priorityCfg AutoPriorityConfig, m
 			removedHashes = resolveHashes(r.Context(), client, parsed.Arguments.IDs)
 		}
 
+		// The proxy reads the answer only after torrent-add and a removal whose
+		// notes must go; every other answer can stay as Transmission compressed it.
+		inspect := parsed.Method == "torrent-add" || len(removedHashes) > 0
+		w.Header().Add(headerVary, headerAcceptEncoding)
+		if !inspect && acceptsEncoding(r, encodingGzip) {
+			forwardGzip(w, r, client, parsed.Method, body)
+			return
+		}
+
 		respBody, err := client.DoRaw(r.Context(), body)
 		if err != nil {
 			slog.Error("transmission proxy error", "method", parsed.Method, "err", err)
@@ -103,6 +112,23 @@ func ProxyHandler(client *transmission.Client, priorityCfg AutoPriorityConfig, m
 			go deleteNotes(noteStore, removedHashes)
 		}
 	}
+}
+
+// forwardGzip relays a Transmission answer to a client that accepts gzip,
+// keeping the compression Transmission applied instead of decoding it here.
+func forwardGzip(w http.ResponseWriter, r *http.Request, client *transmission.Client, method string, body []byte) {
+	respBody, gzipped, err := client.DoRawGzip(r.Context(), body)
+	if err != nil {
+		slog.Error("transmission proxy error", "method", method, "err", err)
+		http.Error(w, `{"result":"upstream error"}`, http.StatusBadGateway)
+		return
+	}
+
+	w.Header().Set(headerContentType, mimeJSON)
+	if gzipped {
+		w.Header().Set(headerContentEncoding, encodingGzip)
+	}
+	w.Write(respBody) //nolint:errcheck
 }
 
 // resolveHashes maps a raw Transmission "ids" selector to torrent hashes.

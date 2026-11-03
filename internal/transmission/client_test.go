@@ -1,8 +1,11 @@
 package transmission
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -589,5 +592,56 @@ func TestDoRejectsNonOKStatusAfterSessionRefresh(t *testing.T) {
 	_, err := c.SessionGet(context.Background())
 	if err == nil || !strings.Contains(err.Error(), "500") {
 		t.Fatalf("expected an error naming status 500, got %v", err)
+	}
+}
+
+func TestDoRawGzip(t *testing.T) {
+	const payload = `{"result":"success"}`
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set(sessionIDHeader, "test-session")
+		if r.Header.Get("Accept-Encoding") != "gzip" {
+			w.Write([]byte(payload)) //nolint:errcheck
+			return
+		}
+		w.Header().Set("Content-Encoding", "gzip")
+		zw := gzip.NewWriter(w)
+		zw.Write([]byte(payload)) //nolint:errcheck
+		zw.Close()                //nolint:errcheck
+	}
+
+	_, c := newTestServer(t, handler)
+	out, gzipped, err := c.DoRawGzip(context.Background(), []byte(`{"method":"torrent-get"}`))
+	if err != nil {
+		t.Fatalf("DoRawGzip: %v", err)
+	}
+	if !gzipped {
+		t.Fatal("gzipped = false, want true")
+	}
+	zr, err := gzip.NewReader(bytes.NewReader(out))
+	if err != nil {
+		t.Fatalf("gzip reader: %v", err)
+	}
+	plain, _ := io.ReadAll(zr)
+	if string(plain) != payload {
+		t.Errorf("body = %s, want %s", plain, payload)
+	}
+}
+
+func TestDoRawGzipPlainUpstream(t *testing.T) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set(sessionIDHeader, "test-session")
+		w.Write([]byte(`{"result":"success"}`)) //nolint:errcheck
+	}
+
+	_, c := newTestServer(t, handler)
+	out, gzipped, err := c.DoRawGzip(context.Background(), []byte(`{"method":"torrent-get"}`))
+	if err != nil {
+		t.Fatalf("DoRawGzip: %v", err)
+	}
+	if gzipped {
+		t.Fatal("gzipped = true, want false for an uncompressed answer")
+	}
+	if string(out) != `{"result":"success"}` {
+		t.Errorf("body = %s", out)
 	}
 }
