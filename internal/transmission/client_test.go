@@ -34,7 +34,7 @@ func rpcHandler(t *testing.T, wantMethod string, result any) http.HandlerFunc {
 
 		args, _ := json.Marshal(result)
 		resp := RPCResponse{Result: "success", Arguments: args}
-		json.NewEncoder(w).Encode(resp)
+		json.NewEncoder(w).Encode(resp) //nolint:errcheck
 	}
 }
 
@@ -112,17 +112,17 @@ func TestRemoveTorrents(t *testing.T) {
 		w.Header().Set(sessionIDHeader, "test-session")
 
 		var req RPCRequest
-		json.NewDecoder(r.Body).Decode(&req)
+		json.NewDecoder(r.Body).Decode(&req) //nolint:errcheck
 
 		var args TorrentActionArgs
-		json.Unmarshal(req.Arguments, &args)
+		json.Unmarshal(req.Arguments, &args) //nolint:errcheck
 
 		if !args.DeleteLocalData {
 			t.Error("expected DeleteLocalData to be true")
 		}
 
 		resp := RPCResponse{Result: "success"}
-		json.NewEncoder(w).Encode(resp)
+		json.NewEncoder(w).Encode(resp) //nolint:errcheck
 	}
 
 	_, c := newTestServer(t, handler)
@@ -136,17 +136,17 @@ func TestRemoveTorrentsKeepData(t *testing.T) {
 		w.Header().Set(sessionIDHeader, "test-session")
 
 		var req RPCRequest
-		json.NewDecoder(r.Body).Decode(&req)
+		json.NewDecoder(r.Body).Decode(&req) //nolint:errcheck
 
 		var args TorrentActionArgs
-		json.Unmarshal(req.Arguments, &args)
+		json.Unmarshal(req.Arguments, &args) //nolint:errcheck
 
 		if args.DeleteLocalData {
 			t.Error("expected DeleteLocalData to be false")
 		}
 
 		resp := RPCResponse{Result: "success"}
-		json.NewEncoder(w).Encode(resp)
+		json.NewEncoder(w).Encode(resp) //nolint:errcheck
 	}
 
 	_, c := newTestServer(t, handler)
@@ -161,7 +161,7 @@ func TestSetHighPriorityFiles(t *testing.T) {
 		w.Header().Set(sessionIDHeader, "test-session")
 
 		var req RPCRequest
-		json.NewDecoder(r.Body).Decode(&req)
+		json.NewDecoder(r.Body).Decode(&req) //nolint:errcheck
 		calls = append(calls, req)
 
 		switch req.Method {
@@ -179,10 +179,10 @@ func TestSetHighPriorityFiles(t *testing.T) {
 				}},
 			}
 			args, _ := json.Marshal(result)
-			json.NewEncoder(w).Encode(RPCResponse{Result: "success", Arguments: args})
+			json.NewEncoder(w).Encode(RPCResponse{Result: "success", Arguments: args}) //nolint:errcheck
 		case "torrent-set":
 			assertPriorityIndices(t, req.Arguments, 2, 3)
-			json.NewEncoder(w).Encode(RPCResponse{Result: "success"})
+			json.NewEncoder(w).Encode(RPCResponse{Result: "success"}) //nolint:errcheck
 		}
 	}
 
@@ -201,7 +201,7 @@ func TestSetHighPriorityFilesAllHigh(t *testing.T) {
 		w.Header().Set(sessionIDHeader, "test-session")
 
 		var req RPCRequest
-		json.NewDecoder(r.Body).Decode(&req)
+		json.NewDecoder(r.Body).Decode(&req) //nolint:errcheck
 
 		switch req.Method {
 		case "torrent-get":
@@ -212,10 +212,10 @@ func TestSetHighPriorityFilesAllHigh(t *testing.T) {
 				}},
 			}
 			args, _ := json.Marshal(result)
-			json.NewEncoder(w).Encode(RPCResponse{Result: "success", Arguments: args})
+			json.NewEncoder(w).Encode(RPCResponse{Result: "success", Arguments: args}) //nolint:errcheck
 		case "torrent-set":
 			assertPriorityIndices(t, req.Arguments, 1, 0)
-			json.NewEncoder(w).Encode(RPCResponse{Result: "success"})
+			json.NewEncoder(w).Encode(RPCResponse{Result: "success"}) //nolint:errcheck
 		}
 	}
 
@@ -479,7 +479,7 @@ func TestSessionIDRefresh(t *testing.T) {
 			Torrents: []Torrent{{ID: 1, Name: "t1"}},
 		}
 		args, _ := json.Marshal(result)
-		json.NewEncoder(w).Encode(RPCResponse{Result: "success", Arguments: args})
+		json.NewEncoder(w).Encode(RPCResponse{Result: "success", Arguments: args}) //nolint:errcheck
 	}
 
 	_, c := newTestServer(t, handler)
@@ -551,5 +551,43 @@ func TestWithTimeout(t *testing.T) {
 	}
 	if c := NewClient("http://x", "u", "p", WithTimeout(0)); c.httpClient.Timeout != DefaultTimeout {
 		t.Errorf("zero timeout must keep the default, got %v", c.httpClient.Timeout)
+	}
+}
+
+func TestDoRejectsNonOKStatus(t *testing.T) {
+	_, c := newTestServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "<h1>401: Unauthorized</h1>", http.StatusUnauthorized)
+	})
+
+	_, err := c.SessionGet(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "401") {
+		t.Fatalf("expected an error naming status 401, got %v", err)
+	}
+}
+
+func TestDoRawRejectsNonOKStatus(t *testing.T) {
+	_, c := newTestServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "<h1>401: Unauthorized</h1>", http.StatusUnauthorized)
+	})
+
+	data, err := c.DoRaw(context.Background(), []byte(`{"method":"session-get"}`))
+	if err == nil || !strings.Contains(err.Error(), "401") {
+		t.Fatalf("expected an error naming status 401, got %v (body %q)", err, data)
+	}
+}
+
+func TestDoRejectsNonOKStatusAfterSessionRefresh(t *testing.T) {
+	_, c := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set(sessionIDHeader, "fresh")
+		if r.Header.Get(sessionIDHeader) != "fresh" {
+			w.WriteHeader(http.StatusConflict)
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+
+	_, err := c.SessionGet(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "500") {
+		t.Fatalf("expected an error naming status 500, got %v", err)
 	}
 }

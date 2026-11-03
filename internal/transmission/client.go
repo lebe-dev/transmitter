@@ -67,24 +67,12 @@ func (c *Client) Do(ctx context.Context, req RPCRequest) (RPCResponse, error) {
 		return RPCResponse{}, fmt.Errorf("marshal request: %w", err)
 	}
 
-	resp, sessionID, err := c.doHTTP(ctx, body)
+	resp, err := c.send(ctx, body)
 	if err != nil {
 		return RPCResponse{}, err
 	}
+	defer resp.Body.Close() //nolint:errcheck
 
-	if resp.StatusCode == http.StatusConflict {
-		newID, err := c.refreshSessionID(ctx, sessionID)
-		if err != nil {
-			return RPCResponse{}, fmt.Errorf("refresh session id: %w", err)
-		}
-		resp.Body.Close()
-		resp, err = c.doHTTPWithSession(ctx, body, newID)
-		if err != nil {
-			return RPCResponse{}, err
-		}
-	}
-
-	defer resp.Body.Close()
 	var rpcResp RPCResponse
 	if err := json.NewDecoder(resp.Body).Decode(&rpcResp); err != nil {
 		return RPCResponse{}, fmt.Errorf("decode response: %w", err)
@@ -134,7 +122,7 @@ func (c *Client) refreshSessionID(ctx context.Context, staleID string) (string, 
 		if err != nil {
 			return "", fmt.Errorf("fetch session id: %w", err)
 		}
-		defer resp.Body.Close()
+		defer resp.Body.Close()        //nolint:errcheck
 		io.Copy(io.Discard, resp.Body) //nolint:errcheck
 
 		newID := resp.Header.Get(sessionIDHeader)
@@ -154,30 +142,46 @@ func (c *Client) refreshSessionID(ctx context.Context, staleID string) (string, 
 // DoRaw forwards a raw JSON body to Transmission and returns the raw response body.
 // Used by the HTTP proxy to avoid double-encoding.
 func (c *Client) DoRaw(ctx context.Context, body []byte) ([]byte, error) {
+	resp, err := c.send(ctx, body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response: %w", err)
+	}
+	return data, nil
+}
+
+// send posts body to Transmission, refreshing the session ID and retrying once
+// on 409. Any other status than 200 is an error, so an auth failure surfaces
+// as such instead of as an HTML page passed off as an RPC response. On success
+// the caller owns the response body.
+func (c *Client) send(ctx context.Context, body []byte) (*http.Response, error) {
 	resp, sessionID, err := c.doHTTP(ctx, body)
 	if err != nil {
 		return nil, err
 	}
 
 	if resp.StatusCode == http.StatusConflict {
+		resp.Body.Close() //nolint:errcheck
 		newID, err := c.refreshSessionID(ctx, sessionID)
 		if err != nil {
-			resp.Body.Close()
 			return nil, fmt.Errorf("refresh session id: %w", err)
 		}
-		resp.Body.Close()
 		resp, err = c.doHTTPWithSession(ctx, body, newID)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	defer resp.Body.Close()
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read response: %w", err)
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close() //nolint:errcheck
+		return nil, fmt.Errorf("unexpected http status: %s", resp.Status)
 	}
-	return data, nil
+	return resp, nil
 }
 
 // GetTorrents returns the full torrent list.
